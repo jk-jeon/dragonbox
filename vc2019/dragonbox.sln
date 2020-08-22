@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30413.136
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dragonbox", "dragonbox.vcxproj", "{E4F6E6D8-2EB6-45C4-A792-EF1C6D4689CE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+		ReleaseClang|x64 = ReleaseClang|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E4F6E6D8-2EB6-45C4-A792-EF1C6D4689CE}.Debug|x64.ActiveCfg = Debug|x64
+		{E4F6E6D8-2EB6-45C4-A792-EF1C6D4689CE}.Debug|x64.Build.0 = Debug|x64
+		{E4F6E6D8-2EB6-45C4-A792-EF1C6D4689CE}.Release|x64.ActiveCfg = Release|x64
+		{E4F6E6D8-2EB6-45C4-A792-EF1C6D4689CE}.Release|x64.Build.0 = Release|x64
+		{E4F6E6D8-2EB6-45C4-A792-EF1C6D4689CE}.ReleaseClang|x64.ActiveCfg = ReleaseClang|x64
+		{E4F6E6D8-2EB6-45C4-A792-EF1C6D4689CE}.ReleaseClang|x64.Build.0 = ReleaseClang|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8056C5D0-5B9A-4164-9656-185F705442CA}
+	EndGlobalSection
+EndGlobal

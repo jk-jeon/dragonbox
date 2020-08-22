@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="tests">
+      <UniqueIdentifier>{8161187a-3e27-4c59-a706-d4339b978dbb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="benchmark">
+      <UniqueIdentifier>{c6b258eb-3d23-4551-b050-4bddb549a80a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\Headers">
+      <UniqueIdentifier>{96c8823e-e0ba-482a-8f52-41bbffa4eb02}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="fp_to_chars">
+      <UniqueIdentifier>{10e7a7bb-c52d-42a7-808c-1d5b9431e28a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="benchmark\ryu">
+      <UniqueIdentifier>{f975d73d-6869-49ce-89fd-797bb92b72b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="benchmark\grisu_exact">
+      <UniqueIdentifier>{f028d166-db8a-48b3-9e35-71fa6314a4ac}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\tests\main.cpp" />
+    <ClCompile Include="..\tests\generate_cache.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tests\verify_log_computation.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tests\live_test.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tests\misc_test.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fp_to_chars\fp_to_chars.cpp">
+      <Filter>fp_to_chars</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tests\uniform_random_perf_test.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tests\uniform_random_test.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\benchmark\ryu\d2s.c">
+      <Filter>benchmark\ryu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\benchmark\ryu\f2s.c">
+      <Filter>benchmark\ryu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\benchmark\benchmark.cpp">
+      <Filter>benchmark</Filter>
+    </ClCompile>
+    <ClCompile Include="..\benchmark\ryu.cpp">
+      <Filter>benchmark</Filter>
+    </ClCompile>
+    <ClCompile Include="..\benchmark\dragonbox.cpp">
+      <Filter>benchmark</Filter>
+    </ClCompile>
+    <ClCompile Include="..\benchmark\grisu_exact.cpp">
+      <Filter>benchmark</Filter>
+    </ClCompile>
+    <ClCompile Include="..\benchmark\grisu_exact\fp_to_chars2.cpp">
+      <Filter>benchmark\grisu_exact</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\tests\bigint.h">
+      <Filter>tests\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\dragonbox.h" />
+    <ClInclude Include="..\fp_to_chars.h" />
+    <ClInclude Include="..\tests\random_float.h">
+      <Filter>tests\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\ryu\common.h">
+      <Filter>benchmark\ryu</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\ryu\d2s.h">
+      <Filter>benchmark\ryu</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\ryu\d2s_full_table.h">
+      <Filter>benchmark\ryu</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\ryu\d2s_intrinsics.h">
+      <Filter>benchmark\ryu</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\ryu\digit_table.h">
+      <Filter>benchmark\ryu</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\ryu\f2s_full_table.h">
+      <Filter>benchmark\ryu</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\ryu\f2s_intrinsics.h">
+      <Filter>benchmark\ryu</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\ryu\ryu.h">
+      <Filter>benchmark\ryu</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\benchmark.h">
+      <Filter>benchmark</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\grisu_exact\fp_to_chars.h">
+      <Filter>benchmark\grisu_exact</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\grisu_exact\grisu_exact.h">
+      <Filter>benchmark\grisu_exact</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
