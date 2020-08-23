@@ -114,7 +114,7 @@ int floor_log2_pow10_precise(int e)
 int floor_log5_pow2_precise(int e)
 {
 	using namespace jkj::dragonbox_detail::log_compute;
-	constexpr auto c = floor_shift(0, log10_2_fractional_digits, floor_log10_pow2_shift_amount);
+	constexpr auto c = floor_shift(0, log5_2_fractional_digits, floor_log5_pow2_shift_amount);
 
 	// Compute the maximum possible e
 	constexpr auto max_exponent_upper_bound =
@@ -142,6 +142,42 @@ int floor_log5_pow2_precise(int e)
 	}
 
 	return is_negative ? -k : k - 1;
+}
+
+int floor_log5_pow2_minus_log5_3_precise(int e)
+{
+	using namespace jkj::dragonbox_detail::log_compute;
+	constexpr auto c = floor_shift(0, log5_2_fractional_digits, floor_log5_pow2_shift_amount);
+
+	// Compute the maximum possible e
+	constexpr auto max_exponent_upper_bound =
+		std::uint32_t(std::numeric_limits<std::int32_t>::max() / c);
+
+	// Compute the required number of bits
+	constexpr std::size_t required_bits = max_exponent_upper_bound + 1;
+	using bigint = jkj::dragonbox_detail::bigint<required_bits>;
+
+	if (e < 0) {
+		e = -e;
+		auto power_of_2 = bigint::power_of_2(std::size_t(e));
+		auto power_of_5_times_3 = bigint(3);
+		int k = 0;
+		while (power_of_5_times_3 < power_of_2) {
+			power_of_5_times_3.multiply_5();
+			++k;
+		}
+		return -k;
+	}
+	else {
+		auto power_of_2_times_3 = bigint::power_of_2(std::size_t(e)) * 3;
+		auto power_of_5 = bigint(1);
+		int k = 0;
+		while (power_of_5 <= power_of_2_times_3) {
+			power_of_5.multiply_5();
+			++k;
+		}
+		return k - 1;
+	}
 }
 
 template <
@@ -262,4 +298,10 @@ void verify_log_computation()
 		0, 0,
 		floor_log5_pow2_shift_amount
 	>("floor_log5_pow2", floor_log5_pow2_precise);
+
+	verify<
+		0, log5_2_fractional_digits,
+		0, log5_3_fractional_digits,
+		floor_log5_pow2_shift_amount
+	>("floor_log5_pow2_minus_log5_3", floor_log5_pow2_minus_log5_3_precise);
 }

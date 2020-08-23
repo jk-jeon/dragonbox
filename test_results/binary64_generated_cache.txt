@@ -1,5 +1,4 @@
 static constexpr wide_uint::uint128 cache[] = {
-	{ 0x9faacf3df73609b1, 0x77b191618c54e9ad },
 	{ 0xc795830d75038c1d, 0xd59df5b9ef6a2418 },
 	{ 0xf97ae3d0d2446f25, 0x4b0573286b44ad1e },
 	{ 0x9becce62836ac577, 0x4ee367f9430aec33 },

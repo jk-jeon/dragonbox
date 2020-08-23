@@ -50,7 +50,6 @@ namespace jkj {
 			template <class UInt>
 			inline int countr_zero(UInt n) noexcept {
 				static_assert(std::is_unsigned_v<UInt> && sizeof(UInt) <= 8);
-				assert(n != 0);
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
 #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 1
 				if constexpr (std::is_same_v<UInt, unsigned long>) {
@@ -78,11 +77,11 @@ namespace jkj {
 
 				auto n32 = std::uint32_t(n);
 				if constexpr (sizeof(UInt) == 8) {
-					if (n == n32) {
-						count -= 32;
-					}
-					else if (n32 == 0) {
+					if (n32 == 0) {
 						n32 = std::uint32_t(n >> 32);
+					}
+					else if (n == n32) {
+						count -= 32;
 					}
 				}
 				if constexpr (sizeof(UInt) >= 4) {
@@ -219,7 +218,7 @@ namespace jkj {
 		}
 
 		////////////////////////////////////////////////////////////////////////////////////////
-		// Utilities for fast and constexpr log computation
+		// Utilities for fast/constexpr log computation
 		////////////////////////////////////////////////////////////////////////////////////////
 
 		namespace log_compute {
@@ -240,17 +239,20 @@ namespace jkj {
 			// Compute floor(e * c - s)
 			template <
 				std::uint32_t c_integer_part,
-				std::uint64_t c_fractional_digits,
-				std::uint32_t s_integer_part,
-				std::uint64_t s_fractional_digits,
+				std::uint64_t c_fractional_digits,				
 				std::size_t shift_amount,
-				std::int32_t max_exponent
+				std::int32_t max_exponent,
+				std::uint32_t s1_integer_part = 0,
+				std::uint64_t s1_fractional_digits = 0,
+				std::uint32_t s2_integer_part = 0,
+				std::uint64_t s2_fractional_digits = 0
 			>
-			constexpr int compute(int e) noexcept {
+			constexpr int compute(int e, bool select_first = true) noexcept {
 				assert(e <= max_exponent && e >= -max_exponent);
 				constexpr auto c = floor_shift(c_integer_part, c_fractional_digits, shift_amount);
-				constexpr auto s = floor_shift(s_integer_part, s_fractional_digits, shift_amount);
-				return int((std::int32_t(e) * c - s) >> shift_amount);
+				constexpr auto s1 = floor_shift(s1_integer_part, s1_fractional_digits, shift_amount);
+				constexpr auto s2 = floor_shift(s2_integer_part, s2_fractional_digits, shift_amount);
+				return int((std::int32_t(e) * c - (select_first ? s1 : s2)) >> shift_amount);
 			}
 
 			static constexpr std::uint64_t log10_2_fractional_digits{ 0x4d10'4d42'7de7'fbcc };
@@ -261,22 +263,26 @@ namespace jkj {
 			constexpr std::size_t floor_log2_pow10_shift_amount = 19;
 
 			static constexpr std::uint64_t log5_2_fractional_digits{ 0x6e40'd1a4'143d'cb94 };
+			static constexpr std::uint64_t log5_3_fractional_digits{ 0xaebf'4791'5d44'3b24 };
 			constexpr std::size_t floor_log5_pow2_shift_amount = 20;
+
+			// For constexpr computation
+			// Returns -1 when n = 0
+			template <class UInt>
+			constexpr int floor_log2(UInt n) noexcept {
+				int count = -1;
+				while (n != 0) {
+					++count;
+					n >>= 1;
+				}
+				return count;
+			}
 		}
 
 		constexpr int floor_log10_pow2(int e) noexcept {
 			using namespace log_compute;
 			return compute<
 				0, log10_2_fractional_digits,
-				0, 0,
-				floor_log10_pow2_shift_amount, 1700>(e);
-		}
-
-		constexpr int floor_log10_pow2_minus_log10_4_over_3(int e) noexcept {
-			using namespace log_compute;
-			return compute<
-				0, log10_2_fractional_digits,
-				0, log10_4_over_3_fractional_digits,
 				floor_log10_pow2_shift_amount, 1700>(e);
 		}
 
@@ -284,7 +290,6 @@ namespace jkj {
 			using namespace log_compute;
 			return compute<
 				3, log2_10_fractional_digits,
-				0, 0,
 				floor_log2_pow10_shift_amount, 1233>(e);
 		}
 
@@ -292,8 +297,25 @@ namespace jkj {
 			using namespace log_compute;
 			return compute<
 				0, log5_2_fractional_digits,
-				0, 0,
 				floor_log5_pow2_shift_amount, 1492>(e);
+		}
+
+		constexpr int floor_log5_pow2_minus_log5_3(int e) noexcept {
+			using namespace log_compute;
+			return compute<
+				0, log5_2_fractional_digits,
+				floor_log5_pow2_shift_amount, 2427,
+				0, log5_3_fractional_digits>(e);
+		}
+
+		template <int initial_kappa>
+		constexpr int floor_log10_pow2_sub(int e, bool subtract_larger) noexcept {
+			using namespace log_compute;
+			return compute<
+				0, log10_2_fractional_digits,
+				floor_log10_pow2_shift_amount, 1700,
+				std::uint32_t(initial_kappa), log10_4_over_3_fractional_digits,
+				std::uint32_t(initial_kappa), 0>(e, subtract_larger);
 		}
 
 		////////////////////////////////////////////////////////////////////////////////////////
@@ -365,6 +387,17 @@ namespace jkj {
 			}
 		}
 
+
+		template <int k, class Int>
+		static constexpr Int compute_power(Int a) {
+			static_assert(k >= 0);
+			Int p = 1;
+			for (int i = 0; i < k; ++i) {
+				p *= a;
+			}
+			return p;
+		}
+
 		template <class Float>
 		struct common_info {
 			using float_type = Float;
@@ -408,10 +441,19 @@ namespace jkj {
 			static_assert(min_exponent < 0 && max_exponent > 0 && -min_exponent >= max_exponent);
 			static_assert(min_exponent == 1 + exponent_bias - int(extended_precision) + 1);
 
-			static constexpr int min_k = -floor_log10_pow2(
-				int(max_exponent + extended_precision - precision - 1)) + 1;
-			static constexpr int max_k = -floor_log10_pow2_minus_log10_4_over_3(
-					int(min_exponent + extended_precision - precision - 3)) + 1;
+			static constexpr int initial_kappa = sizeof(Float) == 4 ? 1 : 2;
+			static_assert(initial_kappa >= 1);
+			static_assert(extended_precision >= precision + 3 + floor_log2_pow10(initial_kappa + 1));
+
+			static constexpr int min_k = -floor_log10_pow2_sub<initial_kappa>(
+				int(max_exponent + extended_precision - precision - 1), false);
+			static constexpr int max_k = [] {
+				constexpr auto a = -floor_log10_pow2_sub<initial_kappa>(
+					int(min_exponent + extended_precision - precision), true);
+				constexpr auto b = -floor_log10_pow2_sub<initial_kappa>(
+					int(min_exponent + extended_precision - precision - 1), false);
+				return a > b ? a : b;
+			}();
 
 			static constexpr std::size_t cache_precision = extended_precision * 2;
 
@@ -424,6 +466,41 @@ namespace jkj {
 			static constexpr int max_power_of_factor_of_5 = floor_log5_pow2(int(precision + 2));
 			static constexpr int divtest_table_size = (decimal_digits > max_power_of_factor_of_5)
 				? decimal_digits : max_power_of_factor_of_5 + 1;
+
+			static constexpr int case_fc_minus_2_to_the_q_mp_m3_lower_threshold =
+				-int(extended_precision - precision - 2) - initial_kappa +
+				floor_log5_pow2_minus_log5_3(initial_kappa + 1);
+			static constexpr int case_fc_minus_2_to_the_q_mp_m3_upper_threshold =
+				-int(extended_precision - precision - 3) +
+				log_compute::floor_log2(compute_power<initial_kappa + 1>(10) / 3);
+
+			static constexpr int case_fc_pm_2_to_the_q_mp_m2_long_delta_lower_threshold =
+				-int(extended_precision - precision - 1) - initial_kappa -
+				floor_log5_pow2(initial_kappa);
+			static constexpr int case_fc_pm_2_to_the_q_mp_m2_long_delta_upper_threshold =
+				-int(extended_precision - precision - 1) +
+				floor_log2_pow10(initial_kappa + 1);
+
+			static constexpr int case_fc_plus_2_to_the_q_mp_m2_irregular_delta_lower_threshold =
+				-int(extended_precision - precision - 1) - initial_kappa -
+				floor_log5_pow2_minus_log5_3(initial_kappa + 2);
+			static constexpr int case_fc_plus_2_to_the_q_mp_m2_irregular_delta_upper_threshold =
+				-int(extended_precision - precision - 3) +
+				log_compute::floor_log2(compute_power<initial_kappa + 1>(10) / 3);
+
+			static constexpr int case_fc_long_delta_lower_threshold =
+				-int(extended_precision - precision) - initial_kappa -
+				floor_log5_pow2(initial_kappa + 1);
+			static constexpr int case_fc_long_delta_upper_threshold =
+				-int(extended_precision - precision - 1) +
+				floor_log2_pow10(initial_kappa + 1);
+
+			static constexpr int case_fc_irregular_delta_lower_threshold =
+				-int(extended_precision - precision) - initial_kappa -
+				floor_log5_pow2_minus_log5_3(initial_kappa + 3);
+			static constexpr int case_fc_irregular_delta_upper_threshold =
+				-int(extended_precision - precision - 3) +
+				log_compute::floor_log2(compute_power<initial_kappa + 1>(10) / 3);
 		};
 
 		////////////////////////////////////////////////////////////////////////////////////////
@@ -512,15 +589,13 @@ namespace jkj {
 				0xe596b7b0c643c719,
 				0x8f7e32ce7bea5c6f,
 				0xb35dbf821ae4f38b,
-				0xe0352f62a19e306e,
-				0x8c213d9da502de45
+				0xe0352f62a19e306e
 			};
 		};
 
 		template <>
 		struct cache_holder<double> {
 			static constexpr wide_uint::uint128 cache[] = {
-				{ 0x9faacf3df73609b1, 0x77b191618c54e9ad },
 				{ 0xc795830d75038c1d, 0xd59df5b9ef6a2418 },
 				{ 0xf97ae3d0d2446f25, 0x4b0573286b44ad1e },
 				{ 0x9becce62836ac577, 0x4ee367f9430aec33 },
@@ -1472,6 +1547,239 @@ namespace jkj {
 				return{ br.f % 2 == 0 };
 			}
 		};
+		struct nearest_to_odd {
+			static constexpr tag_t tag = to_nearest_tag;
+
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+					br, *this);
+			}
+			template <class Float>
+			constexpr interval_type::symmetric_boundary operator()(bit_representation_t<Float> br) const noexcept {
+				return{ br.f % 2 != 0 };
+			}
+		};
+		struct nearest_toward_plus_infinity {
+			static constexpr tag_t tag = to_nearest_tag;
+
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+					br, *this);
+			}
+			template <class Float>
+			constexpr interval_type::asymmetric_boundary operator()(bit_representation_t<Float> br) const noexcept {
+				return{ !br.is_negative() };
+			}
+		};
+		struct nearest_toward_minus_infinity {
+			static constexpr tag_t tag = to_nearest_tag;
+
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+					br, *this);
+			}
+			template <class Float>
+			constexpr interval_type::asymmetric_boundary operator()(bit_representation_t<Float> br) const noexcept {
+				return{ br.is_negative() };
+			}
+		};
+		// This may generate the fastest code among nearest rounding modes
+		struct nearest_toward_zero {
+			static constexpr tag_t tag = to_nearest_tag;
+
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+					br, *this);
+			}
+			template <class Float>
+			constexpr interval_type::right_closed_left_open operator()(bit_representation_t<Float>) const noexcept {
+				return{};
+			}
+		};
+		struct nearest_away_from_zero {
+			static constexpr tag_t tag = to_nearest_tag;
+
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+					br, *this);
+			}
+			template <class Float>
+			constexpr interval_type::left_closed_right_open operator()(bit_representation_t<Float>) const noexcept {
+				return{};
+			}
+		};
+
+		namespace detail {
+			struct nearest_always_closed {
+				static constexpr tag_t tag = to_nearest_tag;
+
+				template <class Float>
+				constexpr interval_type::closed operator()(bit_representation_t<Float>) const noexcept {
+					return{};
+				}
+			};
+			struct nearest_always_open {
+				static constexpr tag_t tag = to_nearest_tag;
+
+				template <class Float>
+				constexpr interval_type::open operator()(bit_representation_t<Float>) const noexcept {
+					return{};
+				}
+			};
+		}
+
+		// Same as nearest_to_even, but generate separate codes for
+		// different boundary conditions; may produce faster (or slower) code, but bigger binary
+		struct nearest_to_even_static_boundary {
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				if (br.f % 2 == 0) {
+					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+						br, detail::nearest_always_closed{});
+				}
+				else {
+					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+						br, detail::nearest_always_open{});
+				}
+			}
+		};
+		// Same as nearest_to_odd, but generate separate codes for
+		// different boundary conditions; may produce faster (or slower) code, but bigger binary
+		struct nearest_to_odd_static_boundary {
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				if (br.f % 2 == 0) {
+					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+						br, detail::nearest_always_open{});
+				}
+				else {
+					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+						br, detail::nearest_always_closed{});
+				}
+			}
+		};
+		// Same as nearest_toward_plus_infinity, but generate separate codes for
+		// different boundary conditions; may produce faster (or slower) code, but bigger binary
+		struct nearest_toward_plus_infinity_static_boundary {
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				if (br.is_negative()) {
+					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+						br, nearest_toward_zero{});
+				}
+				else {
+					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+						br, nearest_away_from_zero{});
+				}
+			}
+		};
+		// Same as nearest_toward_minus_infinity, but generate separate codes for
+		// different boundary conditions; may produce faster (or slower) code, but bigger binary
+		struct nearest_toward_minus_infinity_static_boundary {
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				if (br.is_negative()) {
+					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+						br, nearest_away_from_zero{});
+				}
+				else {
+					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+						br, nearest_toward_zero{});
+				}
+			}
+		};
+
+		namespace detail {
+			struct left_closed_directed {
+				static constexpr tag_t tag = left_closed_directed_tag;
+
+				template <class Float>
+				constexpr interval_type::left_closed_right_open operator()(bit_representation_t<Float>) const noexcept {
+					return{};
+				}
+			};
+			struct right_closed_directed {
+				static constexpr tag_t tag = right_closed_directed_tag;
+
+				template <class Float>
+				constexpr interval_type::right_closed_left_open operator()(bit_representation_t<Float>) const noexcept {
+					return{};
+				}
+			};
+		}
+
+		struct toward_plus_infinity {
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				if (br.is_negative()) {
+					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+						br, detail::left_closed_directed{});
+
+				}
+				else {
+					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+						br, detail::right_closed_directed{});
+				}
+			}
+		};
+		struct toward_minus_infinity {
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				if (br.is_negative()) {
+					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+						br, detail::right_closed_directed{});
+				}
+				else {
+					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+						br, detail::left_closed_directed{});
+				}
+			}
+		};
+		struct toward_zero {
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+					br, detail::left_closed_directed{});
+			}
+		};
+		struct away_from_zero {
+			template <bool return_sign, class Float, class CorrectRoundingSearch>
+			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
+				CorrectRoundingSearch&& crs) const
+			{
+				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
+					br, detail::right_closed_directed{});
+			}
+		};
 	};
 
 	namespace dragonbox_detail {
@@ -1500,6 +1808,17 @@ namespace jkj {
 			using common_info<Float>::boundary_bit;
 			using common_info<Float>::normal_interval_length;
 			using common_info<Float>::closer_boundary_bit;
+			using common_info<Float>::initial_kappa;
+			using common_info<Float>::case_fc_minus_2_to_the_q_mp_m3_lower_threshold;
+			using common_info<Float>::case_fc_minus_2_to_the_q_mp_m3_upper_threshold;
+			using common_info<Float>::case_fc_pm_2_to_the_q_mp_m2_long_delta_lower_threshold;
+			using common_info<Float>::case_fc_pm_2_to_the_q_mp_m2_long_delta_upper_threshold;
+			using common_info<Float>::case_fc_plus_2_to_the_q_mp_m2_irregular_delta_lower_threshold;
+			using common_info<Float>::case_fc_plus_2_to_the_q_mp_m2_irregular_delta_upper_threshold;
+			using common_info<Float>::case_fc_long_delta_lower_threshold;
+			using common_info<Float>::case_fc_long_delta_upper_threshold;
+			using common_info<Float>::case_fc_irregular_delta_lower_threshold;
+			using common_info<Float>::case_fc_irregular_delta_upper_threshold;
 			using common_info<Float>::decimal_digits;
 			using common_info<Float>::divtest_table_size;
 
@@ -1553,12 +1872,9 @@ namespace jkj {
 				}
 
 				// Compute k and beta
-				int const minus_k = closer_boundary
-					? floor_log10_pow2_minus_log10_4_over_3(exponent + int(extended_precision - precision - 1)) - 1
-					: floor_log10_pow2(exponent + int(extended_precision - precision - 1)) - 1;
+				int const minus_k = floor_log10_pow2_sub<initial_kappa>(
+					exponent + int(extended_precision - precision - 1), closer_boundary);
 				int const minus_beta = -(exponent + floor_log2_pow10(-minus_k) + 1);
-				assert(extended_precision - precision - 9 <= minus_beta &&
-					minus_beta <= extended_precision - precision - 5);
 
 				// Compute zi and deltai
 				auto const cache = jkj::dragonbox_detail::get_cache<Float>(-minus_k);
@@ -1586,16 +1902,17 @@ namespace jkj {
 				}
 				auto deltai = compute_delta<IntervalTypeProvider::tag>(closer_boundary, cache, minus_beta);
 
-				ret_value.exponent = minus_k + 2;
+				ret_value.exponent = minus_k + initial_kappa + 1;
 
 
 				//////////////////////////////////////////////////////////////////////
 				// Step 2: Compute the exponent
 				//////////////////////////////////////////////////////////////////////
 
-				// Can we reduce the significand twice?
-				ret_value.significand = zi / 100;
-				auto remainder = std::uint32_t(zi % 100);
+				constexpr auto big_divisor = compute_power<initial_kappa + 1>(std::uint32_t(10));
+				constexpr auto small_divisor = compute_power<initial_kappa>(std::uint32_t(10));
+				ret_value.significand = zi / big_divisor;
+				auto remainder = std::uint32_t(zi % big_divisor);
 
 				if (remainder > deltai) {
 					goto correct_rounding_search_label;
@@ -1618,7 +1935,7 @@ namespace jkj {
 						{
 							--ret_value.exponent;
 							ret_value.significand *= 10;
-							ret_value.significand += (remainder / 10);
+							ret_value.significand += (remainder / small_divisor);
 							goto remove_trailing_zeros_label;
 						}
 						// For the others, we need to exclude the right endpoint if necessary
@@ -1627,9 +1944,9 @@ namespace jkj {
 						{
 							--ret_value.exponent;
 							ret_value.significand *= 10;
-							ret_value.significand += (remainder / 10);
+							ret_value.significand += (remainder / small_divisor);
 
-							if (remainder % 10 == 0) {
+							if (remainder % small_divisor == 0) {
 								// We are sure that the intersection should be nonempty
 								--ret_value.significand;
 							}
@@ -1650,8 +1967,8 @@ namespace jkj {
 			correct_rounding_search_label:
 				--ret_value.exponent;
 				ret_value.significand *= 10;
-				ret_value.significand += (remainder / 10);
-				remainder %= 10;
+				ret_value.significand += (remainder / small_divisor);
+				remainder %= small_divisor;
 
 				// For right-closed directed rounding, the greatest one is the closest one
 				if constexpr (IntervalTypeProvider::tag ==
@@ -1681,7 +1998,7 @@ namespace jkj {
 				}
 				// Correct rounding search for nearest rounding
 				else {
-					auto displacement = remainder + 5;
+					auto displacement = remainder + (small_divisor / 2);
 					auto const epsiloni = compute_delta<dragonbox_rounding_modes::left_closed_directed_tag>(
 						false, cache, minus_beta + 1);
 
@@ -1690,10 +2007,10 @@ namespace jkj {
 						auto const approx_y = zi - epsiloni;
 
 						displacement = epsiloni - displacement;
-						auto steps = displacement / 10 + 1;
+						auto steps = displacement / small_divisor + 1;
 
 						// Check fractional if necessary
-						if (displacement % 10 == 0) {
+						if (displacement % small_divisor == 0) {
 							auto const yi = compute_mul(significand, cache, minus_beta);
 							// We have either yi == approx_y or yi == approx_y - 1
 							if (yi == approx_y) {
@@ -1749,10 +2066,10 @@ namespace jkj {
 						if (steps == 1 && closer_boundary) {
 							// We know already r is at most deltai
 							deltai -= std::uint32_t(remainder);
-							if (deltai < 10) {
+							if (deltai < small_divisor) {
 								goto remove_trailing_zeros_label;
 							}
-							else if (deltai == 10) {
+							else if (deltai == small_divisor) {
 								// See the test result of verify_incorrect_rounding_removal.cpp
 								if constexpr (sizeof(Float) == 4) {
 									if (exponent == 59) {
@@ -1773,7 +2090,7 @@ namespace jkj {
 
 
 				//////////////////////////////////////////////////////////////////////
-				// Step 4: Remove trailingzeros and return
+				// Step 4: Remove trailing zeros and return
 				//////////////////////////////////////////////////////////////////////
 				
 			remove_trailing_zeros_label:
@@ -1808,6 +2125,7 @@ namespace jkj {
 					// both of the quotient and the remainder should fit in 32-bits
 					auto quotient_candidate = ret_value.significand * divtest_table.mod_inverses[8];
 
+					// If the number is divisible by 1'0000'0000, work with the quotient
 					if (t >= 8 && quotient_candidate <= divtest_table.max_quotients[8]) {
 						auto quotient = std::uint32_t(quotient_candidate >> 8);
 						constexpr auto mod_inverse = std::uint32_t(divtest_table.mod_inverses[1]);
@@ -1827,6 +2145,7 @@ namespace jkj {
 						ret_value.significand = quotient;
 						ret_value.exponent += s;
 					}
+					// Otherwise, work with the number itself
 					else {
 						constexpr auto mod_inverse = divtest_table.mod_inverses[1];
 						constexpr auto max_quotient = divtest_table.max_quotients[1];
@@ -1881,24 +2200,19 @@ namespace jkj {
 					if (closer_boundary) {
 						r = (r >> 1) + (r >> 2);
 					}
-
-					assert(minus_beta < q_mp_m1);
 					return std::uint32_t(r >> (intermediate_precision - q_mp_m1 + minus_beta));
 				}
 				// For left-directed rounding
 				else if constexpr (tag == dragonbox_rounding_modes::left_closed_directed_tag)
 				{
-					assert(minus_beta < q_mp_m1);
 					return std::uint32_t(r >> (intermediate_precision - q_mp_m1 + minus_beta));
 				}
 				// For right-directed rounding
 				else {
 					if (closer_boundary) {
-						assert(minus_beta < q_mp_m1 - 1);
 						return std::uint32_t(r >> (intermediate_precision - (q_mp_m1 - 1) + minus_beta));
 					}
 					else {
-						assert(minus_beta < q_mp_m1);
 						return std::uint32_t(r >> (intermediate_precision - q_mp_m1 + minus_beta));
 					}
 				}
@@ -1930,17 +2244,17 @@ namespace jkj {
 				// Case I: f = fc - 2^(q-p-3), delta = 3 * 2^(e+q-p-3)
 				if constexpr (case_id == integer_check_case_id::fc_minus_2_to_the_q_mp_m3)
 				{
-					return exponent <= -int(extended_precision - precision - 8) &&
-						exponent >= -int(extended_precision - precision - 3);
+					return exponent >= case_fc_minus_2_to_the_q_mp_m3_lower_threshold &&
+						exponent <= case_fc_minus_2_to_the_q_mp_m3_upper_threshold;
 				}
 				// Case II: f = fc +- 2^(q-p-2), delta = 2^(e+q-p-1)
 				else if constexpr (case_id == integer_check_case_id::fc_pm_2_to_the_q_mp_m2_long_delta)
 				{
-					if (exponent < -int(extended_precision - precision - 1)) {
+					if (exponent < case_fc_pm_2_to_the_q_mp_m2_long_delta_lower_threshold) {
 						return false;
 					}
 					// For k >= 0
-					else if (exponent <= -int(extended_precision - precision - 7)) {
+					else if (exponent <= case_fc_pm_2_to_the_q_mp_m2_long_delta_upper_threshold) {
 						return true;
 					}
 					// For k < 0
@@ -1951,23 +2265,23 @@ namespace jkj {
 				// Case III: f = fc + 2^(q-p-2), delta = 3 * 2^(e+q-p-3)
 				else if constexpr (case_id == integer_check_case_id::fc_plus_2_to_the_q_mp_m2_irregular_delta)
 				{
-					return exponent <= -int(extended_precision - precision - 8) &&
-						exponent >= -int(extended_precision - precision);
+					return exponent >= case_fc_plus_2_to_the_q_mp_m2_irregular_delta_lower_threshold &&
+						exponent <= case_fc_plus_2_to_the_q_mp_m2_irregular_delta_upper_threshold;
 				}
 				// Case IV: f = fc + 2^(q-p-1), delta = 2^(e+q-p-1)
 				// Case V: f = fc, delta = 2^(e+q-p-1)
 				// Case VI: f = fc, delta = 3 * 2^(e+q-p-3)
 				else
 				{
-					constexpr int upper_threshold =
-						case_id == integer_check_case_id::fc_irregular_delta ?
-						-int(extended_precision - precision - 8) :
-						-int(extended_precision - precision - 7);
-
 					constexpr int lower_threshold =
 						case_id == integer_check_case_id::fc_irregular_delta ?
-						-int(extended_precision - precision + 2) :
-						-int(extended_precision - precision + 1);
+						case_fc_irregular_delta_lower_threshold :
+						case_fc_long_delta_lower_threshold;
+
+					constexpr int upper_threshold =
+						case_id == integer_check_case_id::fc_irregular_delta ?
+						case_fc_irregular_delta_upper_threshold :
+						case_fc_long_delta_upper_threshold;
 
 					// Exponent for 5 is negative
 					if (exponent > upper_threshold) {
@@ -2094,7 +2408,7 @@ namespace jkj {
 
 	template <bool return_sign = true, class Float,
 		class RoundingMode = dragonbox_rounding_modes::nearest_to_even,
-		class CorrectRoundingSearch = int,
+		class CorrectRoundingSearch = dragonbox_correct_rounding::tie_to_even,
 		class CaseHandler = dragonbox_case_handlers::assert_finite
 	>
 	fp_t<Float, return_sign> dragonbox(Float x,

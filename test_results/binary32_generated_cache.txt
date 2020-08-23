@@ -75,6 +75,5 @@ static constexpr std::uint64_t cache[] = {
 	0xe596b7b0c643c719,
 	0x8f7e32ce7bea5c6f,
 	0xb35dbf821ae4f38b,
-	0xe0352f62a19e306e,
-	0x8c213d9da502de45
+	0xe0352f62a19e306e
 };

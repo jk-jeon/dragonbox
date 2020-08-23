@@ -64,6 +64,9 @@
     <ClCompile Include="..\benchmark\grisu_exact\fp_to_chars2.cpp">
       <Filter>benchmark\grisu_exact</Filter>
     </ClCompile>
+    <ClCompile Include="..\tests\verify_incorrect_rounding_removal.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\tests\bigint.h">

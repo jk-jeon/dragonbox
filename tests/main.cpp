@@ -29,6 +29,10 @@ extern void verify_log_computation();
 //#define GENERATE_CACHE
 extern void generate_cache();
 
+// Check if the simplification of the incorrect rounding removal is correct
+//#define VERIFY_INCORRECT_ROUNDING_REMOVAL
+extern void verify_incorrect_rounding_removal();
+
 // Generate random float's and test Grisu-Exact's output
 //#define UNIFORM_RANDOM_TEST_FLOAT
 static std::size_t number_of_uniform_random_tests_float = 10000000;
@@ -45,7 +49,7 @@ static std::size_t number_of_uniform_random_perf_tests_float = 100000000;
 extern void uniform_random_perf_test_float(std::size_t number_of_tests);
 
 // Run Grisu-Exact algorithm with randomly generated inputs
-#define UNIFORM_RANDOM_PERF_TEST_DOUBLE
+//#define UNIFORM_RANDOM_PERF_TEST_DOUBLE
 static std::size_t number_of_uniform_random_perf_tests_double = 100000000;
 extern void uniform_random_perf_test_double(std::size_t number_of_tests);
 
@@ -62,18 +66,18 @@ extern void live_test_double();
 extern void misc_test();
 
 // Do benchmark for binary32
-//#define BENCHMARK_TEST_FLOAT
+#define BENCHMARK_TEST_FLOAT
 static std::size_t number_of_uniform_benchmark_samples_float = 1000000;
 static std::size_t number_of_digits_benchmark_samples_per_digits_float = 100000;
-static std::size_t number_of_benchmark_iterations_float = 100;
+static std::size_t number_of_benchmark_iterations_float = 1000;
 extern void benchmark_test_float(std::size_t number_of_uniform_samples,
 	std::size_t number_of_digits_samples_per_digits, std::size_t number_of_iterations);
 
 // Do benchmark for binary64
-//#define BENCHMARK_TEST_DOUBLE
+#define BENCHMARK_TEST_DOUBLE
 static std::size_t number_of_uniform_benchmark_samples_double = 1000000;
 static std::size_t number_of_digits_benchmark_samples_per_digits_double = 100000;
-static std::size_t number_of_benchmark_iterations_double = 100;
+static std::size_t number_of_benchmark_iterations_double = 1000;
 extern void benchmark_test_double(std::size_t number_of_uniform_samples,
 	std::size_t number_of_digits_samples_per_digits, std::size_t number_of_iterations);
 
@@ -89,6 +93,10 @@ int main()
 
 #ifdef GENERATE_CACHE
 	generate_cache();
+#endif
+
+#ifdef VERIFY_INCORRECT_ROUNDING_REMOVAL
+	verify_incorrect_rounding_removal();
 #endif
 
 #ifdef UNIFORM_RANDOM_TEST_FLOAT

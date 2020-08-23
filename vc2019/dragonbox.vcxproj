@@ -157,6 +157,7 @@
     <ClCompile Include="..\tests\misc_test.cpp" />
     <ClCompile Include="..\tests\uniform_random_perf_test.cpp" />
     <ClCompile Include="..\tests\uniform_random_test.cpp" />
+    <ClCompile Include="..\tests\verify_incorrect_rounding_removal.cpp" />
     <ClCompile Include="..\tests\verify_log_computation.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
