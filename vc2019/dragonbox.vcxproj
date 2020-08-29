@@ -137,6 +137,8 @@
     <ClInclude Include="..\benchmark\ryu\f2s_full_table.h" />
     <ClInclude Include="..\benchmark\ryu\f2s_intrinsics.h" />
     <ClInclude Include="..\benchmark\ryu\ryu.h" />
+    <ClInclude Include="..\benchmark\schubfach\schubfach_32.h" />
+    <ClInclude Include="..\benchmark\schubfach\schubfach_64.h" />
     <ClInclude Include="..\dragonbox.h" />
     <ClInclude Include="..\fp_to_chars.h" />
     <ClInclude Include="..\tests\bigint.h" />
@@ -150,14 +152,19 @@
     <ClCompile Include="..\benchmark\ryu.cpp" />
     <ClCompile Include="..\benchmark\ryu\d2s.c" />
     <ClCompile Include="..\benchmark\ryu\f2s.c" />
+    <ClCompile Include="..\benchmark\schubfach.cpp" />
+    <ClCompile Include="..\benchmark\schubfach\schubfach_32.cc" />
+    <ClCompile Include="..\benchmark\schubfach\schubfach_64.cc" />
     <ClCompile Include="..\fp_to_chars\fp_to_chars.cpp" />
     <ClCompile Include="..\tests\generate_cache.cpp" />
     <ClCompile Include="..\tests\live_test.cpp" />
     <ClCompile Include="..\tests\main.cpp" />
     <ClCompile Include="..\tests\misc_test.cpp" />
-    <ClCompile Include="..\tests\uniform_random_perf_test.cpp" />
+    <ClCompile Include="..\tests\perf_test.cpp" />
+    <ClCompile Include="..\tests\test_all_shorter_interval_cases.cpp" />
     <ClCompile Include="..\tests\uniform_random_test.cpp" />
-    <ClCompile Include="..\tests\verify_incorrect_rounding_removal.cpp" />
+    <ClCompile Include="..\tests\verify_magic_division.cpp" />
+    <ClCompile Include="..\tests\verify_fast_multiplication.cpp" />
     <ClCompile Include="..\tests\verify_log_computation.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

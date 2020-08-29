@@ -19,19 +19,24 @@
 #ifndef JKJ_DRAGONBOX
 #define JKJ_DRAGONBOX
 
-#include <bitset>
 #include <cassert>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <type_traits>
 
 // Suppress additional buffer overrun check
 // I have no idea why MSVC thinks some functions here are vulnerable to the buffer overrun attacks
 // No, they aren't.
-#if defined(_MSC_VER) && !defined(__clang__)
+#if defined(__GNUC__) || defined(__clang__)
+#define JKJ_SAFEBUFFERS
+#define JKJ_FORCEINLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
 #define JKJ_SAFEBUFFERS __declspec(safebuffers)
+#define JKJ_FORCEINLINE __forceinline
 #else
 #define JKJ_SAFEBUFFERS
+#define JKJ_FORCEINLINE inline
 #endif
 
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
@@ -41,6 +46,218 @@
 #endif
 
 namespace jkj {
+	enum class ieee754_format {
+		binary32,
+		binary64
+	};
+
+	template <ieee754_format format_>
+	struct ieee754_format_info;
+
+	template <>
+	struct ieee754_format_info<ieee754_format::binary32> {
+		static constexpr auto format = ieee754_format::binary32;
+		static constexpr int significand_bits = 23;
+		static constexpr int exponent_bits = 8;
+		static constexpr int min_exponent = -126;
+		static constexpr int max_exponent = 127;
+		static constexpr int exponent_bias = -127;
+		static constexpr int decimal_digits = 9;
+	};
+
+	template <>
+	struct ieee754_format_info<ieee754_format::binary64> {
+		static constexpr auto format = ieee754_format::binary64;
+		static constexpr int significand_bits = 52;
+		static constexpr int exponent_bits = 11;
+		static constexpr int min_exponent = -1022;
+		static constexpr int max_exponent = 1023;
+		static constexpr int exponent_bias = -1023;
+		static constexpr int decimal_digits = 17;
+	};
+
+	// To reduce boilerplates
+	template <class T>
+	struct default_ieee754_traits {
+		using type = T;
+		static constexpr ieee754_format format =
+			sizeof(T) == 4 ? ieee754_format::binary32 : ieee754_format::binary64;
+
+		using carrier_uint = std::conditional_t<
+			sizeof(T) == 4,
+			std::uint32_t,
+			std::uint64_t>;
+		static_assert(sizeof(carrier_uint) == sizeof(T));
+
+		static constexpr int carrier_bits = int(sizeof(carrier_uint) * 8);
+
+		static T carrier_to_float(carrier_uint u) noexcept {
+			T x;
+			std::memcpy(&x, &u, sizeof(carrier_uint));
+			return x;
+		}
+		static carrier_uint float_to_carrier(T x) noexcept {
+			carrier_uint u;
+			std::memcpy(&u, &x, sizeof(carrier_uint));
+			return u;
+		}
+				
+		static constexpr std::uint32_t extract_exponent_bits(carrier_uint u) noexcept {
+			constexpr int significand_bits = ieee754_format_info<format>::significand_bits;
+			constexpr int exponent_bits = ieee754_format_info<format>::exponent_bits;
+			constexpr auto exponent_bits_mask = std::uint32_t((std::uint32_t(1) << exponent_bits) - 1);
+			return std::uint32_t((u >> significand_bits) & exponent_bits_mask);
+		}
+		static constexpr carrier_uint extract_significand_bits(carrier_uint u) noexcept {
+			constexpr int significand_bits = ieee754_format_info<format>::significand_bits;
+			constexpr auto significand_bits_mask = carrier_uint((carrier_uint(1) << significand_bits) - 1);
+			return carrier_uint(u & significand_bits_mask);
+		}
+
+		// Allows positive zero and positive NaN's, but not allow negative zero
+		static constexpr bool is_positive(carrier_uint u) noexcept {
+			return (u >> (carrier_bits - 1)) == 0;
+		}
+		// Allows negative zero and negative NaN's, but not allow positive zero
+		static constexpr bool is_negative(carrier_uint u) noexcept {
+			return (u >> (carrier_bits - 1)) != 0;
+		}
+
+		static constexpr int exponent_bias = 1 - (1 << (carrier_bits - ieee754_format_info<format>::significand_bits - 2));
+
+		static constexpr bool is_finite(carrier_uint u) noexcept {
+			constexpr int significand_bits = ieee754_format_info<format>::significand_bits;
+			constexpr int exponent_bits = ieee754_format_info<format>::exponent_bits;
+			constexpr auto exponent_bits_mask =
+				carrier_uint(((carrier_uint(1) << exponent_bits) - 1) << significand_bits);
+
+			return (u & exponent_bits_mask) != exponent_bits_mask;
+		}
+		static constexpr bool is_nonzero(carrier_uint u) noexcept {
+			return (u << 1) != 0;
+		}
+		// Allows positive and negative zeros
+		static constexpr bool is_subnormal(carrier_uint u) noexcept {
+			constexpr int significand_bits = ieee754_format_info<format>::significand_bits;
+			constexpr int exponent_bits = ieee754_format_info<format>::exponent_bits;
+			constexpr auto exponent_bits_mask =
+				carrier_uint(((carrier_uint(1) << exponent_bits) - 1) << significand_bits);
+
+			return (u & exponent_bits_mask) == 0;
+		}
+		static constexpr bool is_positive_infinity(carrier_uint u) noexcept {
+			constexpr int significand_bits = ieee754_format_info<format>::significand_bits;
+			constexpr int exponent_bits = ieee754_format_info<format>::exponent_bits;
+			constexpr auto positive_infinity =
+				carrier_uint((carrier_uint(1) << exponent_bits) - 1) << significand_bits;
+			return u == positive_infinity;
+		}
+		static constexpr bool is_negative_infinity(carrier_uint u) noexcept {
+			constexpr int significand_bits = ieee754_format_info<format>::significand_bits;
+			constexpr int exponent_bits = ieee754_format_info<format>::exponent_bits;
+			constexpr auto negative_infinity =
+				(carrier_uint((carrier_uint(1) << exponent_bits) - 1) << significand_bits)
+				| (carrier_uint(1) << (carrier_bits - 1));
+			return u == negative_infinity;
+		}
+		static constexpr bool is_infinity(carrier_uint u) noexcept {
+			return is_positive_infinity(u) || is_negative_infinity(u);
+		}
+		static constexpr bool is_nan(carrier_uint u) noexcept {
+			return !is_finite(u) && (extract_significand_bits(u) != 0);
+		}
+	};
+
+	// Speciailze this class template for possible extensions
+	template <class T>
+	struct ieee754_traits : default_ieee754_traits<T> {
+		static_assert(std::numeric_limits<T>::is_iec559 &&
+			std::numeric_limits<T>::radix == 2 &&
+			(sizeof(T) == 4 || sizeof(T) == 8),
+			"default_ieee754_traits only worsk for 4 bytes or 8 bytes types "
+			"supporting binary32 or binary64 formats!");
+	};
+
+	// Convenient wrapper for ieee754_traits
+	// In order to reduce the argument passing overhead,
+	// this class should be as simple as possible
+	// (e.g., no inheritance, no private non-static data member, etc.;
+	// this is an unfortunate fact about x64 calling convention)
+	template <class T>
+	struct ieee754_bits {
+		using carrier_uint = typename ieee754_traits<T>::carrier_uint;
+		carrier_uint u;
+
+		ieee754_bits() = default;
+		constexpr explicit ieee754_bits(carrier_uint u) noexcept : u{ u } {}
+		constexpr explicit ieee754_bits(T x) noexcept : u{ ieee754_traits<T>::float_to_carrier(x) } {}
+
+		T to_float() const noexcept {
+			return ieee754_traits<T>::carrier_to_float(u);
+		}
+
+		constexpr carrier_uint extract_significand_bits() const noexcept {
+			return ieee754_traits<T>::extract_significand_bits(u);
+		}
+		constexpr std::uint32_t extract_exponent_bits() const noexcept {
+			return ieee754_traits<T>::extract_exponent_bits(u);
+		}
+
+		constexpr carrier_uint binary_significand() const noexcept {
+			using format_info = ieee754_format_info<ieee754_traits<T>::format>;
+			auto s = extract_significand_bits();
+			if (extract_exponent_bits() == 0) {
+				return s;
+			}
+			else {
+				return s | (carrier_uint(1) << format_info::significand_bits);
+			}
+		}
+		constexpr int binary_exponent() const noexcept {
+			using format_info = ieee754_format_info<ieee754_traits<T>::format>;
+			auto e = extract_exponent_bits();
+			if (e == 0) {
+				return format_info::min_exponent;
+			}
+			else {
+				return e + format_info::exponent_bias;
+			}
+		}
+
+		constexpr bool is_finite() const noexcept {
+			return ieee754_traits<T>::is_finite(u);
+		}
+		constexpr bool is_nonzero() const noexcept {
+			return ieee754_traits<T>::is_nonzero(u);
+		}
+		// Allows positive and negative zeros
+		constexpr bool is_subnormal() const noexcept {
+			return ieee754_traits<T>::is_subnormal(u);
+		}
+		// Allows positive zero and positive NaN's, but not allow negative zero
+		constexpr bool is_positive() const noexcept {
+			return ieee754_traits<T>::is_positive(u);
+		}
+		// Allows negative zero and negative NaN's, but not allow positive zero
+		constexpr bool is_negative() const noexcept {
+			return ieee754_traits<T>::is_negative(u);
+		}
+		constexpr bool is_positive_infinity() const noexcept {
+			return ieee754_traits<T>::is_positive_infinity(u);
+		}
+
+		constexpr bool is_negative_infinity() const noexcept {
+			return ieee754_traits<T>::is_negative_infinity(u);
+		}
+		// Allows both plus and minus infinities
+		constexpr bool is_infinity() const noexcept {
+			return ieee754_traits<T>::is_infinity(u);
+		}
+		constexpr bool is_nan() const noexcept {
+			return ieee754_traits<T>::is_nan(u);
+		}
+	};
+
 	namespace dragonbox_detail {
 		////////////////////////////////////////////////////////////////////////////////////////
 		// Bit operation intrinsics
@@ -139,7 +356,7 @@ namespace jkj {
 
 			// Get 128-bit result of multiplication of two 64-bit unsigned integers
 			JKJ_SAFEBUFFERS
-				inline uint128 umul128(std::uint64_t x, std::uint64_t y) noexcept {
+			inline uint128 umul128(std::uint64_t x, std::uint64_t y) noexcept {
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__SIZEOF_INT128__) && defined(__x86_64__)
 				return (unsigned __int128)(x) * (unsigned __int128)(y);
 #elif defined(_MSC_VER) && defined(_M_X64)
@@ -167,7 +384,7 @@ namespace jkj {
 			}
 
 			JKJ_SAFEBUFFERS
-				inline std::uint64_t umul128_upper64(std::uint64_t x, std::uint64_t y) noexcept {
+			inline std::uint64_t umul128_upper64(std::uint64_t x, std::uint64_t y) noexcept {
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__SIZEOF_INT128__) && defined(__x86_64__)
 				auto p = (unsigned __int128)(x) * (unsigned __int128)(y);
 				return std::uint64_t(p >> 64);
@@ -194,7 +411,7 @@ namespace jkj {
 
 			// Get upper 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit unsigned integer
 			JKJ_SAFEBUFFERS
-				inline std::uint64_t umul192_upper64(std::uint64_t x, uint128 y) noexcept {
+			inline std::uint64_t umul192_upper64(std::uint64_t x, uint128 y) noexcept {
 				auto g0 = umul128(x, y.high());
 				auto g10 = umul128_upper64(x, y.low());
 
@@ -215,6 +432,30 @@ namespace jkj {
 			inline std::uint32_t umul96_upper32(std::uint32_t x, std::uint64_t y) noexcept {
 				return std::uint32_t(umul128_upper64(x, y));
 			}
+
+			// Get middle 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit unsigned integer
+			JKJ_SAFEBUFFERS
+			inline std::uint64_t umul192_middle64(std::uint64_t x, uint128 y) noexcept {
+				auto g01 = x * y.high();
+				auto g10 = umul128_upper64(x, y.low());
+				return g01 + g10;
+			}
+
+			// Get middle 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit unsigned integer
+			JKJ_SAFEBUFFERS
+			inline std::uint64_t umul96_lower64(std::uint32_t x, std::uint64_t y) noexcept {
+				return x * y;
+			}
+		}
+
+		template <int k, class Int>
+		static constexpr Int compute_power(Int a) {
+			static_assert(k >= 0);
+			Int p = 1;
+			for (int i = 0; i < k; ++i) {
+				p *= a;
+			}
+			return p;
 		}
 
 		////////////////////////////////////////////////////////////////////////////////////////
@@ -235,11 +476,11 @@ namespace jkj {
 					(integer_part << shift_amount) |
 					(fractional_digits >> (64 - shift_amount)));
 			}
-			
+
 			// Compute floor(e * c - s)
 			template <
 				std::uint32_t c_integer_part,
-				std::uint64_t c_fractional_digits,				
+				std::uint64_t c_fractional_digits,
 				std::size_t shift_amount,
 				std::int32_t max_exponent,
 				std::uint32_t s1_integer_part = 0,
@@ -247,7 +488,7 @@ namespace jkj {
 				std::uint32_t s2_integer_part = 0,
 				std::uint64_t s2_fractional_digits = 0
 			>
-			constexpr int compute(int e, bool select_first = true) noexcept {
+				constexpr int compute(int e, bool select_first = true) noexcept {
 				assert(e <= max_exponent && e >= -max_exponent);
 				constexpr auto c = floor_shift(c_integer_part, c_fractional_digits, shift_amount);
 				constexpr auto s1 = floor_shift(s1_integer_part, s1_fractional_digits, shift_amount);
@@ -308,21 +549,37 @@ namespace jkj {
 				0, log5_3_fractional_digits>(e);
 		}
 
-		template <int initial_kappa>
-		constexpr int floor_log10_pow2_sub(int e, bool subtract_larger) noexcept {
+		constexpr int floor_log10_pow2_minus_log10_4_over_3(int e) noexcept {
 			using namespace log_compute;
 			return compute<
 				0, log10_2_fractional_digits,
 				floor_log10_pow2_shift_amount, 1700,
-				std::uint32_t(initial_kappa), log10_4_over_3_fractional_digits,
-				std::uint32_t(initial_kappa), 0>(e, subtract_larger);
+				0, log10_4_over_3_fractional_digits>(e);
 		}
 
 		////////////////////////////////////////////////////////////////////////////////////////
 		// Utilities for fast divisibility test
 		////////////////////////////////////////////////////////////////////////////////////////
 
-		namespace divtest {
+		namespace div {
+			template <class UInt, UInt a>
+			constexpr UInt modular_inverse(int bit_width = sizeof(UInt) * 8) noexcept {
+				// By Euler's theorem, a^phi(2^n) == 1 (mod 2^n),
+				// where phi(2^n) = 2^(n-1), so the modular inverse of a is
+				// a^(2^(n-1) - 1) = a^(1 + 2 + 2^2 + ... + 2^(n-2))
+				std::common_type_t<UInt, unsigned int> mod_inverse = 1;
+				for (int i = 1; i < bit_width; ++i) {
+					mod_inverse = mod_inverse * mod_inverse * a;
+				}
+				if (bit_width < sizeof(UInt) * 8) {
+					auto mask = UInt((UInt(1) << bit_width) - 1);
+					return UInt(mod_inverse & mask);
+				}
+				else {
+					return UInt(mod_inverse);
+				}
+			}
+
 			template <class UInt, UInt a, int N>
 			struct table_t {
 				static_assert(std::is_unsigned_v<UInt>);
@@ -330,28 +587,19 @@ namespace jkj {
 				static_assert(N > 0);
 
 				static constexpr int size = N;
-				UInt mod_inverses[N];
+				UInt mod_inv[N];
 				UInt max_quotients[N];
 			};
 
 			template <class UInt, UInt a, int N>
 			struct table_holder {
 				static constexpr table_t<UInt, a, N> table = [] {
-					// By Euler's theorem, a^phi(2^n) == 1 (mod 2^n),
-					// where phi(2^n) = 2^(n-1), so the modular inverse of a is
-					// a^(2^(n-1) - 1) = a^(1 + 2 + 2^2 + ... + 2^(n-2))
-					std::common_type_t<UInt, unsigned int> mod_inverse = 1;
-					constexpr int n = sizeof(UInt) * 8;
-					for (int i = 1; i < n; ++i) {
-						mod_inverse = mod_inverse * mod_inverse * a;
-					}
-
-					// Now, generate the table
+					constexpr auto mod_inverse = modular_inverse<UInt, a>();
 					table_t<UInt, a, N> table{};
 					std::common_type_t<UInt, unsigned int> pow_of_mod_inverse = 1;
 					UInt pow_of_a = 1;
 					for (int i = 0; i < N; ++i) {
-						table.mod_inverses[i] = UInt(pow_of_mod_inverse);
+						table.mod_inv[i] = UInt(pow_of_mod_inverse);
 						table.max_quotients[i] = UInt(std::numeric_limits<UInt>::max() / pow_of_a);
 
 						pow_of_mod_inverse *= mod_inverse;
@@ -369,7 +617,7 @@ namespace jkj {
 				if (exp >= (unsigned int)(table.size)) {
 					return false;
 				}
-				return (x * table.mod_inverses[exp]) <= table.max_quotients[exp];
+				return (x * table.mod_inv[exp]) <= table.max_quotients[exp];
 			}
 
 			template <class UInt>
@@ -381,138 +629,119 @@ namespace jkj {
 #else
 				if (exp >= int(sizeof(UInt) * 8)) {
 					return false;
-			}
+				}
 				return x == ((x >> exp) << exp);
 #endif
 			}
-		}
 
+			// Replace n by floor(n / 5^N)
+			// Returns true if and only if n is divisible by 5^N
+			// Precondition: n <= 2 * 5^(N+1)
+			template <int N>
+			struct check_divisibility_and_divide_by_pow5_info;
 
-		template <int k, class Int>
-		static constexpr Int compute_power(Int a) {
-			static_assert(k >= 0);
-			Int p = 1;
-			for (int i = 0; i < k; ++i) {
-				p *= a;
+			template <>
+			struct check_divisibility_and_divide_by_pow5_info<1> {
+				static constexpr std::uint32_t magic_number = 0xcccd;
+				using type_for_comparison = std::uint16_t;
+				static constexpr type_for_comparison threshold = 0x3333;
+				static constexpr int shift_amount = 18;
+			};
+
+			template <>
+			struct check_divisibility_and_divide_by_pow5_info<2> {
+				static constexpr std::uint32_t magic_number = 0xa429;
+				using type_for_comparison = std::uint8_t;
+				static constexpr type_for_comparison threshold = 0x0a;
+				static constexpr int shift_amount = 20;
+			};
+
+			template <int N>
+			constexpr bool check_divisibility_and_divide_by_pow5(std::uint32_t& n) noexcept
+			{
+				// Make sure the computation for max_n does not overflow
+				static_assert(N + 1 <= floor_log5_pow2(31));
+				assert(n <= compute_power<N + 1>(std::uint32_t(5)) * 2);
+
+				using info = check_divisibility_and_divide_by_pow5_info<N>;
+				n *= info::magic_number;
+				using type_for_comparison = typename info::type_for_comparison;
+				if (type_for_comparison(n) <= info::threshold) {
+					n = type_for_comparison(n);
+					return true;
+				}
+				else {
+					n >>= info::shift_amount;
+					return false;
+				}
 			}
-			return p;
+
+			// Compute floor(n / 10^N) for small n and N
+			// Precondition: n <= 10^(N+1)
+			template <int N>
+			struct small_division_by_pow10_info;
+
+			template <>
+			struct small_division_by_pow10_info<1> {
+				static constexpr std::uint32_t magic_number = 0xcccd;
+				static constexpr int shift_amount = 19;
+			};
+
+			template <>
+			struct small_division_by_pow10_info<2> {
+				static constexpr std::uint32_t magic_number = 0xa3d8;
+				static constexpr int shift_amount = 22;
+			};
+
+			template <int N>
+			constexpr std::uint32_t small_division_by_pow10(std::uint32_t n) noexcept
+			{
+				assert(n <= compute_power<N + 1>(std::uint32_t(10)));
+				return (n * small_division_by_pow10_info<N>::magic_number)
+					>> small_division_by_pow10_info<N>::shift_amount;
+			}
+
+			// Compute floor(n / 10^N) for small N
+			// Precondition: n <= 2^a * 5^b (a = max_pow2, b = max_pow5)
+			template <int N, int max_pow2, int max_pow5, class UInt>
+			constexpr UInt divide_by_pow10(UInt n) noexcept
+			{
+				static_assert(N >= 0);
+
+				// Ensure no overflow
+				static_assert(max_pow2 + (floor_log2_pow10(max_pow5) - max_pow5) < sizeof(UInt) * 8);
+
+				// Specialize for 64bit division by 1000
+				// Ensure that the correctness condition is met
+				if constexpr (std::is_same_v<UInt, std::uint64_t> && N == 3 &&
+					max_pow2 + (floor_log2_pow10(N + max_pow5) - (N + max_pow5)) < 70)
+				{
+					return wide_uint::umul128_upper64(n, 0x8312'6e97'8d4f'df3c) >> 9;
+				}
+				else {
+					constexpr auto divisor = compute_power<N>(UInt(10));
+					return n / divisor;
+				}
+			}
 		}
+	}
 
-		template <class Float>
-		struct common_info {
-			using float_type = Float;
-
-			static_assert(std::numeric_limits<Float>::is_iec559&&
-				std::numeric_limits<Float>::radix == 2 &&
-				(sizeof(Float) == 4 || sizeof(Float) == 8),
-				"Dragonbox algorithm only applies to IEEE-754 binary32 and binary64 formats!");
-
-			static constexpr std::size_t precision = std::numeric_limits<Float>::digits - 1;
-
-			using extended_significand_type = std::conditional_t<
-				sizeof(Float) == 4,
-				std::uint32_t,
-				std::uint64_t>;
-
-			static_assert(sizeof(extended_significand_type) == sizeof(Float));
-
-			static constexpr std::size_t extended_precision =
-				sizeof(extended_significand_type) * std::numeric_limits<unsigned char>::digits;
-
-			static_assert(extended_precision - precision >= 9);
-
-			static constexpr auto sign_bit_mask =
-				(extended_significand_type(1) << (extended_precision - 1));
-			static constexpr std::size_t exponent_bits =
-				extended_precision - precision - 1;
-			static constexpr int exponent_bias = 1 - (1 << (exponent_bits - 1));
-			static constexpr auto exponent_bits_mask =
-				((extended_significand_type(1) << exponent_bits) - 1) << precision;
-
-			static constexpr auto boundary_bit =
-				(extended_significand_type(1) << (extended_precision - precision - 2));
-			static constexpr auto normal_interval_length = boundary_bit << 1;
-			static constexpr auto closer_boundary_bit = boundary_bit >> 1;
-
-			static constexpr int min_exponent =
-				std::numeric_limits<Float>::min_exponent - int(extended_precision);
-			static constexpr int max_exponent =
-				std::numeric_limits<Float>::max_exponent - int(extended_precision);
-			static_assert(min_exponent < 0 && max_exponent > 0 && -min_exponent >= max_exponent);
-			static_assert(min_exponent == 1 + exponent_bias - int(extended_precision) + 1);
-
-			static constexpr int initial_kappa = sizeof(Float) == 4 ? 1 : 2;
-			static_assert(initial_kappa >= 1);
-			static_assert(extended_precision >= precision + 3 + floor_log2_pow10(initial_kappa + 1));
-
-			static constexpr int min_k = -floor_log10_pow2_sub<initial_kappa>(
-				int(max_exponent + extended_precision - precision - 1), false);
-			static constexpr int max_k = [] {
-				constexpr auto a = -floor_log10_pow2_sub<initial_kappa>(
-					int(min_exponent + extended_precision - precision), true);
-				constexpr auto b = -floor_log10_pow2_sub<initial_kappa>(
-					int(min_exponent + extended_precision - precision - 1), false);
-				return a > b ? a : b;
-			}();
-
-			static constexpr std::size_t cache_precision = extended_precision * 2;
-
-			using cache_entry_type = std::conditional_t<
-				sizeof(Float) == 4,
-				std::uint64_t,
-				wide_uint::uint128>;
-
-			static constexpr int decimal_digits = sizeof(Float) == 4 ? 9 : 17;
-			static constexpr int max_power_of_factor_of_5 = floor_log5_pow2(int(precision + 2));
-			static constexpr int divtest_table_size = (decimal_digits > max_power_of_factor_of_5)
-				? decimal_digits : max_power_of_factor_of_5 + 1;
-
-			static constexpr int case_fc_minus_2_to_the_q_mp_m3_lower_threshold =
-				-int(extended_precision - precision - 2) - initial_kappa +
-				floor_log5_pow2_minus_log5_3(initial_kappa + 1);
-			static constexpr int case_fc_minus_2_to_the_q_mp_m3_upper_threshold =
-				-int(extended_precision - precision - 3) +
-				log_compute::floor_log2(compute_power<initial_kappa + 1>(10) / 3);
-
-			static constexpr int case_fc_pm_2_to_the_q_mp_m2_long_delta_lower_threshold =
-				-int(extended_precision - precision - 1) - initial_kappa -
-				floor_log5_pow2(initial_kappa);
-			static constexpr int case_fc_pm_2_to_the_q_mp_m2_long_delta_upper_threshold =
-				-int(extended_precision - precision - 1) +
-				floor_log2_pow10(initial_kappa + 1);
-
-			static constexpr int case_fc_plus_2_to_the_q_mp_m2_irregular_delta_lower_threshold =
-				-int(extended_precision - precision - 1) - initial_kappa -
-				floor_log5_pow2_minus_log5_3(initial_kappa + 2);
-			static constexpr int case_fc_plus_2_to_the_q_mp_m2_irregular_delta_upper_threshold =
-				-int(extended_precision - precision - 3) +
-				log_compute::floor_log2(compute_power<initial_kappa + 1>(10) / 3);
-
-			static constexpr int case_fc_long_delta_lower_threshold =
-				-int(extended_precision - precision) - initial_kappa -
-				floor_log5_pow2(initial_kappa + 1);
-			static constexpr int case_fc_long_delta_upper_threshold =
-				-int(extended_precision - precision - 1) +
-				floor_log2_pow10(initial_kappa + 1);
-
-			static constexpr int case_fc_irregular_delta_lower_threshold =
-				-int(extended_precision - precision) - initial_kappa -
-				floor_log5_pow2_minus_log5_3(initial_kappa + 3);
-			static constexpr int case_fc_irregular_delta_upper_threshold =
-				-int(extended_precision - precision - 3) +
-				log_compute::floor_log2(compute_power<initial_kappa + 1>(10) / 3);
-		};
-
+	namespace dragonbox_detail {
 		////////////////////////////////////////////////////////////////////////////////////////
 		// Computed cache entries
 		////////////////////////////////////////////////////////////////////////////////////////
 
-		template <class Float>
+		template <ieee754_format format>
 		struct cache_holder;
 
 		template <>
-		struct cache_holder<float> {
-			static constexpr std::uint64_t cache[] = {
+		struct cache_holder<ieee754_format::binary32> {
+			using cache_entry_type = std::uint64_t;
+			static constexpr int cache_bits = 64;
+			static constexpr int min_k = -31;
+			static constexpr int max_k = 46;
+			static constexpr cache_entry_type cache[] = {
+				0x81ceb32c4b43fcf5,
 				0xa2425ff75e14fc32,
 				0xcad2f7f5359a3b3f,
 				0xfd87b5f28300ca0e,
@@ -594,8 +823,14 @@ namespace jkj {
 		};
 
 		template <>
-		struct cache_holder<double> {
-			static constexpr wide_uint::uint128 cache[] = {
+		struct cache_holder<ieee754_format::binary64> {
+			using cache_entry_type = wide_uint::uint128;
+			static constexpr int cache_bits = 128;
+			static constexpr int min_k = -292;
+			static constexpr int max_k = 326;
+			static constexpr cache_entry_type cache[] = {
+				{ 0xff77b1fcbebcdc4f, 0x25e8e89c13bb0f7b },
+				{ 0x9faacf3df73609b1, 0x77b191618c54e9ad },
 				{ 0xc795830d75038c1d, 0xd59df5b9ef6a2418 },
 				{ 0xf97ae3d0d2446f25, 0x4b0573286b44ad1e },
 				{ 0x9becce62836ac577, 0x4ee367f9430aec33 },
@@ -1217,14 +1452,13 @@ namespace jkj {
 		};
 
 		template <class Float>
-		constexpr typename common_info<Float>::cache_entry_type const& get_cache(int k) noexcept {
-			assert(k >= common_info<Float>::min_k && k <= common_info<Float>::max_k);
-			return cache_holder<Float>::cache[std::size_t(k - common_info<Float>::min_k)];
+		constexpr typename cache_holder<ieee754_traits<Float>::format>::cache_entry_type const&
+			get_cache(int k) noexcept
+		{
+			constexpr auto format = ieee754_traits<Float>::format;
+			assert(k >= cache_holder<format>::min_k && k <= cache_holder<format>::max_k);
+			return cache_holder<format>::cache[std::size_t(k - cache_holder<format>::min_k)];
 		}
-
-		// Forward declaration of the main class
-		template <class Float>
-		struct dragonbox_impl;
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////
@@ -1236,21 +1470,19 @@ namespace jkj {
 
 	template <class Float>
 	struct fp_t<Float, false> {
-		using extended_significand_type =
-			typename dragonbox_detail::common_info<Float>::extended_significand_type;
+		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
 
-		extended_significand_type	significand;
-		int							exponent;
+		carrier_uint	significand;
+		int				exponent;
 	};
 
 	template <class Float>
 	struct fp_t<Float, true> {
-		using extended_significand_type =
-			typename dragonbox_detail::common_info<Float>::extended_significand_type;
+		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
 
-		extended_significand_type	significand;
-		int							exponent;
-		bool						is_negative;
+		carrier_uint	significand;
+		int				exponent;
+		bool			is_negative;
 	};
 
 	template <class Float>
@@ -1258,135 +1490,6 @@ namespace jkj {
 
 	template <class Float>
 	using signed_fp_t = fp_t<Float, true>;
-
-	// In order to reduce the argument passing overhead,
-	// this class should be as simple as possible.
-	// (e.g., no inheritance, no private non-static data member, etc.;
-	// this is an unfortunate fact about x64 calling convention.)
-	template <class Float>
-	struct bit_representation_t
-	{
-	private:
-		using common_info = dragonbox_detail::common_info<Float>;
-
-		static constexpr auto precision = common_info::precision;
-		static constexpr auto extended_precision = common_info::extended_precision;
-		static constexpr auto sign_bit_mask = common_info::sign_bit_mask;
-		static constexpr auto exponent_bits = common_info::exponent_bits;
-		static constexpr auto exponent_bias = common_info::exponent_bias;
-		static constexpr auto exponent_bits_mask = common_info::exponent_bits_mask;
-
-	public:
-		using extended_significand_type =
-			typename common_info::extended_significand_type;
-		extended_significand_type f;
-
-		//// Inspector methods
-
-		Float as_ieee754() const noexcept {
-			Float x;
-			std::memcpy(&x, &f, sizeof(Float));
-			return x;
-		}
-
-		constexpr extended_significand_type extract_significand_bits() const noexcept {
-			constexpr auto significand_bits_mask =
-				(extended_significand_type(1) << precision) - 1;
-			return f & significand_bits_mask;
-		}
-
-		constexpr std::uint32_t extract_exponent_bits() const noexcept {
-			constexpr auto exponent_bits_mask =
-				(std::uint32_t(1) << exponent_bits) - 1;
-			return std::uint32_t(f >> precision) & exponent_bits_mask;
-		}
-
-		constexpr bool is_finite() const noexcept {
-			return (f & exponent_bits_mask) != exponent_bits_mask;
-		}
-
-		constexpr bool is_nonzero() const noexcept {
-			// vs (f & ~sign_bit_mask) != 0;
-			// It seems that there is no AND instruction for 64-bit immediate value in x86,
-			// thus (f & ~sign_bit_mask) != 0 generates 3 instructions (load, and, compare),
-			// while this generates only two (shift, compare).
-			return (f << 1) != 0;
-		}
-
-		// Allows positive and negative zeros
-		constexpr bool is_subnormal() const noexcept {
-			return (f & exponent_bits_mask) == 0;
-		}
-
-		// Allows negative zero and negative NaN's, but not allow positive zero
-		constexpr bool is_negative() const noexcept {
-			// vs (f & sign_bit_mask) != 0;
-			// It seems that there is no AND instruction for 64-bit immediate value in x86,
-			// thus (f & sign_bit_mask) != 0 generates 3 instructions (load, and, compare),
-			// while this generates only two (shift, compare).
-			return (f >> (extended_precision - 1)) != 0;
-		}
-
-		// Allows positive zero and positive NaN's, but not allow negative zero
-		constexpr bool is_positive() const noexcept {
-			// vs (f & sign_bit_mask) == 0;
-			// Ditto
-			return (f >> (extended_precision - 1)) == 0;
-		}
-
-		constexpr bool is_positive_infinity() const noexcept {
-			constexpr auto positive_infinity = exponent_bits_mask;
-			return f == positive_infinity;
-		}
-
-		constexpr bool is_negative_infinity() const noexcept {
-			constexpr auto negative_infinity = exponent_bits_mask | sign_bit_mask;
-			return f == negative_infinity;
-		}
-
-		// Allows both plus and minus infinities
-		constexpr bool is_infinity() const noexcept {
-			return is_positive_infinity() || is_negative_infinity();
-		}
-
-		constexpr bool is_nan() const noexcept {
-			return !is_finite() && (extract_significand_bits() != 0);
-		}
-
-		bool is_quiet_nan() const noexcept {
-			if (!is_nan()) {
-				return false;
-			}
-
-			auto quiet_or_signal_indicator = extended_significand_type(1) << (precision - 1);
-			auto quiet_or_signal = f & quiet_or_signal_indicator;
-
-			constexpr auto a_quiet_nan = std::numeric_limits<Float>::quiet_NaN();
-			extended_significand_type a_quiet_nan_bit_representation;
-			std::memcpy(&a_quiet_nan_bit_representation, &a_quiet_nan, sizeof(Float));
-
-			return (a_quiet_nan_bit_representation & quiet_or_signal_indicator)
-				== quiet_or_signal;
-		}
-
-		bool is_signaling_nan() const noexcept {
-			return is_nan() && !is_quiet_nan();
-		}
-
-		static constexpr std::size_t nan_payload_length = precision - 1;
-		std::bitset<nan_payload_length> get_nan_payload() const noexcept {
-			constexpr auto payload_mask =
-				(extended_significand_type(1) << (precision - 1)) - 1;
-			return{ f & payload_mask };
-		}
-	};
-
-	template <class Float>
-	bit_representation_t<Float> get_bit_representation(Float x) noexcept {
-		bit_representation_t<Float> br;
-		std::memcpy(&br.f, &x, sizeof(Float));
-		return br;
-	}
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Determine what to do about the correct rounding guarantee
@@ -1404,61 +1507,26 @@ namespace jkj {
 		// Do not perform correct rounding search
 		struct do_not_care {
 			static constexpr tag_t tag = do_not_care_tag;
-			template <bool return_sign, class Float, class IntervalTypeProvider>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				IntervalTypeProvider&&) const
-			{
-				return dragonbox_detail::dragonbox_impl<Float>::template compute<return_sign,
-					std::remove_cv_t<std::remove_reference_t<IntervalTypeProvider>>, do_not_care>(br);
-			}
 		};
 
 		// Perform correct rounding search; tie-to-even
 		struct tie_to_even {
 			static constexpr tag_t tag = tie_to_even_tag;
-			template <bool return_sign, class Float, class IntervalTypeProvider>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				IntervalTypeProvider&&) const
-			{
-				return dragonbox_detail::dragonbox_impl<Float>::template compute<return_sign,
-					std::remove_cv_t<std::remove_reference_t<IntervalTypeProvider>>, tie_to_even>(br);
-			}
 		};
 
 		// Perform correct rounding search; tie-to-odd
 		struct tie_to_odd {
 			static constexpr tag_t tag = tie_to_even_tag;
-			template <bool return_sign, class Float, class IntervalTypeProvider>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				IntervalTypeProvider&&) const
-			{
-				return dragonbox_detail::dragonbox_impl<Float>::template compute<return_sign,
-					std::remove_cv_t<std::remove_reference_t<IntervalTypeProvider>>, tie_to_odd>(br);
-			}
 		};
 
 		// Perform correct rounding search; tie-to-up
 		struct tie_to_up {
 			static constexpr tag_t tag = tie_to_up_tag;
-			template <bool return_sign, class Float, class IntervalTypeProvider>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				IntervalTypeProvider&&) const
-			{
-				return dragonbox_detail::dragonbox_impl<Float>::template compute<return_sign,
-					std::remove_cv_t<std::remove_reference_t<IntervalTypeProvider>>, tie_to_up>(br);
-			}
 		};
 
 		// Perform correct rounding search; tie-to-down
 		struct tie_to_down {
 			static constexpr tag_t tag = tie_to_down_tag;
-			template <bool return_sign, class Float, class IntervalTypeProvider>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				IntervalTypeProvider&&) const
-			{
-				return dragonbox_detail::dragonbox_impl<Float>::template compute<return_sign,
-					std::remove_cv_t<std::remove_reference_t<IntervalTypeProvider>>, tie_to_down>(br);
-			}
 		};
 	}
 
@@ -1535,60 +1603,48 @@ namespace jkj {
 		struct nearest_to_even {
 			static constexpr tag_t tag = to_nearest_tag;
 
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
-				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-					br, *this);
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
+				return f(*this);
 			}
 			template <class Float>
-			constexpr interval_type::symmetric_boundary operator()(bit_representation_t<Float> br) const noexcept {
-				return{ br.f % 2 == 0 };
+			constexpr interval_type::symmetric_boundary operator()(ieee754_bits<Float> br) const noexcept {
+				return{ br.u % 2 == 0 };
 			}
 		};
 		struct nearest_to_odd {
 			static constexpr tag_t tag = to_nearest_tag;
 
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
-				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-					br, *this);
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
+				return f(*this);
 			}
 			template <class Float>
-			constexpr interval_type::symmetric_boundary operator()(bit_representation_t<Float> br) const noexcept {
-				return{ br.f % 2 != 0 };
+			constexpr interval_type::symmetric_boundary operator()(ieee754_bits<Float> br) const noexcept {
+				return{ br.u % 2 != 0 };
 			}
 		};
 		struct nearest_toward_plus_infinity {
 			static constexpr tag_t tag = to_nearest_tag;
 
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
-				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-					br, *this);
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
+				return f(*this);
 			}
 			template <class Float>
-			constexpr interval_type::asymmetric_boundary operator()(bit_representation_t<Float> br) const noexcept {
+			constexpr interval_type::asymmetric_boundary operator()(ieee754_bits<Float> br) const noexcept {
 				return{ !br.is_negative() };
 			}
 		};
 		struct nearest_toward_minus_infinity {
 			static constexpr tag_t tag = to_nearest_tag;
 
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
-				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-					br, *this);
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
+				return f(*this);
 			}
 			template <class Float>
-			constexpr interval_type::asymmetric_boundary operator()(bit_representation_t<Float> br) const noexcept {
+			constexpr interval_type::asymmetric_boundary operator()(ieee754_bits<Float> br) const noexcept {
 				return{ br.is_negative() };
 			}
 		};
@@ -1596,30 +1652,24 @@ namespace jkj {
 		struct nearest_toward_zero {
 			static constexpr tag_t tag = to_nearest_tag;
 
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
-				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-					br, *this);
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
+				return f(*this);
 			}
 			template <class Float>
-			constexpr interval_type::right_closed_left_open operator()(bit_representation_t<Float>) const noexcept {
+			constexpr interval_type::right_closed_left_open operator()(ieee754_bits<Float>) const noexcept {
 				return{};
 			}
 		};
 		struct nearest_away_from_zero {
 			static constexpr tag_t tag = to_nearest_tag;
 
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
-				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-					br, *this);
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
+				return f(*this);
 			}
 			template <class Float>
-			constexpr interval_type::left_closed_right_open operator()(bit_representation_t<Float>) const noexcept {
+			constexpr interval_type::left_closed_right_open operator()(ieee754_bits<Float>) const noexcept {
 				return{};
 			}
 		};
@@ -1629,7 +1679,7 @@ namespace jkj {
 				static constexpr tag_t tag = to_nearest_tag;
 
 				template <class Float>
-				constexpr interval_type::closed operator()(bit_representation_t<Float>) const noexcept {
+				constexpr interval_type::closed operator()(ieee754_bits<Float>) const noexcept {
 					return{};
 				}
 			};
@@ -1637,7 +1687,7 @@ namespace jkj {
 				static constexpr tag_t tag = to_nearest_tag;
 
 				template <class Float>
-				constexpr interval_type::open operator()(bit_representation_t<Float>) const noexcept {
+				constexpr interval_type::open operator()(ieee754_bits<Float>) const noexcept {
 					return{};
 				}
 			};
@@ -1646,68 +1696,52 @@ namespace jkj {
 		// Same as nearest_to_even, but generate separate codes for
 		// different boundary conditions; may produce faster (or slower) code, but bigger binary
 		struct nearest_to_even_static_boundary {
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
-				if (br.f % 2 == 0) {
-					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-						br, detail::nearest_always_closed{});
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float> br, Func&& f) const noexcept {
+				if (br.u % 2 == 0) {
+					return f(detail::nearest_always_closed{});
 				}
 				else {
-					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-						br, detail::nearest_always_open{});
+					return f(detail::nearest_always_open{});
 				}
 			}
 		};
 		// Same as nearest_to_odd, but generate separate codes for
 		// different boundary conditions; may produce faster (or slower) code, but bigger binary
 		struct nearest_to_odd_static_boundary {
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
-				if (br.f % 2 == 0) {
-					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-						br, detail::nearest_always_open{});
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float> br, Func&& f) const noexcept {
+				if (br.u % 2 == 0) {
+					return f(detail::nearest_always_open{});
 				}
 				else {
-					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-						br, detail::nearest_always_closed{});
+					return f(detail::nearest_always_closed{});
 				}
 			}
 		};
 		// Same as nearest_toward_plus_infinity, but generate separate codes for
 		// different boundary conditions; may produce faster (or slower) code, but bigger binary
 		struct nearest_toward_plus_infinity_static_boundary {
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float> br, Func&& f) const noexcept {
 				if (br.is_negative()) {
-					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-						br, nearest_toward_zero{});
+					return f(nearest_toward_zero{});
 				}
 				else {
-					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-						br, nearest_away_from_zero{});
+					return f(nearest_away_from_zero{});
 				}
 			}
 		};
 		// Same as nearest_toward_minus_infinity, but generate separate codes for
 		// different boundary conditions; may produce faster (or slower) code, but bigger binary
 		struct nearest_toward_minus_infinity_static_boundary {
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float> br, Func&& f) const noexcept {
 				if (br.is_negative()) {
-					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-						br, nearest_away_from_zero{});
+					return f(nearest_away_from_zero{});
 				}
 				else {
-					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-						br, nearest_toward_zero{});
+					return f(nearest_toward_zero{});
 				}
 			}
 		};
@@ -1717,7 +1751,7 @@ namespace jkj {
 				static constexpr tag_t tag = left_closed_directed_tag;
 
 				template <class Float>
-				constexpr interval_type::left_closed_right_open operator()(bit_representation_t<Float>) const noexcept {
+				constexpr interval_type::left_closed_right_open operator()(ieee754_bits<Float>) const noexcept {
 					return{};
 				}
 			};
@@ -1725,59 +1759,44 @@ namespace jkj {
 				static constexpr tag_t tag = right_closed_directed_tag;
 
 				template <class Float>
-				constexpr interval_type::right_closed_left_open operator()(bit_representation_t<Float>) const noexcept {
+				constexpr interval_type::right_closed_left_open operator()(ieee754_bits<Float>) const noexcept {
 					return{};
 				}
 			};
 		}
 
 		struct toward_plus_infinity {
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float> br, Func&& f) const noexcept {
 				if (br.is_negative()) {
-					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-						br, detail::left_closed_directed{});
-
+					return f(detail::left_closed_directed{});
 				}
 				else {
-					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-						br, detail::right_closed_directed{});
+					return f(detail::right_closed_directed{});
 				}
 			}
 		};
 		struct toward_minus_infinity {
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float> br, Func&& f) const noexcept {
 				if (br.is_negative()) {
-					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-						br, detail::right_closed_directed{});
+					return f(detail::right_closed_directed{});
 				}
 				else {
-					return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-						br, detail::left_closed_directed{});
+					return f(detail::left_closed_directed{});
 				}
 			}
 		};
 		struct toward_zero {
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
-				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-					br, detail::left_closed_directed{});
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
+				return f(detail::left_closed_directed{});
 			}
 		};
 		struct away_from_zero {
-			template <bool return_sign, class Float, class CorrectRoundingSearch>
-			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
-				CorrectRoundingSearch&& crs) const
-			{
-				return std::forward<CorrectRoundingSearch>(crs).template delegate<return_sign>(
-					br, detail::right_closed_directed{});
+			template <class Float, class Func>
+			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
+				return f(detail::right_closed_directed{});
 			}
 		};
 	};
@@ -1790,43 +1809,81 @@ namespace jkj {
 		// Get sign/decimal significand/decimal exponent from
 		// the bit representation of a floating-point number
 		template <class Float>
-		struct dragonbox_impl : private common_info<Float>
+		struct dragonbox_impl : private ieee754_traits<Float>,
+			private ieee754_format_info< ieee754_traits<Float>::format>
 		{
-			using extended_significand_type =
-				typename common_info<Float>::extended_significand_type;
-			using cache_entry_type =
-				typename common_info<Float>::cache_entry_type;
+			using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
 
-			using common_info<Float>::precision;
-			using common_info<Float>::extended_precision;
-			using common_info<Float>::cache_precision;
-			using common_info<Float>::sign_bit_mask;
-			using common_info<Float>::exponent_bits;
-			using common_info<Float>::exponent_bias;
-			using common_info<Float>::exponent_bits_mask;
-			using common_info<Float>::min_exponent;
-			using common_info<Float>::boundary_bit;
-			using common_info<Float>::normal_interval_length;
-			using common_info<Float>::closer_boundary_bit;
-			using common_info<Float>::initial_kappa;
-			using common_info<Float>::case_fc_minus_2_to_the_q_mp_m3_lower_threshold;
-			using common_info<Float>::case_fc_minus_2_to_the_q_mp_m3_upper_threshold;
-			using common_info<Float>::case_fc_pm_2_to_the_q_mp_m2_long_delta_lower_threshold;
-			using common_info<Float>::case_fc_pm_2_to_the_q_mp_m2_long_delta_upper_threshold;
-			using common_info<Float>::case_fc_plus_2_to_the_q_mp_m2_irregular_delta_lower_threshold;
-			using common_info<Float>::case_fc_plus_2_to_the_q_mp_m2_irregular_delta_upper_threshold;
-			using common_info<Float>::case_fc_long_delta_lower_threshold;
-			using common_info<Float>::case_fc_long_delta_upper_threshold;
-			using common_info<Float>::case_fc_irregular_delta_lower_threshold;
-			using common_info<Float>::case_fc_irregular_delta_upper_threshold;
-			using common_info<Float>::decimal_digits;
-			using common_info<Float>::divtest_table_size;
+			using ieee754_traits<Float>::format;
+			using ieee754_traits<Float>::carrier_bits;
+			using ieee754_format_info<format>::significand_bits;
+			using ieee754_format_info<format>::min_exponent;
+			using ieee754_format_info<format>::max_exponent;
+			using ieee754_format_info<format>::exponent_bias;
+			using ieee754_format_info<format>::decimal_digits;
+
+			static constexpr int initial_kappa = format == ieee754_format::binary32 ? 1 : 2;
+			static_assert(initial_kappa >= 1);
+			static_assert(carrier_bits >= significand_bits + 2 + floor_log2_pow10(initial_kappa + 1));
+
+			static constexpr int min_k = [] {
+				constexpr auto a = -floor_log10_pow2_minus_log10_4_over_3(
+					int(max_exponent - significand_bits));
+				constexpr auto b = -floor_log10_pow2(
+					int(max_exponent - significand_bits)) + initial_kappa;
+				return a < b ? a : b;
+			}();
+			static_assert(min_k >= cache_holder<format>::min_k);
+
+			static constexpr int max_k = [] {
+				constexpr auto a = -floor_log10_pow2_minus_log10_4_over_3(
+					int(min_exponent - significand_bits + 1));
+				constexpr auto b = -floor_log10_pow2(
+					int(min_exponent - significand_bits)) + initial_kappa;
+				return a > b ? a : b;
+			}();
+			static_assert(max_k <= cache_holder<format>::max_k);
+
+			using cache_entry_type =
+				typename cache_holder<format>::cache_entry_type;
+			static constexpr auto cache_bits =
+				cache_holder<format>::cache_bits;
+
+			static constexpr int max_power_of_factor_of_5 = floor_log5_pow2(int(significand_bits + 1));
+			static constexpr int divtest_table_size = (decimal_digits > max_power_of_factor_of_5)
+				? decimal_digits : max_power_of_factor_of_5 + 1;
+
+			static constexpr int case_fc_pm_half_lower_threshold = -initial_kappa - floor_log5_pow2(initial_kappa);
+			static constexpr int case_fc_pm_half_upper_threshold = floor_log2_pow10(initial_kappa + 1);
+
+			static constexpr int case_fc_lower_threshold = -initial_kappa - 1 - floor_log5_pow2(initial_kappa + 1);
+			static constexpr int case_fc_upper_threshold = floor_log2_pow10(initial_kappa + 1);
+
+			static constexpr int case_shorter_interval_left_endpoint_lower_threshold = 2;
+			static constexpr int case_shorter_interval_left_endpoint_upper_threshold = 3;
+
+			static constexpr int case_shorter_interval_right_endpoint_lower_threshold = 2;
+			static constexpr int case_shorter_interval_right_endpoint_upper_threshold = 3;
+
+			static constexpr int shorter_interval_case_tie_lower_threshold =
+				-floor_log5_pow2_minus_log5_3(significand_bits + 4) - 2 - significand_bits;
+			static constexpr int shorter_interval_case_tie_upper_threshold = [] {
+				constexpr int threshold = -floor_log5_pow2_minus_log5_3(significand_bits + 3) - 2 - significand_bits;
+				constexpr int spurious_tie_threshold = -floor_log5_pow2(significand_bits + 2) - 2 - significand_bits;
+
+				return threshold <= spurious_tie_threshold ? threshold : spurious_tie_threshold;
+			}();
 
 			//// The main algorithm assumes the input is a normal/subnormal finite number
 
-			template <bool return_sign, class IntervalTypeProvider, class CorrectRoundingSearch>
+			template <
+				bool return_sign,
+				bool allow_trailing_zeros,
+				class IntervalTypeProvider,
+				dragonbox_correct_rounding::tag_t correct_rounding_tag
+			>
 			JKJ_SAFEBUFFERS
-			static fp_t<Float, return_sign> compute(bit_representation_t<Float> br) noexcept
+			static fp_t<Float, return_sign> compute_nearest(ieee754_bits<Float> br) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
@@ -1839,549 +1896,693 @@ namespace jkj {
 				if constexpr (return_sign) {
 					ret_value.is_negative = br.is_negative();
 				}
-				auto significand = br.f << exponent_bits;
-				auto exponent = int((br.f >> precision) & (exponent_bits_mask >> precision));
-				bool closer_boundary = ((significand << 1) == 0) && (exponent != 0);
+				auto significand = br.extract_significand_bits();
+				auto exponent = br.extract_exponent_bits();;
 
 				// Deal with normal/subnormal dichotomy
 				if (exponent != 0) {
-					significand |= sign_bit_mask;
-					exponent = exponent + exponent_bias - int(extended_precision) + 1;
-				}
-				else {
-					exponent = min_exponent;
-				}
+					exponent += exponent_bias - significand_bits;
 
-				// Compute the endpoints
-				extended_significand_type fr;
-				// For nearest rounding
-				if constexpr (IntervalTypeProvider::tag ==
-					dragonbox_rounding_modes::to_nearest_tag)
-				{
-					fr = significand | boundary_bit;
+					// Closer boundary case; proceed like Schubfach
+					if (significand == 0) {
+						shorter_interval_case<allow_trailing_zeros, correct_rounding_tag>(
+							ret_value, exponent, interval_type);
+						return ret_value;
+					}
+
+					significand |= (carrier_uint(1) << significand_bits);
 				}
-				// For left-closed directed rounding
-				else if constexpr (IntervalTypeProvider::tag ==
-					dragonbox_rounding_modes::left_closed_directed_tag)
-				{
-					fr = significand + normal_interval_length;
-				}
-				// For right-closed directed rounding
+				// Subnormal case; interval is always regular
 				else {
-					fr = significand;
+					exponent = min_exponent - significand_bits;
 				}
 
 				// Compute k and beta
-				int const minus_k = floor_log10_pow2_sub<initial_kappa>(
-					exponent + int(extended_precision - precision - 1), closer_boundary);
-				int const minus_beta = -(exponent + floor_log2_pow10(-minus_k) + 1);
+				int const minus_k = floor_log10_pow2(exponent) - initial_kappa;
+				auto const cache = get_cache<Float>(-minus_k);
+				int const beta_minus_1 = exponent + floor_log2_pow10(-minus_k);
 
 				// Compute zi and deltai
-				auto const cache = jkj::dragonbox_detail::get_cache<Float>(-minus_k);
-
-				extended_significand_type zi;
-				if constexpr (IntervalTypeProvider::tag ==
-					dragonbox_rounding_modes::left_closed_directed_tag)
-				{
-					// Take care of the case when overflow occurs
-					if (fr == 0) {
-						if constexpr (sizeof(Float) == 4) {
-							zi = extended_significand_type(cache >>
-								extended_precision >> minus_beta);
-						}
-						else {
-							zi = cache.high() >> minus_beta;
-						}
-					}
-					else {
-						zi = compute_mul(fr, cache, minus_beta);
-					}
-				}
-				else {
-					zi = compute_mul(fr, cache, minus_beta);
-				}
-				auto deltai = compute_delta<IntervalTypeProvider::tag>(closer_boundary, cache, minus_beta);
-
-				ret_value.exponent = minus_k + initial_kappa + 1;
+				// 10^kappa0 <= deltai < 10^(kappa0 + 1)
+				auto const deltai = compute_delta(cache, beta_minus_1);
+				carrier_uint const two_fc = significand << 1;
+				carrier_uint const two_fr = two_fc | 1;
+				carrier_uint const zi = compute_mul(two_fr << beta_minus_1, cache);
 
 
 				//////////////////////////////////////////////////////////////////////
-				// Step 2: Compute the exponent
+				// Step 2: Try larger divisor; remove trailing zeros if necessary
 				//////////////////////////////////////////////////////////////////////
 
 				constexpr auto big_divisor = compute_power<initial_kappa + 1>(std::uint32_t(10));
 				constexpr auto small_divisor = compute_power<initial_kappa>(std::uint32_t(10));
-				ret_value.significand = zi / big_divisor;
-				auto remainder = std::uint32_t(zi % big_divisor);
 
-				if (remainder > deltai) {
-					goto correct_rounding_search_label;
-				}
-				else if (remainder == deltai) {
-					// Compare fractional parts
-					if (!is_zf_smaller_than_deltaf<IntervalTypeProvider::tag>(significand, closer_boundary,
-						minus_beta, cache, interval_type, exponent, minus_k))
-					{
-						goto correct_rounding_search_label;
-					}
-				}
+				// Using an upper bound on zi, we might be able to optimize the division
+				// better than the compiler; we are computing zi / big_divisor here
+				ret_value.significand = div::divide_by_pow10<initial_kappa + 1,
+					significand_bits + initial_kappa + 2, initial_kappa + 1>(zi);
+				auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
 
-				if (!interval_type.include_right_endpoint() && remainder == 0) {
-					if (is_right_boundary_integer<IntervalTypeProvider::tag>(fr, closer_boundary, exponent, minus_k))
+				if (r > deltai) {
+					goto small_divisor_case_label;
+				}
+				else if (r < deltai) {
+					// Exclude the right endpoint if necessary
+					if (r == 0 && !interval_type.include_right_endpoint() &&
+						is_product_integer<integer_check_case_id::fc_pm_half>(two_fr, exponent, minus_k))
 					{
-						// For right-closed directed rounding, the greatest one is the closest one
-						if constexpr (IntervalTypeProvider::tag ==
-							dragonbox_rounding_modes::right_closed_directed_tag)
-						{
-							--ret_value.exponent;
-							ret_value.significand *= 10;
-							ret_value.significand += (remainder / small_divisor);
-							goto remove_trailing_zeros_label;
-						}
-						// For the others, we need to exclude the right endpoint if necessary
-						else if constexpr (CorrectRoundingSearch::tag ==
+						if constexpr (correct_rounding_tag ==
 							dragonbox_correct_rounding::do_not_care_tag)
 						{
-							--ret_value.exponent;
 							ret_value.significand *= 10;
-							ret_value.significand += (remainder / small_divisor);
-
-							if (remainder % small_divisor == 0) {
-								// We are sure that the intersection should be nonempty
-								--ret_value.significand;
-							}
-							goto remove_trailing_zeros_label;
+							--ret_value.significand;
+							return ret_value;
 						}
 						else {
-							goto correct_rounding_search_label;
+							--ret_value.significand;
+							r = big_divisor;
+							goto small_divisor_case_label;
 						}
 					}
 				}
-				goto remove_trailing_zeros_label;
-
-
-				//////////////////////////////////////////////////////////////////////
-				// Step 3: Correct rounding search
-				//////////////////////////////////////////////////////////////////////
-
-			correct_rounding_search_label:
-				--ret_value.exponent;
-				ret_value.significand *= 10;
-				ret_value.significand += (remainder / small_divisor);
-				remainder %= small_divisor;
-
-				// For right-closed directed rounding, the greatest one is the closest one
-				if constexpr (IntervalTypeProvider::tag ==
-					dragonbox_rounding_modes::right_closed_directed_tag)
-				{
-					goto remove_trailing_zeros_label;
-				}
-				// For other rounding modes, we might need to care about the case
-				// when r = 0 and the right endpoint is excluded from the interval
-				else if constexpr (CorrectRoundingSearch::tag ==
-					dragonbox_correct_rounding::do_not_care_tag)
-				{
-					if (!interval_type.include_right_endpoint() && remainder == 0) {
-						if (is_right_boundary_integer<IntervalTypeProvider::tag>(fr, closer_boundary, exponent, minus_k))
-						{
-							// We are sure that the intersection should be nonempty
-							--ret_value.significand;
-						}					
-						goto remove_trailing_zeros_label;
+				else {
+					// r == deltai; compare fractional parts
+					auto const two_fl = two_fc - 1;
+					if (!compute_mul_parity(two_fl, cache, beta_minus_1) &&
+						(!interval_type.include_left_endpoint() ||
+							!is_product_integer<integer_check_case_id::fc_pm_half>(
+								two_fl, exponent, minus_k)))
+					{
+						goto small_divisor_case_label;
 					}
 				}
-				// Correct rounding search for left-closed directed rounding
-				else if constexpr (IntervalTypeProvider::tag ==
-					dragonbox_rounding_modes::left_closed_directed_tag)
+				ret_value.exponent = minus_k + initial_kappa + 1;
+
+				// We may need to remove trailing zeros
+				if constexpr (!allow_trailing_zeros)
 				{
-					// TODO
+					ret_value.exponent += remove_trailing_zeros(ret_value.significand);
 				}
-				// Correct rounding search for nearest rounding
-				else {
-					auto displacement = remainder + (small_divisor / 2);
-					auto const epsiloni = compute_delta<dragonbox_rounding_modes::left_closed_directed_tag>(
-						false, cache, minus_beta + 1);
+				return ret_value;
 
-					// n' + 1 >= 1?
-					if (displacement <= epsiloni) {
-						auto const approx_y = zi - epsiloni;
 
-						displacement = epsiloni - displacement;
-						auto steps = displacement / small_divisor + 1;
+				//////////////////////////////////////////////////////////////////////
+				// Step 3: Find the significand with the smaller divisor
+				//////////////////////////////////////////////////////////////////////
 
-						// Check fractional if necessary
-						if (displacement % small_divisor == 0) {
-							auto const yi = compute_mul(significand, cache, minus_beta);
-							// We have either yi == approx_y or yi == approx_y - 1
-							if (yi == approx_y) {
-								[[maybe_unused]] bool is_center_integer =
-									closer_boundary ?
-									is_product_integer<integer_check_case_id::fc_irregular_delta>(
-										significand, exponent, minus_k) :
-									is_product_integer<integer_check_case_id::fc_long_delta>(
-										significand, exponent, minus_k);
+			small_divisor_case_label:
+				ret_value.significand *= 10;
+				ret_value.exponent = minus_k + initial_kappa;
+				auto dist = r - (deltai / 2) + (small_divisor / 2);
+				constexpr auto mask = (std::uint32_t(1) << initial_kappa) - 1;
 
-								if constexpr (CorrectRoundingSearch::tag ==
-									dragonbox_correct_rounding::tie_to_even_tag ||
-									CorrectRoundingSearch::tag ==
-									dragonbox_correct_rounding::tie_to_odd_tag)
+				// Is dist divisible by 2^kappa?
+				if ((dist & mask) == 0) {
+					bool const approx_y_parity = ((dist ^ (small_divisor / 2)) & 1) != 0;
+					dist >>= initial_kappa;
+
+					// Is dist divisible by 5^kappa?
+					if (div::check_divisibility_and_divide_by_pow5<initial_kappa>(dist)) {
+						ret_value.significand += dist;
+
+						// Check z^(f) >= epsilon^(f)
+						// We have either yi == zi - epsiloni or yi == (zi - epsiloni) - 1,
+						// where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f)
+						// Since there are only 2 possibilities, we only need to care about the parity
+						// Also, zi and r should have the same parity since the divisor
+						// is an even number
+						if (compute_mul_parity(two_fc, cache, beta_minus_1) != approx_y_parity) {
+							--ret_value.significand;
+						}
+						else {
+							// If z^(f) >= epsilon^(f), we might have a tie
+							// when z^(f) == epsilon^(f), or equivalently, when y is an integer
+							// For tie-to-up case, we can just choose the upper one
+							if constexpr (correct_rounding_tag !=
+								dragonbox_correct_rounding::tie_to_up_tag)
+							{
+								if (is_product_integer<integer_check_case_id::fc>(
+									two_fc, exponent, minus_k))
 								{
-									// Compare round-up vs round-down
-									// round-up  : steps - 1
-									// round-down: steps - 1 if !is_center_integer, steps otherwise
-									// If they differ, that is, if is_center_integer,
-									// then prefer even/odd
-									if (is_center_integer) {
-										// steps vs steps - 1
-										if constexpr (CorrectRoundingSearch::tag ==
-											dragonbox_correct_rounding::tie_to_even_tag)
-										{
-											steps = (ret_value.significand & 1) != extended_significand_type(steps & 1)
-												? steps - 1 : steps;
-										}
-										else
-										{
-											steps = (ret_value.significand & 1) == extended_significand_type(steps & 1)
-												? steps - 1 : steps;
-										}
+									if constexpr (correct_rounding_tag ==
+										dragonbox_correct_rounding::tie_to_even_tag)
+									{
+										ret_value.significand =
+											ret_value.significand % 2 == 0 ?
+											ret_value.significand :
+											ret_value.significand - 1;
+									}
+									else if constexpr (correct_rounding_tag ==
+										dragonbox_correct_rounding::tie_to_odd_tag)
+									{
+										ret_value.significand =
+											ret_value.significand % 2 != 0 ?
+											ret_value.significand :
+											ret_value.significand - 1;
 									}
 									else {
-										--steps;
-									}
-								}
-								else if constexpr (CorrectRoundingSearch::tag ==
-									dragonbox_correct_rounding::tie_to_up_tag)
-								{
-									--steps;
-								}
-								else {
-									if (!is_center_integer) {
-										--steps;
+										// tie-to-down
+										--ret_value.significand;
 									}
 								}
 							}
 						}
-
-						// The calculated steps might be too much if the left endpoint is closer than usual
-						if (steps == 1 && closer_boundary) {
-							// We know already r is at most deltai
-							deltai -= std::uint32_t(remainder);
-							if (deltai < small_divisor) {
-								goto remove_trailing_zeros_label;
-							}
-							else if (deltai == small_divisor) {
-								// See the test result of verify_incorrect_rounding_removal.cpp
-								if constexpr (sizeof(Float) == 4) {
-									if (exponent == 59) {
-										goto remove_trailing_zeros_label;
-									}
-								}
-								else {
-									if (exponent == -203) {
-										goto remove_trailing_zeros_label;
-									}
-								}
-							}
-						}
-
-						ret_value.significand -= steps;
 					}
-				}
-
-
-				//////////////////////////////////////////////////////////////////////
-				// Step 4: Remove trailing zeros and return
-				//////////////////////////////////////////////////////////////////////
-				
-			remove_trailing_zeros_label:
-				// Remove trailing zeros and return
-				auto t = bits::countr_zero(ret_value.significand);
-				if (t > decimal_digits - 1) {
-					t = decimal_digits - 1;
-				}
-
-				constexpr auto const& divtest_table =
-					divtest::table_holder<extended_significand_type, 5, divtest_table_size>::table;
-
-				if constexpr (sizeof(Float) == 4) {
-					constexpr auto mod_inverse = divtest_table.mod_inverses[1];
-					constexpr auto max_quotient = divtest_table.max_quotients[1];
-
-					int s = 0;
-					for (; s < t; ++s) {
-						if (ret_value.significand * mod_inverse > max_quotient) {
-							break;
-						}
-						ret_value.significand *= mod_inverse;
-					}
-					ret_value.significand >>= s;
-					ret_value.exponent += s;
-				}
-				else {
-					static_assert(sizeof(Float) == 8);
-
-					// Divide by 10^8 and reduce to 32-bits
-					// Since ret_value.significand <= 9'9999'9999'9999'9999,
-					// both of the quotient and the remainder should fit in 32-bits
-					auto quotient_candidate = ret_value.significand * divtest_table.mod_inverses[8];
-
-					// If the number is divisible by 1'0000'0000, work with the quotient
-					if (t >= 8 && quotient_candidate <= divtest_table.max_quotients[8]) {
-						auto quotient = std::uint32_t(quotient_candidate >> 8);
-						constexpr auto mod_inverse = std::uint32_t(divtest_table.mod_inverses[1]);
-						constexpr auto max_quotient = std::numeric_limits<std::uint32_t>::max() / 5;
-
-						ret_value.exponent += 8;
-						t -= 8;
-
-						int s = 0;
-						for (; s < t; ++s) {
-							if (quotient * mod_inverse > max_quotient) {
-								break;
-							}
-							quotient *= mod_inverse;
-						}
-						quotient >>= s;
-						ret_value.significand = quotient;
-						ret_value.exponent += s;
-					}
-					// Otherwise, work with the number itself
+					// Is dist not divisible by 5^kappa?
 					else {
-						constexpr auto mod_inverse = divtest_table.mod_inverses[1];
-						constexpr auto max_quotient = divtest_table.max_quotients[1];
-
-						int s = 0;
-						for (; s < t; ++s) {
-							if (ret_value.significand * mod_inverse > max_quotient) {
-								break;
-							}
-							ret_value.significand *= mod_inverse;
-						}
-						ret_value.significand >>= s;
-						ret_value.exponent += s;
+						ret_value.significand += dist;
 					}
 				}
-
+				// Is dist not divisible by 2^kappa?
+				else {
+					// Since we know dist is small, we might be able to optimize the division
+					// better than the compiler; we are computing dist / small_divisor here
+					ret_value.significand += div::small_division_by_pow10<initial_kappa>(dist);
+				}
 				return ret_value;
 			}
 
-			static extended_significand_type compute_mul(
-				extended_significand_type f, cache_entry_type const& cache, int minus_beta) noexcept
+			template <bool allow_trailing_zeros,
+				dragonbox_correct_rounding::tag_t correct_rounding_tag,
+				bool has_sign, class IntervalType>
+			static void shorter_interval_case(fp_t<Float, has_sign>& ret_value,
+				int exponent, IntervalType interval_type)
 			{
-				if constexpr (sizeof(Float) == 4) {
-					return wide_uint::umul96_upper32(f, cache) >> minus_beta;
-				}
-				else {
-					return wide_uint::umul192_upper64(f, cache) >> minus_beta;
-				}
-			}
+				// Compute k and beta
+				int const minus_k = floor_log10_pow2_minus_log10_4_over_3(exponent);
+				int const beta_minus_1 = exponent + floor_log2_pow10(-minus_k);
 
-			template <dragonbox_rounding_modes::tag_t tag>
-			static std::uint32_t compute_delta([[maybe_unused]] bool closer_boundary,
-				cache_entry_type const& cache, int minus_beta) noexcept
-			{
-				constexpr auto q_mp_m1 = extended_precision - precision - 1;
-				constexpr auto intermediate_precision =
-					sizeof(Float) == 4 ? cache_precision : extended_precision;
-				using intermediate_type = std::conditional_t<sizeof(Float) == 4,
-					cache_entry_type, extended_significand_type>;
+				// Compute floor(x) and floor(z)
+				auto const cache = get_cache<Float>(-minus_k);
 
-				intermediate_type r;
-				if constexpr (sizeof(Float) == 4) {
-					r = cache;
-				}
-				else {
-					r = cache.high();
-				}
+				auto x = compute_left_endpoint_for_shorter_interval_case(cache, beta_minus_1);
+				auto z = compute_right_endpoint_for_shorter_interval_case(cache, beta_minus_1);
 
-				// For nearest rounding
-				if constexpr (tag == dragonbox_rounding_modes::to_nearest_tag)
+				// If we don't accept the right endpoint and
+				// if the righr endpoint is an integer, decrease it
+				if (!interval_type.include_right_endpoint() &&
+					is_right_endpoint_integer_shorter_interval(exponent))
 				{
-					if (closer_boundary) {
-						r = (r >> 1) + (r >> 2);
-					}
-					return std::uint32_t(r >> (intermediate_precision - q_mp_m1 + minus_beta));
+					--z;
 				}
-				// For left-directed rounding
-				else if constexpr (tag == dragonbox_rounding_modes::left_closed_directed_tag)
+				// If we don't accept the left endpoint or
+				// if the left endpoint is not an integer, increase it
+				if (!interval_type.include_left_endpoint() ||
+					!is_left_endpoint_integer_shorter_interval(exponent))
 				{
-					return std::uint32_t(r >> (intermediate_precision - q_mp_m1 + minus_beta));
+					++x;
 				}
-				// For right-directed rounding
-				else {
-					if (closer_boundary) {
-						return std::uint32_t(r >> (intermediate_precision - (q_mp_m1 - 1) + minus_beta));
+
+				// Try bigger divisor
+				ret_value.significand = z / 10;
+
+				// If succeed, remove trailing zeros if necessary and return
+				if (ret_value.significand * 10 >= x) {
+					ret_value.exponent = minus_k + 1;
+					if constexpr (!allow_trailing_zeros)
+					{
+						ret_value.exponent += remove_trailing_zeros(ret_value.significand);
 					}
-					else {
-						return std::uint32_t(r >> (intermediate_precision - q_mp_m1 + minus_beta));
+					return;
+				}
+
+				// Otherwise, compute the round-up of y
+				ret_value.significand = compute_round_up_for_shorter_interval_case(cache, beta_minus_1);
+				ret_value.exponent = minus_k;
+
+				// When tie occurs, choose one of them according to the rule
+				if constexpr (correct_rounding_tag !=
+					dragonbox_correct_rounding::tie_to_up_tag)
+				{
+					if (exponent >= shorter_interval_case_tie_lower_threshold &&
+						exponent <= shorter_interval_case_tie_upper_threshold)
+					{
+						if constexpr (correct_rounding_tag ==
+							dragonbox_correct_rounding::tie_to_even_tag)
+						{
+							ret_value.significand =
+								ret_value.significand % 2 == 0 ?
+								ret_value.significand :
+								ret_value.significand - 1;
+						}
+						else if constexpr (correct_rounding_tag ==
+							dragonbox_correct_rounding::tie_to_odd_tag)
+						{
+							ret_value.significand =
+								ret_value.significand % 2 != 0 ?
+								ret_value.significand :
+								ret_value.significand - 1;
+						}
+						else {
+							// tie-to-down
+							--ret_value.significand;
+						}
 					}
+				}
+
+				if (ret_value.significand < x) {
+					++ret_value.significand;
 				}
 			}
 
-			static bool is_zf_strictly_smaller_than_deltaf(
-				extended_significand_type fl,
-				int minus_beta, cache_entry_type const& cache) noexcept
+			template <
+				bool return_sign,
+				bool allow_trailing_zeros
+			>
+			JKJ_SAFEBUFFERS
+			static fp_t<Float, return_sign> compute_left_closed_directed(ieee754_bits<Float> br) noexcept
 			{
-				auto mul = compute_mul(fl, cache, minus_beta);
-				return (mul & 1) != 0;
+				//////////////////////////////////////////////////////////////////////
+				// Step 1: integer promotion & Schubfach multiplier calculation
+				//////////////////////////////////////////////////////////////////////
+
+				fp_t<Float, return_sign> ret_value;
+
+				if constexpr (return_sign) {
+					ret_value.is_negative = br.is_negative();
+				}
+				auto significand = br.extract_significand_bits();
+				auto exponent = br.extract_exponent_bits();;
+
+				// Deal with normal/subnormal dichotomy
+				if (exponent != 0) {
+					exponent += exponent_bias - significand_bits;
+					significand |= (carrier_uint(1) << significand_bits);
+				}
+				// Subnormal case; interval is always regular
+				else {
+					exponent = min_exponent - significand_bits;
+				}
+
+				// Compute k and beta
+				int const minus_k = floor_log10_pow2(exponent) - initial_kappa;
+				auto const cache = get_cache<Float>(-minus_k);
+				int const beta = exponent + floor_log2_pow10(-minus_k) + 1;
+
+				// Compute yi and deltai
+				// 10^kappa0 <= deltai < 10^(kappa0 + 1)
+				auto const deltai = compute_delta(cache, beta - 1);
+				carrier_uint yi = compute_mul(significand << beta, cache);
+
+				if (!is_product_integer<integer_check_case_id::fc>(significand, exponent + 1, minus_k)) {
+					++yi;
+				}
+
+				//////////////////////////////////////////////////////////////////////
+				// Step 2: Try larger divisor; remove trailing zeros if necessary
+				//////////////////////////////////////////////////////////////////////
+
+				constexpr auto big_divisor = compute_power<initial_kappa + 1>(std::uint32_t(10));
+				constexpr auto small_divisor = compute_power<initial_kappa>(std::uint32_t(10));
+
+				// Using an upper bound on yi, we might be able to optimize the division
+				// better than the compiler; we are computing yi / big_divisor here
+				ret_value.significand = div::divide_by_pow10<initial_kappa + 1,
+					significand_bits + initial_kappa + 2, initial_kappa + 1>(yi);
+				auto r = std::uint32_t(yi - big_divisor * ret_value.significand);
+
+				if (r != 0) {
+					++ret_value.significand;
+					r = big_divisor - r;
+				}
+
+				if (r > deltai) {
+					goto small_divisor_case_label;
+				}
+				else if (r == deltai) {
+					// Compare the fractional parts
+					if (compute_mul_parity(significand + 1, cache, beta) ||
+						is_product_integer<integer_check_case_id::fc>(significand + 1, exponent + 1, minus_k))
+					{
+						goto small_divisor_case_label;
+					}
+
+				}
+
+				// The ceiling is inside, so we are done
+				ret_value.exponent = minus_k + initial_kappa + 1;
+				if constexpr (!allow_trailing_zeros) {
+					ret_value.exponent += remove_trailing_zeros(ret_value.significand);
+				}
+				return ret_value;
+
+
+				//////////////////////////////////////////////////////////////////////
+				// Step 3: Find the significand with the smaller divisor
+				//////////////////////////////////////////////////////////////////////
+
+			small_divisor_case_label:
+				ret_value.significand *= 10;
+				ret_value -= div::small_division_by_pow10<initial_kappa>(r);
+				return ret_value;
 			}
 
-			//      long delta: 2^(e+q-p-1)
-			// irregular delta: 3 * 2^(e+q-p-3)
-			//     short delta: 2^(e+q-p-2)
+			template <
+				bool return_sign,
+				bool allow_trailing_zeros
+			>
+			JKJ_SAFEBUFFERS
+			static fp_t<Float, return_sign> compute_right_closed_directed(ieee754_bits<Float> br) noexcept
+			{
+				//////////////////////////////////////////////////////////////////////
+				// Step 1: integer promotion & Schubfach multiplier calculation
+				//////////////////////////////////////////////////////////////////////
+
+				fp_t<Float, return_sign> ret_value;
+
+				if constexpr (return_sign) {
+					ret_value.is_negative = br.is_negative();
+				}
+				auto significand = br.extract_significand_bits();
+				auto exponent = br.extract_exponent_bits();;
+
+				// Deal with normal/subnormal dichotomy
+				bool closer_boundary = false;
+				if (exponent != 0) {
+					exponent += exponent_bias - significand_bits;
+					if (significand == 0) {
+						closer_boundary = true;
+					}
+					significand |= (carrier_uint(1) << significand_bits);
+				}
+				// Subnormal case; interval is always regular
+				else {
+					exponent = min_exponent - significand_bits;
+				}
+
+				// Compute k and beta
+				int const minus_k = floor_log10_pow2(exponent - closer_boundary ? 1 : 0) - initial_kappa;
+				auto const cache = get_cache<Float>(-minus_k);
+				int const beta = exponent + floor_log2_pow10(-minus_k) + 1;
+
+				// Compute zi and deltai
+				// 10^kappa0 <= deltai < 10^(kappa0 + 1)
+				auto const deltai = compute_delta(cache, beta - 1);
+				carrier_uint zi = compute_mul(significand << beta, cache);
+
+
+				//////////////////////////////////////////////////////////////////////
+				// Step 2: Try larger divisor; remove trailing zeros if necessary
+				//////////////////////////////////////////////////////////////////////
+
+				constexpr auto big_divisor = compute_power<initial_kappa + 1>(std::uint32_t(10));
+				constexpr auto small_divisor = compute_power<initial_kappa>(std::uint32_t(10));
+
+				// Using an upper bound on yi, we might be able to optimize the division
+				// better than the compiler; we are computing yi / big_divisor here
+				ret_value.significand = div::divide_by_pow10<initial_kappa + 1,
+					significand_bits + initial_kappa + 2, initial_kappa + 1>(zi);
+				auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
+
+				if (r > deltai) {
+					goto small_divisor_case_label;
+				}
+				else if (r == deltai) {
+					// Compare the fractional parts
+					if (compute_mul_parity(significand - 1, cache, beta))
+					{
+						goto small_divisor_case_label;
+					}
+
+				}
+
+				// The floor is inside, so we are done
+				ret_value.exponent = minus_k + initial_kappa + 1;
+				if constexpr (!allow_trailing_zeros) {
+					ret_value.exponent += remove_trailing_zeros(ret_value.significand);
+				}
+				return ret_value;
+
+
+				//////////////////////////////////////////////////////////////////////
+				// Step 3: Find the significand with the small divisor
+				//////////////////////////////////////////////////////////////////////
+
+			small_divisor_case_label:
+				ret_value.significand *= 10;
+				ret_value += div::small_division_by_pow10<initial_kappa>(r);
+				return ret_value;
+			}
+
+			// Remove trailing zeros from n and return the number of zeros removed
+			JKJ_FORCEINLINE static int remove_trailing_zeros(carrier_uint& n) {
+				constexpr auto max_power = [] {
+					auto max_possible_significand =
+						std::numeric_limits<carrier_uint>::max() /
+						compute_power<initial_kappa + 1>(std::uint32_t(10));
+
+					int k = 0;
+					carrier_uint p = 1;
+					while (p < max_possible_significand / 10) {
+						p *= 10;
+						++k;
+					}
+					return k;
+				}();
+
+				auto t = bits::countr_zero(n);
+				if (t > max_power) {
+					t = max_power;
+				}
+
+				if constexpr (format == ieee754_format::binary32) {
+					constexpr auto const& divtable =
+						div::table_holder<carrier_uint, 5, divtest_table_size>::table;
+
+					int s = 0;
+					for (; s < t - 1; s += 2) {
+						if (n * divtable.mod_inv[2] > divtable.max_quotients[2]) {
+							break;
+						}
+						n *= divtable.mod_inv[2];
+					}
+					if (s < t && n * divtable.mod_inv[1] <= divtable.max_quotients[1])
+					{
+						n *= divtable.mod_inv[1];
+						++s;
+					}
+					n >>= s;
+					return s;
+				}
+				else {
+					static_assert(format == ieee754_format::binary64);
+					static_assert(initial_kappa >= 2);
+
+					// Divide by 10^8 and reduce to 32-bits
+					// Since ret_value.significand <= (2^64 - 1) / 1000 < 10^17,
+					// both of the quotient and the r should fit in 32-bits
+
+					constexpr auto const& divtable =
+						div::table_holder<carrier_uint, 5, decimal_digits>::table;
+
+					// If the number is divisible by 1'0000'0000, work with the quotient
+					if (t >= 8) {
+						auto quotient_candidate = n * divtable.mod_inv[8];
+
+						if (quotient_candidate <= divtable.max_quotients[8]) {
+							auto quotient = std::uint32_t(quotient_candidate >> 8);
+
+							constexpr auto mod_inverse = std::uint32_t(divtable.mod_inv[1]);
+							constexpr auto max_quotient =
+								std::numeric_limits<std::uint32_t>::max() / 5;
+
+							int s = 8;
+							for (; s < t; ++s) {
+								if (quotient * mod_inverse > max_quotient) {
+									break;
+								}
+								quotient *= mod_inverse;
+							}
+							quotient >>= (s - 8);
+							n = quotient;
+							return s;
+						}
+					}
+
+					// Otherwise, work with the remainder
+					auto quotient = std::uint32_t(div::divide_by_pow10<8, 54, 0>(n));
+					auto remainder = std::uint32_t(n - 1'0000'0000 * quotient);
+
+					constexpr auto mod_inverse = std::uint32_t(divtable.mod_inv[1]);
+					constexpr auto max_quotient =
+						std::numeric_limits<std::uint32_t>::max() / 5;
+
+					if (t == 0 || remainder * mod_inverse > max_quotient) {
+						return 0;
+					}
+					remainder *= mod_inverse;
+
+					if (t == 1 || remainder * mod_inverse > max_quotient) {
+						n = (remainder >> 1)
+							+ quotient * carrier_uint(1000'0000);
+						return 1;
+					}
+					remainder *= mod_inverse;
+
+					if (t == 2 || remainder * mod_inverse > max_quotient) {
+						n = (remainder >> 2)
+							+ quotient * carrier_uint(100'0000);
+						return 2;
+					}
+					remainder *= mod_inverse;
+
+					if (t == 3 || remainder * mod_inverse > max_quotient) {
+						n = (remainder >> 3)
+							+ quotient * carrier_uint(10'0000);
+						return 3;
+					}
+					remainder *= mod_inverse;
+
+					if (t == 4 || remainder * mod_inverse > max_quotient) {
+						n = (remainder >> 4)
+							+ quotient * carrier_uint(1'0000);
+						return 4;
+					}
+					remainder *= mod_inverse;
+
+					if (t == 5 || remainder * mod_inverse > max_quotient) {
+						n = (remainder >> 5)
+							+ quotient * carrier_uint(1000);
+						return 5;
+					}
+					remainder *= mod_inverse;
+
+					if (t == 6 || remainder * mod_inverse > max_quotient) {
+						n = (remainder >> 6)
+							+ quotient * carrier_uint(100);
+						return 6;
+					}
+					remainder *= mod_inverse;
+
+					n = (remainder >> 7)
+						+ quotient * carrier_uint(10);
+					return 7;
+				}
+			}
+
+			static carrier_uint compute_mul(carrier_uint u, cache_entry_type const& cache) noexcept
+			{
+				if constexpr (format == ieee754_format::binary32) {
+					return wide_uint::umul96_upper32(u, cache);
+				}
+				else {
+					return wide_uint::umul192_upper64(u, cache);
+				}
+			}
+
+			static std::uint32_t compute_delta(cache_entry_type const& cache, int beta_minus_1) noexcept
+			{
+				if constexpr (format == ieee754_format::binary32) {
+					return std::uint32_t(cache >> (cache_bits - 1 - beta_minus_1));
+				}
+				else {
+					return std::uint32_t(cache.high() >> (carrier_bits - 1 - beta_minus_1));
+				}
+			}
+
+			static bool compute_mul_parity(carrier_uint two_f, cache_entry_type const& cache, int beta_minus_1) noexcept
+			{
+				assert(beta_minus_1 >= 1);
+				assert(beta_minus_1 < 64);
+
+				if constexpr (format == ieee754_format::binary32) {
+					return ((wide_uint::umul96_lower64(two_f, cache) >>
+						(64 - beta_minus_1)) & 1) != 0;
+				}
+				else {
+					return ((wide_uint::umul192_middle64(two_f, cache) >>
+						(64 - beta_minus_1)) & 1) != 0;
+				}
+			}
+
+			static carrier_uint compute_left_endpoint_for_shorter_interval_case(
+				cache_entry_type const& cache, int beta_minus_1) noexcept
+			{
+				if constexpr (format == ieee754_format::binary32) {
+					return carrier_uint(
+						(cache - (cache >> (significand_bits + 2))) >>
+						(cache_bits - significand_bits - 1 - beta_minus_1));
+				}
+				else {
+					return (cache.high() - (cache.high() >> (significand_bits + 2))) >>
+						(carrier_bits - significand_bits - 1 - beta_minus_1);
+				}
+			}
+
+			static carrier_uint compute_right_endpoint_for_shorter_interval_case(
+				cache_entry_type const& cache, int beta_minus_1) noexcept
+			{
+				if constexpr (format == ieee754_format::binary32) {
+					return carrier_uint(
+						(cache + (cache >> (significand_bits + 1))) >>
+						(cache_bits - significand_bits - 1 - beta_minus_1));
+				}
+				else {
+					return (cache.high() + (cache.high() >> (significand_bits + 1))) >>
+						(carrier_bits - significand_bits - 1 - beta_minus_1);
+				}
+			}
+
+			static carrier_uint compute_round_up_for_shorter_interval_case(
+				cache_entry_type const& cache, int beta_minus_1) noexcept
+			{
+				if constexpr (format == ieee754_format::binary32) {
+					return carrier_uint(
+						((cache >> (cache_bits - significand_bits - 2 - beta_minus_1)) + 1)) / 2;
+				}
+				else {
+					return ((cache.high() >> (carrier_bits - significand_bits - 2 - beta_minus_1)) + 1) / 2;
+				}
+			}
+
+			static bool is_right_endpoint_integer_shorter_interval(int exponent) noexcept {
+				return exponent >= case_shorter_interval_right_endpoint_lower_threshold &&
+					exponent <= case_shorter_interval_right_endpoint_upper_threshold;
+			}
+
+			static bool is_left_endpoint_integer_shorter_interval(int exponent) noexcept {
+				return exponent >= case_shorter_interval_left_endpoint_lower_threshold &&
+					exponent <= case_shorter_interval_left_endpoint_upper_threshold;
+			}
+
 			enum class integer_check_case_id {
-				fc_minus_2_to_the_q_mp_m3,
-				fc_pm_2_to_the_q_mp_m2_long_delta,
-				fc_plus_2_to_the_q_mp_m2_irregular_delta,
-				fc_plus_2_to_the_q_mp_m1_long_delta,
-				fc_long_delta,
-				fc_irregular_delta
+				fc_pm_half,
+				fc
 			};
 			template <integer_check_case_id case_id>
-			static bool is_product_integer([[maybe_unused]] extended_significand_type f,
-				int exponent, [[maybe_unused]] int minus_k) noexcept
+			static bool is_product_integer(carrier_uint two_f, int exponent, int minus_k) noexcept
 			{
-				// Case I: f = fc - 2^(q-p-3), delta = 3 * 2^(e+q-p-3)
-				if constexpr (case_id == integer_check_case_id::fc_minus_2_to_the_q_mp_m3)
+				// Case I: f = fc +- 1/2
+				if constexpr (case_id == integer_check_case_id::fc_pm_half)
 				{
-					return exponent >= case_fc_minus_2_to_the_q_mp_m3_lower_threshold &&
-						exponent <= case_fc_minus_2_to_the_q_mp_m3_upper_threshold;
-				}
-				// Case II: f = fc +- 2^(q-p-2), delta = 2^(e+q-p-1)
-				else if constexpr (case_id == integer_check_case_id::fc_pm_2_to_the_q_mp_m2_long_delta)
-				{
-					if (exponent < case_fc_pm_2_to_the_q_mp_m2_long_delta_lower_threshold) {
+					if (exponent < case_fc_pm_half_lower_threshold) {
 						return false;
 					}
 					// For k >= 0
-					else if (exponent <= case_fc_pm_2_to_the_q_mp_m2_long_delta_upper_threshold) {
+					else if (exponent <= case_fc_pm_half_upper_threshold) {
 						return true;
 					}
 					// For k < 0
 					else {
-						return divtest::divisible_by_power_of_5<divtest_table_size>(f, minus_k);
+						return div::divisible_by_power_of_5<divtest_table_size>(two_f, minus_k);
 					}
 				}
-				// Case III: f = fc + 2^(q-p-2), delta = 3 * 2^(e+q-p-3)
-				else if constexpr (case_id == integer_check_case_id::fc_plus_2_to_the_q_mp_m2_irregular_delta)
-				{
-					return exponent >= case_fc_plus_2_to_the_q_mp_m2_irregular_delta_lower_threshold &&
-						exponent <= case_fc_plus_2_to_the_q_mp_m2_irregular_delta_upper_threshold;
-				}
-				// Case IV: f = fc + 2^(q-p-1), delta = 2^(e+q-p-1)
-				// Case V: f = fc, delta = 2^(e+q-p-1)
-				// Case VI: f = fc, delta = 3 * 2^(e+q-p-3)
+				// Case II: f = fc + 1
+				// Case III: f = fc
 				else
 				{
-					constexpr int lower_threshold =
-						case_id == integer_check_case_id::fc_irregular_delta ?
-						case_fc_irregular_delta_lower_threshold :
-						case_fc_long_delta_lower_threshold;
-
-					constexpr int upper_threshold =
-						case_id == integer_check_case_id::fc_irregular_delta ?
-						case_fc_irregular_delta_upper_threshold :
-						case_fc_long_delta_upper_threshold;
-
 					// Exponent for 5 is negative
-					if (exponent > upper_threshold) {
-						return divtest::divisible_by_power_of_5<divtest_table_size>(f, minus_k);
+					if (exponent > case_fc_upper_threshold) {
+						return div::divisible_by_power_of_5<divtest_table_size>(two_f, minus_k);
 					}
 					// Both exponents are nonnegative
-					else if (exponent >= lower_threshold) {
+					else if (exponent >= case_fc_lower_threshold) {
 						return true;
 					}
 					// Exponent for 2 is negative
 					else {
-						return divtest::divisible_by_power_of_2(f, minus_k - exponent);
+						return div::divisible_by_power_of_2(two_f, minus_k - exponent + 1);
 					}
-				}
-			}
-
-			template <dragonbox_rounding_modes::tag_t tag>
-			static bool equal_fractional_parts([[maybe_unused]] extended_significand_type fl,
-				[[maybe_unused]] bool closer_boundary, [[maybe_unused]] int exponent,
-				[[maybe_unused]] int minus_k) noexcept
-			{
-				if constexpr (tag == dragonbox_rounding_modes::to_nearest_tag)
-				{
-					// Generic case
-					if (!closer_boundary)
-					{
-						return is_product_integer<integer_check_case_id::fc_pm_2_to_the_q_mp_m2_long_delta>(
-							fl, exponent, minus_k);
-					}
-					// Edge case
-					else {
-						return is_product_integer<integer_check_case_id::fc_minus_2_to_the_q_mp_m3>(
-							fl, exponent, minus_k);
-					}
-				}
-				// For left-closed directed rounding
-				else if constexpr (tag == dragonbox_rounding_modes::left_closed_directed_tag)
-				{
-					// Returns zf_smaller if zf = deltaf
-					return is_product_integer<integer_check_case_id::others>(
-						fl, exponent, minus_k);
-				}
-				// For right-closed directed rounding
-				else {
-					// Since left endpoint is always not included,
-					// we do not actually have to call this function at all
-					return false;
-				}
-			}
-
-			template <dragonbox_rounding_modes::tag_t tag, class IntervalType>
-			static bool is_zf_smaller_than_deltaf(extended_significand_type fc,
-				bool closer_boundary, int minus_beta, cache_entry_type const& cache,
-				IntervalType& interval_type, int exponent, int minus_k) noexcept
-			{
-				// Compute fl
-				extended_significand_type fl;
-				if constexpr (tag == dragonbox_rounding_modes::to_nearest_tag)
-				{
-					fl = closer_boundary ?
-						sign_bit_mask - closer_boundary_bit :
-						fc - boundary_bit;
-				}
-				// For left-closed directed rounding
-				else if constexpr (tag == dragonbox_rounding_modes::left_closed_directed_tag)
-				{
-					fl = fc;
-				}
-				// For right-closed directed rounding
-				else {
-					fl = closer_boundary ?
-						sign_bit_mask - boundary_bit :
-						fc - normal_interval_length;
-				}
-
-				return is_zf_strictly_smaller_than_deltaf(fl, minus_beta, cache) ||
-					(interval_type.include_left_endpoint() &&
-						equal_fractional_parts<tag>(fl, closer_boundary, exponent, minus_k));
-			}
-
-			template <dragonbox_rounding_modes::tag_t tag>
-			static bool is_right_boundary_integer(extended_significand_type fr,
-				bool closer_boundary, int exponent, int minus_k)
-			{
-				if constexpr (tag == dragonbox_rounding_modes::to_nearest_tag)
-				{
-					if (!closer_boundary) {
-						return is_product_integer<integer_check_case_id::fc_pm_2_to_the_q_mp_m2_long_delta>(
-							fr, exponent, minus_k);
-					}
-					else {
-						return is_product_integer<integer_check_case_id::fc_plus_2_to_the_q_mp_m2_irregular_delta>(
-							fr, exponent, minus_k);
-					}
-				}
-				// Assumes left-closed directed rounding
-				else
-				{
-					return is_product_integer<integer_check_case_id::fc_plus_2_to_the_q_mp_m1_long_delta>(
-						fr, exponent, minus_k);
 				}
 			}
 		};
@@ -2391,7 +2592,7 @@ namespace jkj {
 	namespace dragonbox_case_handlers {
 		struct assert_finite {
 			template <class Float>
-			void operator()([[maybe_unused]] bit_representation_t<Float> br) const
+			void operator()([[maybe_unused]] ieee754_bits<Float> br) const
 			{
 				assert(br.is_finite());
 			}
@@ -2400,30 +2601,48 @@ namespace jkj {
 		// This policy is mainly for debugging purpose
 		struct ignore_special_cases {
 			template <class Float>
-			void operator()(bit_representation_t<Float>) const
+			void operator()(ieee754_bits<Float>) const
 			{
 			}
 		};
 	}
 
-	template <bool return_sign = true, class Float,
+	template <bool return_sign = true, bool allow_trailing_zeros = false, class Float,
 		class RoundingMode = dragonbox_rounding_modes::nearest_to_even,
-		class CorrectRoundingSearch = dragonbox_correct_rounding::tie_to_even,
+		class CorrectRounding = dragonbox_correct_rounding::tie_to_even,
 		class CaseHandler = dragonbox_case_handlers::assert_finite
 	>
 	fp_t<Float, return_sign> dragonbox(Float x,
 		RoundingMode&& rounding_mode = {},
-		CorrectRoundingSearch&& crs = {},
+		CorrectRounding&& crs = {},
 		CaseHandler&& case_handler = {})
 	{
-		auto br = get_bit_representation(x);
+		auto br = ieee754_bits(x);
 		case_handler(br);
-		return std::forward<RoundingMode>(rounding_mode).template delegate<return_sign>(
-			br, std::forward<CorrectRoundingSearch>(crs));
+		return std::forward<RoundingMode>(rounding_mode).delegate(br, 
+			[br](auto interval_type_provider) {
+				constexpr auto rounding_mode_tag = decltype(interval_type_provider)::tag;
+
+				if constexpr (rounding_mode_tag == dragonbox_rounding_modes::to_nearest_tag) {
+					return dragonbox_detail::dragonbox_impl<Float>::template
+						compute_nearest<return_sign, allow_trailing_zeros,
+						decltype(interval_type_provider),
+						std::remove_cv_t<std::remove_reference_t<CorrectRounding>>::tag>(br);
+				}
+				else if constexpr (rounding_mode_tag == dragonbox_rounding_modes::left_closed_directed_tag) {
+					return dragonbox_detail::dragonbox_impl<Float>::template
+						compute_left_closed_directed<return_sign, allow_trailing_zeros>(br);
+				}
+				else {
+					return dragonbox_detail::dragonbox_impl<Float>::template
+						compute_right_closed_directed<return_sign, allow_trailing_zeros>(br);
+				}
+			});
 	}
 }
 
 #undef JKJ_HAS_COUNTR_ZERO_INTRINSIC
+#undef JKJ_FORCEINLINE
 #undef JKJ_SAFEBUFFERS
 
 #endif

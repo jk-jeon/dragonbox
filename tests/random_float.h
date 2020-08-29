@@ -80,45 +80,40 @@ inline std::mt19937_64 generate_correctly_seeded_mt19937_64()
 template <class Float, class RandGen>
 Float uniformly_randomly_generate_finite_float(RandGen& rg)
 {
-	using common_info = jkj::dragonbox_detail::common_info<Float>;
-	using extended_significand_type =
-		typename common_info::extended_significand_type;
-	using uniform_distribution = std::uniform_int_distribution<extended_significand_type>;
+	using ieee754_traits = jkj::ieee754_traits<Float>;
+	using ieee754_format_info = jkj::ieee754_format_info<ieee754_traits::format>;
+	using carrier_uint = typename ieee754_traits::carrier_uint;
+	using uniform_distribution = std::uniform_int_distribution<carrier_uint>;
 
 	// Generate sign bit
 	auto sign_bit = uniform_distribution{ 0, 1 }(rg);
 
 	// Generate exponent bits
 	auto exponent_bits = uniform_distribution{ 0,
-		(extended_significand_type(1) << common_info::exponent_bits) - 2 }(rg);
+		(carrier_uint(1) << ieee754_format_info::exponent_bits) - 2 }(rg);
 
 	// Generate significand bits
 	auto significand_bits = uniform_distribution{ 0,
-		(extended_significand_type(1) << common_info::precision) - 1 }(rg);
+		(carrier_uint(1) << ieee754_format_info::significand_bits) - 1 }(rg);
 
-	auto bit_representation = (sign_bit << (common_info::extended_precision - 1))
-		| (exponent_bits << (common_info::precision))
+	auto bit_representation = (sign_bit << (ieee754_traits::carrier_bits - 1))
+		| (exponent_bits << (ieee754_format_info::significand_bits))
 		| significand_bits;
 
-	Float ret;
-	std::memcpy(&ret, &bit_representation, sizeof(Float));
-	return ret;
+	return ieee754_traits::carrier_to_float(bit_representation);
 }
 
 template <class Float, class RandGen>
 Float uniformly_randomly_generate_general_float(RandGen& rg)
 {
-	using common_info = jkj::dragonbox_detail::common_info<Float>;
-	using extended_significand_type =
-		typename common_info::extended_significand_type;
-	using uniform_distribution = std::uniform_int_distribution<extended_significand_type>;
+	using ieee754_traits = jkj::ieee754_traits<Float>;
+	using carrier_uint = typename ieee754_traits::carrier_uint;
+	using uniform_distribution = std::uniform_int_distribution<carrier_uint>;
 
 	// Generate sign bit
 	auto bit_representation = uniform_distribution{
-		0, std::numeric_limits<extended_significand_type>::max() }(rg);
-	Float ret;
-	std::memcpy(&ret, &bit_representation, sizeof(Float));
-	return ret;
+		0, std::numeric_limits<carrier_uint>::max() }(rg);
+	return ieee754_traits::carrier_to_float(bit_representation);
 }
 
 // This function tries to uniformly randomly generate a float number with the
@@ -127,19 +122,12 @@ Float uniformly_randomly_generate_general_float(RandGen& rg)
 template <class Float, class RandGen>
 Float randomly_generate_float_with_given_digits(unsigned int digits, RandGen& rg)
 {
-	using common_info = jkj::dragonbox_detail::common_info<Float>;
-	using extended_significand_type =
-		typename common_info::extended_significand_type;
-	using signed_int_t = std::make_signed_t<extended_significand_type>;
+	using ieee754_traits = jkj::ieee754_traits<Float>;
+	using carrier_uint = typename ieee754_traits::carrier_uint;
+	using signed_int_t = std::make_signed_t<carrier_uint>;
 
 	assert(digits >= 1);
-	if constexpr (std::is_same_v<Float, float>) {
-		assert(digits <= 9);
-	}
-	else {
-		static_assert(std::is_same_v<Float, double>);
-		assert(digits <= 17);
-	}
+	assert(digits <= ieee754_format_info::decimal_digits);
 	
 	// Generate sign uniformly randomly
 	signed_int_t sign = std::uniform_int_distribution<signed_int_t>{ 0, 1 }(rg) == 0 ? 1 : -1;
@@ -184,7 +172,7 @@ Float randomly_generate_float_with_given_digits(unsigned int digits, RandGen& rg
 			auto roundtrip = jkj::dragonbox<false>(result,
 				jkj::dragonbox_rounding_modes::nearest_to_even{},
 				jkj::dragonbox_correct_rounding::do_not_care{});
-			if (from != 0 && roundtrip.significand <= extended_significand_type(from * 10)) {
+			if (from != 0 && roundtrip.significand <= carrier_uint(from * 10)) {
 				continue;
 			}
 		}

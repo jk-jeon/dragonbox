@@ -34,4 +34,20 @@ namespace {
 	register_function_for_benchmark dummy("Dragonbox",
 		dragonbox_float_to_chars,
 		dragonbox_double_to_chars);
+
+	void dragonbox_wo_tzremoval_float_to_chars(float x, char* buffer)
+	{
+		jkj::fp_to_chars<true>(x, buffer,
+			jkj::dragonbox_rounding_modes::nearest_to_even{},
+			jkj::dragonbox_correct_rounding::tie_to_even{});
+	}
+	void dragonbox_wo_tzremoval_double_to_chars(double x, char* buffer)
+	{
+		jkj::fp_to_chars<true>(x, buffer,
+			jkj::dragonbox_rounding_modes::nearest_to_even{},
+			jkj::dragonbox_correct_rounding::tie_to_even{});
+	}
+	register_function_for_benchmark dummy2("Dragonbox (w/o trailing zero removal)",
+		dragonbox_wo_tzremoval_float_to_chars,
+		dragonbox_wo_tzremoval_double_to_chars);
 }

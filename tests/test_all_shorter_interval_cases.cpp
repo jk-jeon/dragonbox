@@ -16,22 +16,30 @@
 // KIND, either express or implied.
 
 #include "../fp_to_chars.h"
-#include "random_float.h"
 #include "../benchmark/ryu/ryu.h"
+
 #include <iostream>
+#include <iomanip>
 #include <string_view>
 
-template <class Float, class TypenameString>
-void uniform_random_test(std::size_t number_of_tests, TypenameString&& type_name_string)
+template <class Float>
+static void test_all_shorter_interval_cases_impl()
 {
+	using ieee754_traits = jkj::ieee754_traits<Float>;
+	using ieee754_format_info = jkj::ieee754_format_info<ieee754_traits::format>;
+	using carrier_uint = typename ieee754_traits::carrier_uint;
+
 	char buffer1[64];
 	char buffer2[64];
-	auto rg = generate_correctly_seeded_mt19937_64();
-	bool succeeded = true;
-	for (std::size_t test_idx = 0; test_idx < number_of_tests; ++test_idx) {
-		auto x = uniformly_randomly_generate_general_float<Float>(rg);
 
-		// Check if the output is identical to that of Ryu
+	bool succeeded = true;
+	for (int e = ieee754_format_info::min_exponent + 1;
+		e <= ieee754_format_info::max_exponent; ++e)
+	{
+		// Compose a floating-point number
+		carrier_uint br = carrier_uint(e) << ieee754_format_info::significand_bits;
+		auto x = jkj::ieee754_bits<Float>{ br }.to_float();
+
 		jkj::fp_to_chars(x, buffer1);
 		if constexpr (std::is_same_v<Float, float>) {
 			f2s_buffered(x, buffer2);
@@ -51,18 +59,20 @@ void uniform_random_test(std::size_t number_of_tests, TypenameString&& type_name
 	}
 
 	if (succeeded) {
-		std::cout << "Uniform random test for " << type_name_string
-			<< " with " << number_of_tests << " examples succeeded.\n";
+		std::cout << "All cases are verified.\n";
+	}
+	else {
+		std::cout << "Error detected.\n";
 	}
 }
 
-void uniform_random_test_float(std::size_t number_of_tests) {
-	std::cout << "[Testing uniformly randomly generated float inputs...]\n";
-	uniform_random_test<float>(number_of_tests, "float");
+void test_all_shorter_interval_cases()
+{
+	std::cout << "[Testing all shorter interval cases for binary32...]\n";
+	test_all_shorter_interval_cases_impl<float>();
 	std::cout << "Done.\n\n\n";
-}
-void uniform_random_test_double(std::size_t number_of_tests) {
-	std::cout << "[Testing uniformly randomly generated double inputs...]\n";
-	uniform_random_test<double>(number_of_tests, "double");
+
+	std::cout << "[Testing all shorter interval cases for binary64...]\n";
+	test_all_shorter_interval_cases_impl<double>();
 	std::cout << "Done.\n\n\n";
 }

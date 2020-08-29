@@ -56,7 +56,7 @@ static void benchmark_test(std::string_view float_name,
 	out_file << "name,sample,bit_representation,time\n";
 
 	char buffer[64];
-	typename jkj::dragonbox_detail::common_info<Float>::extended_significand_type br;
+	typename jkj::ieee754_traits<Float>::carrier_uint br;
 	for (auto& name_result_pair : out) {
 		for (auto const& data_time_pair : name_result_pair.second[0]) {
 			std::memcpy(&br, &data_time_pair.first, sizeof(Float));

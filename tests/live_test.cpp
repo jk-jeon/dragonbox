@@ -17,29 +17,6 @@
 
 #include "../fp_to_chars.h"
 
-template <class Float>
-jkj::signed_fp_t<Float> decompose_float(Float x) {
-	using common_info = jkj::dragonbox_detail::common_info<Float>;
-	jkj::signed_fp_t<Float> ret_value;
-
-	std::memcpy(&ret_value.significand, &x, sizeof(Float));
-
-	ret_value.is_negative = (ret_value.significand & common_info::sign_bit_mask) != 0;
-	ret_value.exponent = ((ret_value.significand << 1) >> (common_info::precision + 1));
-	ret_value.significand <<= (common_info::extended_precision -
-		common_info::precision - 1);
-
-	// Deal with normal/subnormal dichotomy
-	ret_value.significand |= (ret_value.exponent == 0 ? 0 : common_info::sign_bit_mask);
-
-	ret_value.exponent += (common_info::exponent_bias - common_info::extended_precision + 1);
-
-	// x should be a finite number
-	assert(ret_value.exponent != 1 - common_info::exponent_bias);
-
-	return ret_value;
-}
-
 #include <iostream>
 #include <iomanip>
 #include <string>
@@ -55,7 +32,7 @@ void live_test()
 		while (true) {
 			std::getline(std::cin, x_str);
 			try {
-				if constexpr (sizeof(Float) == 4) {
+				if constexpr (std::is_same_v<Float, float>) {
 					x = std::stof(x_str);
 				}
 				else {
@@ -69,20 +46,23 @@ void live_test()
 			break;
 		}
 
-		auto xx = decompose_float(x);
-		std::cout << "              sign: " << (xx.is_negative ? "-" : "+") << std::endl;
-		std::cout << "          exponent: " << xx.exponent << std::endl;
-		std::cout << "       significand: " << "0x" << std::hex << std::setfill('0');
-		if constexpr (sizeof(Float) == 4) {
+		auto xx = jkj::ieee754_bits<Float>{ x };
+		std::cout << "              sign: " << (xx.is_negative() ? "-" : "+") << std::endl;
+		std::cout << "     exponent bits: " << "0x" << std::hex << std::setfill('0')
+			<< xx.extract_exponent_bits() << std::dec
+			<< " (value: " << xx.binary_exponent() << ")\n";
+		std::cout << "  significand bits: " << "0x" << std::hex << std::setfill('0');
+		if constexpr (std::is_same_v<Float, float>) {
 			std::cout << std::setw(8);
 		}
 		else {
 			std::cout << std::setw(16);
 		}
-		std::cout << xx.significand << std::dec << std::endl;
+		std::cout << xx.extract_significand_bits()
+			<< " (value: 0x" << xx.binary_significand() << ")\n" << std::dec;
 
 		jkj::fp_to_chars(x, buffer);
-		std::cout << " Dragonbox output: " << buffer << std::endl;
+		std::cout << "  Dragonbox output: " << buffer << "\n\n";
 	}
 }
 

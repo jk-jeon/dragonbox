@@ -22,12 +22,12 @@
 
 namespace jkj {
 	namespace fp_to_chars_detail {
-		char* float_to_chars(unsigned_fp_t<float> v, char* buffer);
-		char* double_to_chars(unsigned_fp_t<double> v, char* buffer);
+		char* to_chars(unsigned_fp_t<float> v, char* buffer);
+		char* to_chars(unsigned_fp_t<double> v, char* buffer);
 	}
 
 	// Returns the next-to-end position
-	template <class Float,
+	template <bool allow_trailing_zeros = false, class Float,
 		class RoundingMode = dragonbox_rounding_modes::nearest_to_even,
 		class CorrectRoundingSearch = dragonbox_correct_rounding::tie_to_even
 	>
@@ -35,23 +35,19 @@ namespace jkj {
 		RoundingMode&& rounding_mode = {},
 		CorrectRoundingSearch&& crs = {})
 	{
-		auto br = get_bit_representation(x);
+		using ieee754_format_info = jkj::ieee754_format_info<jkj::ieee754_traits<Float>::format>;
+
+		auto br = ieee754_bits(x);
 		if (br.is_finite()) {
 			if (br.is_negative()) {
 				*buffer = '-';
 				++buffer;
 			}
 			if (br.is_nonzero()) {
-				if constexpr (sizeof(Float) == 4) {
-					return fp_to_chars_detail::float_to_chars(dragonbox<false>(x,
-						std::forward<RoundingMode>(rounding_mode),
-						std::forward<CorrectRoundingSearch>(crs)), buffer);
-				}
-				else {
-					return fp_to_chars_detail::double_to_chars(dragonbox<false>(x,
-						std::forward<RoundingMode>(rounding_mode),
-						std::forward<CorrectRoundingSearch>(crs)), buffer);
-				}
+				return fp_to_chars_detail::to_chars(
+					dragonbox<false, allow_trailing_zeros>(x,
+					std::forward<RoundingMode>(rounding_mode),
+					std::forward<CorrectRoundingSearch>(crs)), buffer);
 			}
 			else {
 				std::memcpy(buffer, "0E0", 3);
@@ -59,7 +55,7 @@ namespace jkj {
 			}
 		}
 		else {
-			if ((br.f << (dragonbox_detail::common_info<Float>::exponent_bits + 1)) != 0)
+			if ((br.u << (ieee754_format_info::exponent_bits + 1)) != 0)
 			{
 				std::memcpy(buffer, "NaN", 3);
 				return buffer + 3;
@@ -76,7 +72,7 @@ namespace jkj {
 	}
 
 	// Null-terminate and bypass the return value of fp_to_chars_n
-	template <class Float,
+	template <bool allow_trailing_zeros = false, class Float,
 		class RoundingMode = dragonbox_rounding_modes::nearest_to_even,
 		class CorrectRoundingSearch = dragonbox_correct_rounding::tie_to_even
 	>
@@ -84,7 +80,7 @@ namespace jkj {
 		RoundingMode&& rounding_mode = {},
 		CorrectRoundingSearch&& crs = {})
 	{
-		auto ptr = fp_to_chars_n(x, buffer,
+		auto ptr = fp_to_chars_n<allow_trailing_zeros>(x, buffer,
 			std::forward<RoundingMode>(rounding_mode),
 			std::forward<CorrectRoundingSearch>(crs));
 		*ptr = '\0';

@@ -19,6 +19,9 @@
     <Filter Include="benchmark\grisu_exact">
       <UniqueIdentifier>{f028d166-db8a-48b3-9e35-71fa6314a4ac}</UniqueIdentifier>
     </Filter>
+    <Filter Include="benchmark\schubfach">
+      <UniqueIdentifier>{a106ff15-d18c-4520-8c43-48b323d3766b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\tests\main.cpp" />
@@ -36,9 +39,6 @@
     </ClCompile>
     <ClCompile Include="..\fp_to_chars\fp_to_chars.cpp">
       <Filter>fp_to_chars</Filter>
-    </ClCompile>
-    <ClCompile Include="..\tests\uniform_random_perf_test.cpp">
-      <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="..\tests\uniform_random_test.cpp">
       <Filter>tests</Filter>
@@ -64,7 +64,25 @@
     <ClCompile Include="..\benchmark\grisu_exact\fp_to_chars2.cpp">
       <Filter>benchmark\grisu_exact</Filter>
     </ClCompile>
-    <ClCompile Include="..\tests\verify_incorrect_rounding_removal.cpp">
+    <ClCompile Include="..\tests\perf_test.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\benchmark\schubfach\schubfach_32.cc">
+      <Filter>benchmark\schubfach</Filter>
+    </ClCompile>
+    <ClCompile Include="..\benchmark\schubfach\schubfach_64.cc">
+      <Filter>benchmark\schubfach</Filter>
+    </ClCompile>
+    <ClCompile Include="..\benchmark\schubfach.cpp">
+      <Filter>benchmark</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tests\verify_fast_multiplication.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tests\verify_magic_division.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tests\test_all_shorter_interval_cases.cpp">
       <Filter>tests</Filter>
     </ClCompile>
   </ItemGroup>
@@ -109,6 +127,12 @@
     </ClInclude>
     <ClInclude Include="..\benchmark\grisu_exact\grisu_exact.h">
       <Filter>benchmark\grisu_exact</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\schubfach\schubfach_32.h">
+      <Filter>benchmark\schubfach</Filter>
+    </ClInclude>
+    <ClInclude Include="..\benchmark\schubfach\schubfach_64.h">
+      <Filter>benchmark\schubfach</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

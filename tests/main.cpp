@@ -29,35 +29,55 @@ extern void verify_log_computation();
 //#define GENERATE_CACHE
 extern void generate_cache();
 
-// Check if the simplification of the incorrect rounding removal is correct
-//#define VERIFY_INCORRECT_ROUNDING_REMOVAL
-extern void verify_incorrect_rounding_removal();
+// Check if the fast divisibility check and division algorithms are correct
+//#define VERIFY_MAGIC_DIVISION
+extern void verify_magic_division();
 
-// Generate random float's and test Grisu-Exact's output
+// Check if the fast multiplication algorithm for the closer boundary case is correct
+//#define VERIFY_FAST_MULTIPLICATION
+extern void verify_fast_multiplication();
+
+// Check if the fast multiplication algorithm for the closer boundary case is correct
+//#define TEST_ALL_SHORTER_INTERVAL_CASES
+extern void test_all_shorter_interval_cases();
+
+// Generate random float's and test Dragonbox's output
 //#define UNIFORM_RANDOM_TEST_FLOAT
 static std::size_t number_of_uniform_random_tests_float = 10000000;
 extern void uniform_random_test_float(std::size_t number_of_tests);
 
-// Generate random double's and test Grisu-Exact's output
+// Generate random double's and test Dragonbox's output
 //#define UNIFORM_RANDOM_TEST_DOUBLE
 static std::size_t number_of_uniform_random_tests_double = 10000000;
 extern void uniform_random_test_double(std::size_t number_of_tests);
 
-// Run Grisu-Exact algorithm with randomly generated inputs
+// Run Dragonbox algorithm with randomly generated inputs
 //#define UNIFORM_RANDOM_PERF_TEST_FLOAT
 static std::size_t number_of_uniform_random_perf_tests_float = 100000000;
 extern void uniform_random_perf_test_float(std::size_t number_of_tests);
 
-// Run Grisu-Exact algorithm with randomly generated inputs
+// Run Dragonbox algorithm with randomly generated inputs
 //#define UNIFORM_RANDOM_PERF_TEST_DOUBLE
 static std::size_t number_of_uniform_random_perf_tests_double = 100000000;
 extern void uniform_random_perf_test_double(std::size_t number_of_tests);
 
-// Input float's and test Grisu-Exact's output
+// Run Dragonbox algorithm with inputs of given digits
+//#define DIGIT_PERF_TEST_FLOAT
+static unsigned int digits_for_perf_test_float = 6;
+static std::size_t number_of_digit_perf_tests_float = 40000000;
+extern void digit_perf_test_float(unsigned int digits, std::size_t number_of_tests);
+
+// Run Dragonbox algorithm with inputs of given digits
+//#define DIGIT_PERF_TEST_DOUBLE
+static unsigned int digits_for_perf_test_double = 17;
+static std::size_t number_of_digit_perf_tests_double = 6000000;
+extern void digit_perf_test_double(unsigned int digits, std::size_t number_of_tests);
+
+// Input float's and test Dragonbox's output
 //#define LIVE_TEST_FLOAT
 extern void live_test_float();
 
-// Input double's and test Grisu-Exact's output
+// Input double's and test Dragonbox's output
 //#define LIVE_TEST_DOUBLE
 extern void live_test_double();
 
@@ -69,7 +89,7 @@ extern void misc_test();
 #define BENCHMARK_TEST_FLOAT
 static std::size_t number_of_uniform_benchmark_samples_float = 1000000;
 static std::size_t number_of_digits_benchmark_samples_per_digits_float = 100000;
-static std::size_t number_of_benchmark_iterations_float = 1000;
+static std::size_t number_of_benchmark_iterations_float = 100;
 extern void benchmark_test_float(std::size_t number_of_uniform_samples,
 	std::size_t number_of_digits_samples_per_digits, std::size_t number_of_iterations);
 
@@ -77,7 +97,7 @@ extern void benchmark_test_float(std::size_t number_of_uniform_samples,
 #define BENCHMARK_TEST_DOUBLE
 static std::size_t number_of_uniform_benchmark_samples_double = 1000000;
 static std::size_t number_of_digits_benchmark_samples_per_digits_double = 100000;
-static std::size_t number_of_benchmark_iterations_double = 1000;
+static std::size_t number_of_benchmark_iterations_double = 100;
 extern void benchmark_test_double(std::size_t number_of_uniform_samples,
 	std::size_t number_of_digits_samples_per_digits, std::size_t number_of_iterations);
 
@@ -95,8 +115,16 @@ int main()
 	generate_cache();
 #endif
 
-#ifdef VERIFY_INCORRECT_ROUNDING_REMOVAL
-	verify_incorrect_rounding_removal();
+#ifdef VERIFY_MAGIC_DIVISION
+	verify_magic_division();
+#endif
+
+#ifdef VERIFY_FAST_MULTIPLICATION
+	verify_fast_multiplication();
+#endif
+
+#ifdef TEST_ALL_SHORTER_INTERVAL_CASES
+	test_all_shorter_interval_cases();
 #endif
 
 #ifdef UNIFORM_RANDOM_TEST_FLOAT
@@ -113,6 +141,14 @@ int main()
 
 #ifdef UNIFORM_RANDOM_PERF_TEST_DOUBLE
 	uniform_random_perf_test_double(number_of_uniform_random_perf_tests_double);
+#endif
+
+#ifdef DIGIT_PERF_TEST_FLOAT
+	digit_perf_test_float(digits_for_perf_test_float, number_of_digit_perf_tests_float);
+#endif
+
+#ifdef DIGIT_PERF_TEST_DOUBLE
+	digit_perf_test_double(digits_for_perf_test_double, number_of_digit_perf_tests_double);
 #endif
 
 #ifdef MISC_TEST

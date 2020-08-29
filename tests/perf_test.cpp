@@ -26,7 +26,7 @@ void uniform_random_perf_test(std::size_t number_of_tests)
 	auto rg = generate_correctly_seeded_mt19937_64();
 	for (std::size_t test_idx = 0; test_idx < number_of_tests; ++test_idx) {
 		auto x = uniformly_randomly_generate_general_float<Float>(rg);
-		jkj::fp_to_chars(x, buffer);
+		jkj::fp_to_chars<true>(x, buffer);
 	}
 }
 
@@ -38,5 +38,27 @@ void uniform_random_perf_test_float(std::size_t number_of_tests) {
 void uniform_random_perf_test_double(std::size_t number_of_tests) {
 	std::cout << "[Running the algorithm with uniformly randomly generated double inputs...]\n";
 	uniform_random_perf_test<double>(number_of_tests);
+	std::cout << "Done.\n\n\n";
+}
+
+template <class Float>
+void digit_perf_test(unsigned int digits, std::size_t number_of_tests)
+{
+	char buffer[41];
+	auto rg = generate_correctly_seeded_mt19937_64();
+	for (std::size_t test_idx = 0; test_idx < number_of_tests; ++test_idx) {
+		auto x = randomly_generate_float_with_given_digits<Float>(digits, rg);
+		jkj::fp_to_chars<true>(x, buffer);
+	}
+}
+
+void digit_perf_test_float(unsigned int digits, std::size_t number_of_tests) {
+	std::cout << "[Running the algorithm with float inputs of digits = " << digits << "...]\n";
+	digit_perf_test<float>(digits, number_of_tests);
+	std::cout << "Done.\n\n\n";
+}
+void digit_perf_test_double(unsigned int digits, std::size_t number_of_tests) {
+	std::cout << "[Running the algorithm with double inputs of digits = " << digits << "...]\n";
+	digit_perf_test<double>(digits, number_of_tests);
 	std::cout << "Done.\n\n\n";
 }
