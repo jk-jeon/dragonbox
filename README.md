@@ -91,7 +91,7 @@ This implementation provides various rounding modes. *Rounding mode* is the rule
 As another proof-of-concepts feature, it is also possible to specify the behavior of correct rounding search. The third parameter to `jkj::dragonbox::to_decimal` is the tag paramater specifying this. The default argument is `jkj::dragonbox::correct_rounding::tie_to_even{}`, which means that whenever there are two shortest outputs with the identical distance from the true value, the even one is chosen and the odd one is dropped. There are several other settings available. You can also completely disable correct rounding search by giving `jkj::dragonbox::correct_rounding::do_not_care{}` as the third parameter to `jkj::dragonbox::to_decimal`. This might be useful if you do not care about correct rounding guarantee and better performance is more important to you.
 
 # Performance
-In my machine, it defeats or is on par with other contemporary algorithms including Grisu-Exact and Ryu.
+In my machine (Intel Core i7-7700HQ 2.80GHz, Windows 10), it defeats or is on par with other contemporary algorithms including Grisu-Exact and Ryu.
 
 The following benchmark result is obtained using Milo's dtoa benchmark framework ([https://github.com/miloyip/dtoa-benchmark](https://github.com/miloyip/dtoa-benchmark)). The complete source code for the benchmark below is available [here](https://github.com/jk-jeon/dtoa-benchmark).
 
