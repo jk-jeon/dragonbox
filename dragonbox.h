@@ -1917,7 +1917,7 @@ namespace jkj::dragonbox {
 					ret_value.is_negative = br.is_negative();
 				}
 				auto significand = br.extract_significand_bits();
-				auto exponent = br.extract_exponent_bits();;
+				auto exponent = int(br.extract_exponent_bits());
 
 				// Deal with normal/subnormal dichotomy
 				if (exponent != 0) {
@@ -2201,7 +2201,7 @@ namespace jkj::dragonbox {
 					ret_value.is_negative = br.is_negative();
 				}
 				auto significand = br.extract_significand_bits();
-				auto exponent = br.extract_exponent_bits();;
+				auto exponent = int(br.extract_exponent_bits());
 
 				// Deal with normal/subnormal dichotomy
 				if (exponent != 0) {
@@ -2302,7 +2302,7 @@ namespace jkj::dragonbox {
 					ret_value.is_negative = br.is_negative();
 				}
 				auto significand = br.extract_significand_bits();
-				auto exponent = br.extract_exponent_bits();;
+				auto exponent = int(br.extract_exponent_bits());
 
 				// Deal with normal/subnormal dichotomy
 				bool closer_boundary = false;
@@ -2671,7 +2671,7 @@ namespace jkj::dragonbox {
 	>
 	fp_t<Float, return_sign, tzp == trailing_zero_policy::report> to_decimal(Float x,
 		RoundingMode&& rounding_mode = {},
-		CorrectRounding&& crs = {},
+		CorrectRounding&& = {},
 		CaseHandler&& case_handler = {})
 	{
 		auto br = ieee754_bits(x);
