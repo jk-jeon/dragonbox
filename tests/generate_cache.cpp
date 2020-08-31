@@ -40,7 +40,7 @@ namespace jkj {
 		struct bitset_to_uint<double> {
 			static_assert(sizeof(double) * std::numeric_limits<unsigned char>::digits == 64);
 
-			static wide_uint::uint128 convert(std::bitset<128> const& bs) noexcept
+			static wuint::uint128 convert(std::bitset<128> const& bs) noexcept
 			{
 				static_assert(std::is_same_v<unsigned long long, std::uint64_t>);
 				std::bitset<64> temp;
@@ -194,7 +194,7 @@ void generate_cache()
 	std::cout << "[Generating cache...]\n";
 
 	using namespace jkj::dragonbox_detail;
-	using jkj::dragonbox_detail::wide_uint::uint128;
+	using jkj::dragonbox_detail::wuint::uint128;
 
 	auto write_file = [](std::ofstream& out,
 		auto type_tag,

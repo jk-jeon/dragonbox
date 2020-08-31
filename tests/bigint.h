@@ -564,7 +564,7 @@ namespace jkj {
 			bigint_impl& operator*=(element_type n) & {
 				element_type carry = 0;
 				for (std::size_t idx = 0; idx <= leading_one_pos.element_pos; ++idx) {
-					auto mul = wide_uint::umul128(elements[idx], n);
+					auto mul = wuint::umul128(elements[idx], n);
 					elements[idx] = mul.low() + carry;
 					carry = mul.high() + (elements[idx] < mul.low() ? 1 : 0);
 				}
@@ -593,7 +593,7 @@ namespace jkj {
 				auto calculate_single = [&](bigint_base::element_type n, auto& result) {
 					bigint_base::element_type mul_carry = 0;
 					for (std::size_t idx = 0; idx <= x.leading_one_pos.element_pos; ++idx) {
-						auto mul = wide_uint::umul128(x.elements[idx], n);
+						auto mul = wuint::umul128(x.elements[idx], n);
 						result[idx] = mul.low() + mul_carry;
 						mul_carry = mul.high() + (result[idx] < mul.low() ? 1 : 0);
 					}

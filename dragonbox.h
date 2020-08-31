@@ -317,10 +317,10 @@ namespace jkj {
 		}
 
 		////////////////////////////////////////////////////////////////////////////////////////
-		// Utilities for 128-bit arithmetic
+		// Utilities for wide unsigned integer arithmetic
 		////////////////////////////////////////////////////////////////////////////////////////
 
-		namespace wide_uint {
+		namespace wuint {
 			struct uint128 {
 				uint128() = default;
 
@@ -483,17 +483,14 @@ namespace jkj {
 				std::uint64_t c_fractional_digits,
 				std::size_t shift_amount,
 				std::int32_t max_exponent,
-				std::uint32_t s1_integer_part = 0,
-				std::uint64_t s1_fractional_digits = 0,
-				std::uint32_t s2_integer_part = 0,
-				std::uint64_t s2_fractional_digits = 0
+				std::uint32_t s_integer_part = 0,
+				std::uint64_t s_fractional_digits = 0
 			>
-				constexpr int compute(int e, bool select_first = true) noexcept {
+				constexpr int compute(int e) noexcept {
 				assert(e <= max_exponent && e >= -max_exponent);
 				constexpr auto c = floor_shift(c_integer_part, c_fractional_digits, shift_amount);
-				constexpr auto s1 = floor_shift(s1_integer_part, s1_fractional_digits, shift_amount);
-				constexpr auto s2 = floor_shift(s2_integer_part, s2_fractional_digits, shift_amount);
-				return int((std::int32_t(e) * c - (select_first ? s1 : s2)) >> shift_amount);
+				constexpr auto s = floor_shift(s_integer_part, s_fractional_digits, shift_amount);
+				return int((std::int32_t(e) * c - s) >> shift_amount);
 			}
 
 			static constexpr std::uint64_t log10_2_fractional_digits{ 0x4d10'4d42'7de7'fbcc };
@@ -716,7 +713,7 @@ namespace jkj {
 				if constexpr (std::is_same_v<UInt, std::uint64_t> && N == 3 &&
 					max_pow2 + (floor_log2_pow10(N + max_pow5) - (N + max_pow5)) < 70)
 				{
-					return wide_uint::umul128_upper64(n, 0x8312'6e97'8d4f'df3c) >> 9;
+					return wuint::umul128_upper64(n, 0x8312'6e97'8d4f'df3c) >> 9;
 				}
 				else {
 					constexpr auto divisor = compute_power<N>(UInt(10));
@@ -824,7 +821,7 @@ namespace jkj {
 
 		template <>
 		struct cache_holder<ieee754_format::binary64> {
-			using cache_entry_type = wide_uint::uint128;
+			using cache_entry_type = wuint::uint128;
 			static constexpr int cache_bits = 128;
 			static constexpr int min_k = -292;
 			static constexpr int max_k = 326;
@@ -2065,8 +2062,7 @@ namespace jkj {
 			template <bool allow_trailing_zeros,
 				dragonbox_correct_rounding::tag_t correct_rounding_tag,
 				bool has_sign, class IntervalType>
-			JKJ_FORCEINLINE
-			static void shorter_interval_case(fp_t<Float, has_sign>& ret_value,
+			JKJ_FORCEINLINE static void shorter_interval_case(fp_t<Float, has_sign>& ret_value,
 				int exponent, IntervalType interval_type) noexcept
 			{
 				// Compute k and beta
@@ -2464,10 +2460,10 @@ namespace jkj {
 			static carrier_uint compute_mul(carrier_uint u, cache_entry_type const& cache) noexcept
 			{
 				if constexpr (format == ieee754_format::binary32) {
-					return wide_uint::umul96_upper32(u, cache);
+					return wuint::umul96_upper32(u, cache);
 				}
 				else {
-					return wide_uint::umul192_upper64(u, cache);
+					return wuint::umul192_upper64(u, cache);
 				}
 			}
 
@@ -2487,11 +2483,11 @@ namespace jkj {
 				assert(beta_minus_1 < 64);
 
 				if constexpr (format == ieee754_format::binary32) {
-					return ((wide_uint::umul96_lower64(two_f, cache) >>
+					return ((wuint::umul96_lower64(two_f, cache) >>
 						(64 - beta_minus_1)) & 1) != 0;
 				}
 				else {
-					return ((wide_uint::umul192_middle64(two_f, cache) >>
+					return ((wuint::umul192_middle64(two_f, cache) >>
 						(64 - beta_minus_1)) & 1) != 0;
 				}
 			}
