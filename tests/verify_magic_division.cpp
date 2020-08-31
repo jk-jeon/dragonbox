@@ -23,9 +23,9 @@
 template <class Float>
 static void verify_check_divisibility_and_divide_by_pow5()
 {
-	using namespace jkj::dragonbox_detail;
+	using namespace jkj::dragonbox::detail;
 
-	constexpr int initial_kappa = dragonbox_impl<Float>::initial_kappa;
+	constexpr int initial_kappa = impl<Float>::initial_kappa;
 	constexpr auto max_n = compute_power<initial_kappa + 1>(std::uint32_t(5)) * 2;
 	constexpr auto divisor = compute_power<initial_kappa>(std::uint32_t(5));
 
@@ -61,9 +61,9 @@ static void verify_check_divisibility_and_divide_by_pow5()
 template <class Float>
 static void verify_divide_by_pow10()
 {
-	using namespace jkj::dragonbox_detail;
+	using namespace jkj::dragonbox::detail;
 
-	constexpr int initial_kappa = dragonbox_impl<Float>::initial_kappa;
+	constexpr int initial_kappa = impl<Float>::initial_kappa;
 	constexpr auto max_n = compute_power<initial_kappa + 1>(std::uint32_t(10));
 	constexpr auto divisor = compute_power<initial_kappa>(std::uint32_t(10));
 

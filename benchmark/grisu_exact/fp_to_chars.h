@@ -20,7 +20,7 @@
 
 #include "grisu_exact.h"
 
-namespace jkj2 {
+namespace jkj {
 	namespace fp_to_chars_detail {
 		char* float_to_chars(unsigned_fp_t<float> v, char* buffer);
 		char* double_to_chars(unsigned_fp_t<double> v, char* buffer);

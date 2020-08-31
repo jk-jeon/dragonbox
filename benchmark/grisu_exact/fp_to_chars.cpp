@@ -38,7 +38,7 @@
 //  under the same terms as the original contents.
 
 
-#include "../fp_to_chars.h"
+#include "fp_to_chars.h"
 
 namespace jkj {
 	namespace fp_to_chars_detail {
@@ -126,9 +126,9 @@ namespace jkj {
 			uint32_t i = 0;
 			if constexpr (sizeof(Float) == 8) {
 				// We prefer 32-bit operations, even on 64-bit platforms.
-				// We have at most 17 digits, and uint32_t can store 9 digits.
-				// If output doesn't fit into uint32_t, we cut off 8 digits,
-				// so the rest will fit into uint32_t.
+			// We have at most 17 digits, and uint32_t can store 9 digits.
+			// If output doesn't fit into uint32_t, we cut off 8 digits,
+			// so the rest will fit into uint32_t.
 				if ((output >> 32) != 0) {
 					// Expensive 64-bit division.
 					const uint64_t q = output / 100000000;
@@ -228,10 +228,10 @@ namespace jkj {
 			return buffer;
 		}
 		
-		char* to_chars(unsigned_fp_t<float> v, char* buffer) {
+		char* float_to_chars(unsigned_fp_t<float> v, char* buffer) {
 			return fp_to_chars_impl(v, buffer);
 		}
-		char* to_chars(unsigned_fp_t<double> v, char* buffer) {
+		char* double_to_chars(unsigned_fp_t<double> v, char* buffer) {
 			return fp_to_chars_impl(v, buffer);
 		}
 	}

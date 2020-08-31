@@ -20,22 +20,22 @@
 
 #include "dragonbox.h"
 
-namespace jkj {
-	namespace fp_to_chars_detail {
+namespace jkj::dragonbox {
+	namespace to_chars_detail {
 		char* to_chars(unsigned_fp_t<float> v, char* buffer);
 		char* to_chars(unsigned_fp_t<double> v, char* buffer);
 	}
 
 	// Returns the next-to-end position
 	template <bool allow_trailing_zeros = false, class Float,
-		class RoundingMode = dragonbox_rounding_modes::nearest_to_even,
-		class CorrectRoundingSearch = dragonbox_correct_rounding::tie_to_even
+		class RoundingMode = rounding_modes::nearest_to_even,
+		class CorrectRoundingSearch = correct_rounding::tie_to_even
 	>
-	char* fp_to_chars_n(Float x, char* buffer,
+	char* to_chars_n(Float x, char* buffer,
 		RoundingMode&& rounding_mode = {},
 		CorrectRoundingSearch&& crs = {})
 	{
-		using ieee754_format_info = jkj::ieee754_format_info<jkj::ieee754_traits<Float>::format>;
+		using ieee754_format_info = ieee754_format_info<ieee754_traits<Float>::format>;
 
 		auto br = ieee754_bits(x);
 		if (br.is_finite()) {
@@ -44,8 +44,10 @@ namespace jkj {
 				++buffer;
 			}
 			if (br.is_nonzero()) {
-				return fp_to_chars_detail::to_chars(
-					dragonbox<false, allow_trailing_zeros>(x,
+				return to_chars_detail::to_chars(
+					to_decimal<false, allow_trailing_zeros ?
+						trailing_zero_policy::do_not_care :
+						trailing_zero_policy::remove>(x,
 					std::forward<RoundingMode>(rounding_mode),
 					std::forward<CorrectRoundingSearch>(crs)), buffer);
 			}
@@ -73,14 +75,14 @@ namespace jkj {
 
 	// Null-terminate and bypass the return value of fp_to_chars_n
 	template <bool allow_trailing_zeros = false, class Float,
-		class RoundingMode = dragonbox_rounding_modes::nearest_to_even,
-		class CorrectRoundingSearch = dragonbox_correct_rounding::tie_to_even
+		class RoundingMode = rounding_modes::nearest_to_even,
+		class CorrectRoundingSearch = correct_rounding::tie_to_even
 	>
-	char* fp_to_chars(Float x, char* buffer,
+	char* to_chars(Float x, char* buffer,
 		RoundingMode&& rounding_mode = {},
 		CorrectRoundingSearch&& crs = {})
 	{
-		auto ptr = fp_to_chars_n<allow_trailing_zeros>(x, buffer,
+		auto ptr = to_chars_n<allow_trailing_zeros>(x, buffer,
 			std::forward<RoundingMode>(rounding_mode),
 			std::forward<CorrectRoundingSearch>(crs));
 		*ptr = '\0';

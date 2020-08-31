@@ -15,7 +15,7 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
 
-#include "../fp_to_chars.h"
+#include "../to_chars.h"
 #include "../benchmark/ryu/ryu.h"
 
 #include <iostream>
@@ -25,8 +25,8 @@
 template <class Float>
 static void test_all_shorter_interval_cases_impl()
 {
-	using ieee754_traits = jkj::ieee754_traits<Float>;
-	using ieee754_format_info = jkj::ieee754_format_info<ieee754_traits::format>;
+	using ieee754_traits = jkj::dragonbox::ieee754_traits<Float>;
+	using ieee754_format_info = jkj::dragonbox::ieee754_format_info<ieee754_traits::format>;
 	using carrier_uint = typename ieee754_traits::carrier_uint;
 
 	char buffer1[64];
@@ -38,9 +38,9 @@ static void test_all_shorter_interval_cases_impl()
 	{
 		// Compose a floating-point number
 		carrier_uint br = carrier_uint(e) << ieee754_format_info::significand_bits;
-		auto x = jkj::ieee754_bits<Float>{ br }.to_float();
+		auto x = jkj::dragonbox::ieee754_bits<Float>{ br }.to_float();
 
-		jkj::fp_to_chars(x, buffer1);
+		jkj::dragonbox::to_chars(x, buffer1);
 		if constexpr (std::is_same_v<Float, float>) {
 			f2s_buffered(x, buffer2);
 		}

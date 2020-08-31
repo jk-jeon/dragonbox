@@ -22,15 +22,15 @@
 template <class Float>
 static void verify_fast_multiplication_impl()
 {
-	using impl = jkj::dragonbox_detail::dragonbox_impl<Float>;
-	using jkj::dragonbox_detail::get_cache;
+	using impl = jkj::dragonbox::detail::impl<Float>;
+	using jkj::dragonbox::detail::get_cache;
 	using carrier_uint = typename impl::carrier_uint;
 
 	constexpr auto fl = (carrier_uint(1) << (impl::significand_bits + 2)) - 1;
 	constexpr auto fr = (carrier_uint(1) << (impl::significand_bits + 2)) + 2;
 
-	using jkj::dragonbox_detail::floor_log10_pow2_minus_log10_4_over_3;
-	using jkj::dragonbox_detail::floor_log2_pow10;
+	using jkj::dragonbox::detail::floor_log10_pow2_minus_log10_4_over_3;
+	using jkj::dragonbox::detail::floor_log2_pow10;
 
 	bool success = true;
 

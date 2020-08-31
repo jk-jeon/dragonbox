@@ -26,8 +26,8 @@
 #include <algorithm>
 #include <cassert>
 
-namespace jkj {
-	namespace dragonbox_detail {
+namespace jkj::dragonbox {
+	namespace detail {
 		constexpr std::size_t log2p1(std::uint64_t x) noexcept {
 			// C++20 std::log2p1 is not yet supported
 			//return std::log2p1(x);

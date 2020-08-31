@@ -16,7 +16,7 @@
 // KIND, either express or implied.
 
 #include "benchmark.h"
-#include "../fp_to_chars.h"
+#include "../to_chars.h"
 #include <cstring>
 #include <fstream>
 #include <iomanip>
@@ -56,11 +56,11 @@ static void benchmark_test(std::string_view float_name,
 	out_file << "name,sample,bit_representation,time\n";
 
 	char buffer[64];
-	typename jkj::ieee754_traits<Float>::carrier_uint br;
+	typename jkj::dragonbox::ieee754_traits<Float>::carrier_uint br;
 	for (auto& name_result_pair : out) {
 		for (auto const& data_time_pair : name_result_pair.second[0]) {
 			std::memcpy(&br, &data_time_pair.first, sizeof(Float));
-			jkj::fp_to_chars(data_time_pair.first, buffer);
+			jkj::dragonbox::to_chars(data_time_pair.first, buffer);
 			out_file << "\"" << name_result_pair.first << "\"," << buffer << "," <<
 				"0x" << std::hex << std::setfill('0');
 			if constexpr (sizeof(Float) == 4)
@@ -83,7 +83,7 @@ static void benchmark_test(std::string_view float_name,
 	for (auto& name_result_pair : out) {
 		for (unsigned int digits = 1; digits <= benchmark_holder<Float>::max_digits; ++digits) {
 			for (auto const& data_time_pair : name_result_pair.second[digits]) {
-				jkj::fp_to_chars(data_time_pair.first, buffer);
+				jkj::dragonbox::to_chars(data_time_pair.first, buffer);
 				out_file << "\"" << name_result_pair.first << "\"," << digits << "," <<
 					buffer << "," << data_time_pair.second << "\n";
 			}

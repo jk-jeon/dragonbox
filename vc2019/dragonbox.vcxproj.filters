@@ -10,9 +10,6 @@
     <Filter Include="tests\Headers">
       <UniqueIdentifier>{96c8823e-e0ba-482a-8f52-41bbffa4eb02}</UniqueIdentifier>
     </Filter>
-    <Filter Include="fp_to_chars">
-      <UniqueIdentifier>{10e7a7bb-c52d-42a7-808c-1d5b9431e28a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="benchmark\ryu">
       <UniqueIdentifier>{f975d73d-6869-49ce-89fd-797bb92b72b7}</UniqueIdentifier>
     </Filter>
@@ -21,6 +18,9 @@
     </Filter>
     <Filter Include="benchmark\schubfach">
       <UniqueIdentifier>{a106ff15-d18c-4520-8c43-48b323d3766b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="to_chars">
+      <UniqueIdentifier>{10e7a7bb-c52d-42a7-808c-1d5b9431e28a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -36,9 +36,6 @@
     </ClCompile>
     <ClCompile Include="..\tests\misc_test.cpp">
       <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\fp_to_chars\fp_to_chars.cpp">
-      <Filter>fp_to_chars</Filter>
     </ClCompile>
     <ClCompile Include="..\tests\uniform_random_test.cpp">
       <Filter>tests</Filter>
@@ -61,9 +58,6 @@
     <ClCompile Include="..\benchmark\grisu_exact.cpp">
       <Filter>benchmark</Filter>
     </ClCompile>
-    <ClCompile Include="..\benchmark\grisu_exact\fp_to_chars2.cpp">
-      <Filter>benchmark\grisu_exact</Filter>
-    </ClCompile>
     <ClCompile Include="..\tests\perf_test.cpp">
       <Filter>tests</Filter>
     </ClCompile>
@@ -85,13 +79,18 @@
     <ClCompile Include="..\tests\test_all_shorter_interval_cases.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="..\to_chars\to_chars.cpp">
+      <Filter>to_chars</Filter>
+    </ClCompile>
+    <ClCompile Include="..\benchmark\grisu_exact\fp_to_chars.cpp">
+      <Filter>benchmark\grisu_exact</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\tests\bigint.h">
       <Filter>tests\Headers</Filter>
     </ClInclude>
     <ClInclude Include="..\dragonbox.h" />
-    <ClInclude Include="..\fp_to_chars.h" />
     <ClInclude Include="..\tests\random_float.h">
       <Filter>tests\Headers</Filter>
     </ClInclude>
@@ -134,5 +133,6 @@
     <ClInclude Include="..\benchmark\schubfach\schubfach_64.h">
       <Filter>benchmark\schubfach</Filter>
     </ClInclude>
+    <ClInclude Include="..\to_chars.h" />
   </ItemGroup>
 </Project>

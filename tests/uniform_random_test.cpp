@@ -15,7 +15,7 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
 
-#include "../fp_to_chars.h"
+#include "../to_chars.h"
 #include "random_float.h"
 #include "../benchmark/ryu/ryu.h"
 #include <iostream>
@@ -32,7 +32,7 @@ void uniform_random_test(std::size_t number_of_tests, TypenameString&& type_name
 		auto x = uniformly_randomly_generate_general_float<Float>(rg);
 
 		// Check if the output is identical to that of Ryu
-		jkj::fp_to_chars(x, buffer1);
+		jkj::dragonbox::to_chars(x, buffer1);
 		if constexpr (std::is_same_v<Float, float>) {
 			f2s_buffered(x, buffer2);
 		}

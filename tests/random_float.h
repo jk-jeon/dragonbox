@@ -80,8 +80,8 @@ inline std::mt19937_64 generate_correctly_seeded_mt19937_64()
 template <class Float, class RandGen>
 Float uniformly_randomly_generate_finite_float(RandGen& rg)
 {
-	using ieee754_traits = jkj::ieee754_traits<Float>;
-	using ieee754_format_info = jkj::ieee754_format_info<ieee754_traits::format>;
+	using ieee754_traits = jkj::dragonbox::ieee754_traits<Float>;
+	using ieee754_format_info = jkj::dragonbox::ieee754_format_info<ieee754_traits::format>;
 	using carrier_uint = typename ieee754_traits::carrier_uint;
 	using uniform_distribution = std::uniform_int_distribution<carrier_uint>;
 
@@ -106,7 +106,7 @@ Float uniformly_randomly_generate_finite_float(RandGen& rg)
 template <class Float, class RandGen>
 Float uniformly_randomly_generate_general_float(RandGen& rg)
 {
-	using ieee754_traits = jkj::ieee754_traits<Float>;
+	using ieee754_traits = jkj::dragonbox::ieee754_traits<Float>;
 	using carrier_uint = typename ieee754_traits::carrier_uint;
 	using uniform_distribution = std::uniform_int_distribution<carrier_uint>;
 
@@ -122,7 +122,7 @@ Float uniformly_randomly_generate_general_float(RandGen& rg)
 template <class Float, class RandGen>
 Float randomly_generate_float_with_given_digits(unsigned int digits, RandGen& rg)
 {
-	using ieee754_traits = jkj::ieee754_traits<Float>;
+	using ieee754_traits = jkj::dragonbox::ieee754_traits<Float>;
 	using carrier_uint = typename ieee754_traits::carrier_uint;
 	using signed_int_t = std::make_signed_t<carrier_uint>;
 
@@ -169,9 +169,9 @@ Float randomly_generate_float_with_given_digits(unsigned int digits, RandGen& rg
 
 			// Discard if a shorter representation exists
 			// We don't need to care about sign and correct rounding here
-			auto roundtrip = jkj::dragonbox<false>(result,
-				jkj::dragonbox_rounding_modes::nearest_to_even{},
-				jkj::dragonbox_correct_rounding::do_not_care{});
+			auto roundtrip = jkj::dragonbox::to_decimal<false>(result,
+				jkj::dragonbox::rounding_modes::nearest_to_even{},
+				jkj::dragonbox::correct_rounding::do_not_care{});
 			if (from != 0 && roundtrip.significand <= carrier_uint(from * 10)) {
 				continue;
 			}

@@ -38,10 +38,10 @@
 //  under the same terms as the original contents.
 
 
-#include "fp_to_chars.h"
+#include "../to_chars.h"
 
-namespace jkj2 {
-	namespace fp_to_chars_detail {
+namespace jkj::dragonbox {
+	namespace to_chars_detail {
 		static constexpr char radix_100_table[] = {
 			'0', '0', '0', '1', '0', '2', '0', '3', '0', '4',
 			'0', '5', '0', '6', '0', '7', '0', '8', '0', '9',
@@ -110,7 +110,7 @@ namespace jkj2 {
 		}
 
 		template <class Float>
-		static char* fp_to_chars_impl(unsigned_fp_t<Float> v, char* buffer)
+		static char* to_chars_impl(unsigned_fp_t<Float> v, char* buffer)
 		{
 			auto output = v.significand;
 			auto const olength = decimal_length(output);
@@ -126,9 +126,9 @@ namespace jkj2 {
 			uint32_t i = 0;
 			if constexpr (sizeof(Float) == 8) {
 				// We prefer 32-bit operations, even on 64-bit platforms.
-			// We have at most 17 digits, and uint32_t can store 9 digits.
-			// If output doesn't fit into uint32_t, we cut off 8 digits,
-			// so the rest will fit into uint32_t.
+				// We have at most 17 digits, and uint32_t can store 9 digits.
+				// If output doesn't fit into uint32_t, we cut off 8 digits,
+				// so the rest will fit into uint32_t.
 				if ((output >> 32) != 0) {
 					// Expensive 64-bit division.
 					const uint64_t q = output / 100000000;
@@ -228,11 +228,11 @@ namespace jkj2 {
 			return buffer;
 		}
 		
-		char* float_to_chars(unsigned_fp_t<float> v, char* buffer) {
-			return fp_to_chars_impl(v, buffer);
+		char* to_chars(unsigned_fp_t<float> v, char* buffer) {
+			return to_chars_impl(v, buffer);
 		}
-		char* double_to_chars(unsigned_fp_t<double> v, char* buffer) {
-			return fp_to_chars_impl(v, buffer);
+		char* to_chars(unsigned_fp_t<double> v, char* buffer) {
+			return to_chars_impl(v, buffer);
 		}
 	}
 }

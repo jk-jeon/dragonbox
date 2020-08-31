@@ -15,7 +15,7 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
 
-#include "../fp_to_chars.h"
+#include "../to_chars.h"
 
 #include <iostream>
 #include <iomanip>
@@ -46,7 +46,7 @@ void live_test()
 			break;
 		}
 
-		auto xx = jkj::ieee754_bits<Float>{ x };
+		auto xx = jkj::dragonbox::ieee754_bits<Float>{ x };
 		std::cout << "              sign: " << (xx.is_negative() ? "-" : "+") << std::endl;
 		std::cout << "     exponent bits: " << "0x" << std::hex << std::setfill('0')
 			<< xx.extract_exponent_bits() << std::dec
@@ -61,7 +61,7 @@ void live_test()
 		std::cout << xx.extract_significand_bits()
 			<< " (value: 0x" << xx.binary_significand() << ")\n" << std::dec;
 
-		jkj::fp_to_chars(x, buffer);
+		jkj::dragonbox::to_chars(x, buffer);
 		std::cout << "  Dragonbox output: " << buffer << "\n\n";
 	}
 }

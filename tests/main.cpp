@@ -86,7 +86,7 @@ extern void live_test_double();
 extern void misc_test();
 
 // Do benchmark for binary32
-#define BENCHMARK_TEST_FLOAT
+//#define BENCHMARK_TEST_FLOAT
 static std::size_t number_of_uniform_benchmark_samples_float = 1000000;
 static std::size_t number_of_digits_benchmark_samples_per_digits_float = 100000;
 static std::size_t number_of_benchmark_iterations_float = 1000;

@@ -141,7 +141,7 @@
     <ClInclude Include="..\benchmark\schubfach\schubfach_32.h" />
     <ClInclude Include="..\benchmark\schubfach\schubfach_64.h" />
     <ClInclude Include="..\dragonbox.h" />
-    <ClInclude Include="..\fp_to_chars.h" />
+    <ClInclude Include="..\to_chars.h" />
     <ClInclude Include="..\tests\bigint.h" />
     <ClInclude Include="..\tests\random_float.h" />
   </ItemGroup>
@@ -149,14 +149,13 @@
     <ClCompile Include="..\benchmark\benchmark.cpp" />
     <ClCompile Include="..\benchmark\dragonbox.cpp" />
     <ClCompile Include="..\benchmark\grisu_exact.cpp" />
-    <ClCompile Include="..\benchmark\grisu_exact\fp_to_chars2.cpp" />
+    <ClCompile Include="..\benchmark\grisu_exact\fp_to_chars.cpp" />
     <ClCompile Include="..\benchmark\ryu.cpp" />
     <ClCompile Include="..\benchmark\ryu\d2s.c" />
     <ClCompile Include="..\benchmark\ryu\f2s.c" />
     <ClCompile Include="..\benchmark\schubfach.cpp" />
     <ClCompile Include="..\benchmark\schubfach\schubfach_32.cc" />
     <ClCompile Include="..\benchmark\schubfach\schubfach_64.cc" />
-    <ClCompile Include="..\fp_to_chars\fp_to_chars.cpp" />
     <ClCompile Include="..\tests\generate_cache.cpp" />
     <ClCompile Include="..\tests\live_test.cpp" />
     <ClCompile Include="..\tests\main.cpp" />
@@ -167,6 +166,7 @@
     <ClCompile Include="..\tests\verify_magic_division.cpp" />
     <ClCompile Include="..\tests\verify_fast_multiplication.cpp" />
     <ClCompile Include="..\tests\verify_log_computation.cpp" />
+    <ClCompile Include="..\to_chars\to_chars.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -43,7 +43,7 @@
 #define JKJ_SAFEBUFFERS
 #endif
 
-namespace jkj2 {
+namespace jkj {
 	namespace grisu_exact_detail {
 		////////////////////////////////////////////////////////////////////////////////////////
 		// Utilities for 128-bit arithmetic

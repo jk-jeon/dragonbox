@@ -45,7 +45,7 @@
 #include <intrin.h>	// this includes immintrin.h as well
 #endif
 
-namespace jkj {
+namespace jkj::dragonbox {
 	enum class ieee754_format {
 		binary32,
 		binary64
@@ -101,7 +101,7 @@ namespace jkj {
 			std::memcpy(&u, &x, sizeof(carrier_uint));
 			return u;
 		}
-				
+
 		static constexpr std::uint32_t extract_exponent_bits(carrier_uint u) noexcept {
 			constexpr int significand_bits = ieee754_format_info<format>::significand_bits;
 			constexpr int exponent_bits = ieee754_format_info<format>::exponent_bits;
@@ -171,7 +171,7 @@ namespace jkj {
 	// Speciailze this class template for possible extensions
 	template <class T>
 	struct ieee754_traits : default_ieee754_traits<T> {
-		static_assert(std::numeric_limits<T>::is_iec559 &&
+		static_assert(std::numeric_limits<T>::is_iec559&&
 			std::numeric_limits<T>::radix == 2 &&
 			(sizeof(T) == 4 || sizeof(T) == 8),
 			"default_ieee754_traits only worsk for 4 bytes or 8 bytes types "
@@ -258,7 +258,13 @@ namespace jkj {
 		}
 	};
 
-	namespace dragonbox_detail {
+	enum class trailing_zero_policy {
+		remove,
+		report,
+		do_not_care
+	};
+
+	namespace detail {
 		////////////////////////////////////////////////////////////////////////////////////////
 		// Bit operation intrinsics
 		////////////////////////////////////////////////////////////////////////////////////////
@@ -721,9 +727,7 @@ namespace jkj {
 				}
 			}
 		}
-	}
 
-	namespace dragonbox_detail {
 		////////////////////////////////////////////////////////////////////////////////////////
 		// Computed cache entries
 		////////////////////////////////////////////////////////////////////////////////////////
@@ -1462,11 +1466,11 @@ namespace jkj {
 	// DIY floating-point data type
 	////////////////////////////////////////////////////////////////////////////////////////
 
-	template <class Float, bool is_signed>
+	template <class Float, bool is_signed, bool trailing_zero_flag>
 	struct fp_t;
 
 	template <class Float>
-	struct fp_t<Float, false> {
+	struct fp_t<Float, false, false> {
 		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
 
 		carrier_uint	significand;
@@ -1474,7 +1478,7 @@ namespace jkj {
 	};
 
 	template <class Float>
-	struct fp_t<Float, true> {
+	struct fp_t<Float, true, false> {
 		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
 
 		carrier_uint	significand;
@@ -1483,16 +1487,35 @@ namespace jkj {
 	};
 
 	template <class Float>
-	using unsigned_fp_t = fp_t<Float, false>;
+	struct fp_t<Float, false, true> {
+		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
+
+		carrier_uint	significand;
+		int				exponent;
+		bool			may_have_trailing_zeros;
+	};
 
 	template <class Float>
-	using signed_fp_t = fp_t<Float, true>;
+	struct fp_t<Float, true, true> {
+		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
+
+		carrier_uint	significand;
+		int				exponent;
+		bool			is_negative;
+		bool			may_have_trailing_zeros;
+	};
+
+	template <class Float>
+	using unsigned_fp_t = fp_t<Float, false, false>;
+
+	template <class Float>
+	using signed_fp_t = fp_t<Float, true, false>;
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Determine what to do about the correct rounding guarantee
 	////////////////////////////////////////////////////////////////////////////////////////
 
-	namespace dragonbox_correct_rounding {
+	namespace correct_rounding {
 		enum tag_t {
 			do_not_care_tag,
 			tie_to_even_tag,
@@ -1531,7 +1554,7 @@ namespace jkj {
 	// Rounding modes
 	////////////////////////////////////////////////////////////////////////////////////////
 
-	namespace dragonbox_rounding_modes {
+	namespace rounding_modes {
 		enum tag_t {
 			to_nearest_tag,
 			left_closed_directed_tag,
@@ -1798,7 +1821,7 @@ namespace jkj {
 		};
 	};
 
-	namespace dragonbox_detail {
+	namespace detail {
 		////////////////////////////////////////////////////////////////////////////////////////
 		// The main algorithm
 		////////////////////////////////////////////////////////////////////////////////////////
@@ -1806,7 +1829,7 @@ namespace jkj {
 		// Get sign/decimal significand/decimal exponent from
 		// the bit representation of a floating-point number
 		template <class Float>
-		struct dragonbox_impl : private ieee754_traits<Float>,
+		struct impl : private ieee754_traits<Float>,
 			private ieee754_format_info< ieee754_traits<Float>::format>
 		{
 			using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
@@ -1875,18 +1898,18 @@ namespace jkj {
 
 			template <
 				bool return_sign,
-				bool allow_trailing_zeros,
+				trailing_zero_policy tzp,
 				class IntervalTypeProvider,
-				dragonbox_correct_rounding::tag_t correct_rounding_tag
+				correct_rounding::tag_t correct_rounding_tag
 			>
-			JKJ_SAFEBUFFERS
-			static fp_t<Float, return_sign> compute_nearest(ieee754_bits<Float> br) noexcept
+			JKJ_SAFEBUFFERS static fp_t<Float, return_sign, tzp == trailing_zero_policy::report>
+				compute_nearest(ieee754_bits<Float> br) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
 				//////////////////////////////////////////////////////////////////////
 
-				fp_t<Float, return_sign> ret_value;
+				fp_t<Float, return_sign, tzp == trailing_zero_policy::report> ret_value;
 
 				auto interval_type = IntervalTypeProvider{}(br);
 
@@ -1902,7 +1925,7 @@ namespace jkj {
 
 					// Closer boundary case; proceed like Schubfach
 					if (significand == 0) {
-						shorter_interval_case<allow_trailing_zeros, correct_rounding_tag>(
+						shorter_interval_case<tzp, correct_rounding_tag>(
 							ret_value, exponent, interval_type);
 						return ret_value;
 					}
@@ -1949,7 +1972,7 @@ namespace jkj {
 						is_product_integer<integer_check_case_id::fc_pm_half>(two_fr, exponent, minus_k))
 					{
 						if constexpr (correct_rounding_tag ==
-							dragonbox_correct_rounding::do_not_care_tag)
+							correct_rounding::do_not_care_tag)
 						{
 							ret_value.significand *= 10;
 							--ret_value.significand;
@@ -1976,9 +1999,13 @@ namespace jkj {
 				ret_value.exponent = minus_k + initial_kappa + 1;
 
 				// We may need to remove trailing zeros
-				if constexpr (!allow_trailing_zeros)
+				if constexpr (tzp == trailing_zero_policy::remove)
 				{
 					ret_value.exponent += remove_trailing_zeros(ret_value.significand);
+				}
+				else if constexpr (tzp == trailing_zero_policy::report)
+				{
+					ret_value.may_have_trailing_zeros = true;
 				}
 				return ret_value;
 
@@ -2016,13 +2043,13 @@ namespace jkj {
 							// when z^(f) == epsilon^(f), or equivalently, when y is an integer
 							// For tie-to-up case, we can just choose the upper one
 							if constexpr (correct_rounding_tag !=
-								dragonbox_correct_rounding::tie_to_up_tag)
+								correct_rounding::tie_to_up_tag)
 							{
 								if (is_product_integer<integer_check_case_id::fc>(
 									two_fc, exponent, minus_k))
 								{
 									if constexpr (correct_rounding_tag ==
-										dragonbox_correct_rounding::tie_to_even_tag)
+										correct_rounding::tie_to_even_tag)
 									{
 										ret_value.significand =
 											ret_value.significand % 2 == 0 ?
@@ -2030,7 +2057,7 @@ namespace jkj {
 											ret_value.significand - 1;
 									}
 									else if constexpr (correct_rounding_tag ==
-										dragonbox_correct_rounding::tie_to_odd_tag)
+										correct_rounding::tie_to_odd_tag)
 									{
 										ret_value.significand =
 											ret_value.significand % 2 != 0 ?
@@ -2056,13 +2083,19 @@ namespace jkj {
 					// better than the compiler; we are computing dist / small_divisor here
 					ret_value.significand += div::small_division_by_pow10<initial_kappa>(dist);
 				}
+
+				if constexpr (tzp == trailing_zero_policy::report)
+				{
+					ret_value.may_have_trailing_zeros = false;
+				}
 				return ret_value;
 			}
 
-			template <bool allow_trailing_zeros,
-				dragonbox_correct_rounding::tag_t correct_rounding_tag,
+			template <trailing_zero_policy tzp,
+				correct_rounding::tag_t correct_rounding_tag,
 				bool has_sign, class IntervalType>
-			JKJ_FORCEINLINE static void shorter_interval_case(fp_t<Float, has_sign>& ret_value,
+			JKJ_FORCEINLINE static void shorter_interval_case(
+				fp_t<Float, has_sign, tzp == trailing_zero_policy::report>& ret_value,
 				int exponent, IntervalType interval_type) noexcept
 			{
 				// Compute k and beta
@@ -2096,9 +2129,13 @@ namespace jkj {
 				// If succeed, remove trailing zeros if necessary and return
 				if (ret_value.significand * 10 >= x) {
 					ret_value.exponent = minus_k + 1;
-					if constexpr (!allow_trailing_zeros)
+					if constexpr (tzp == trailing_zero_policy::remove)
 					{
 						ret_value.exponent += remove_trailing_zeros(ret_value.significand);
+					}
+					else if constexpr (tzp == trailing_zero_policy::report)
+					{
+						ret_value.may_have_trailing_zeros = true;
 					}
 					return;
 				}
@@ -2109,13 +2146,13 @@ namespace jkj {
 
 				// When tie occurs, choose one of them according to the rule
 				if constexpr (correct_rounding_tag !=
-					dragonbox_correct_rounding::tie_to_up_tag)
+					correct_rounding::tie_to_up_tag)
 				{
 					if (exponent >= shorter_interval_case_tie_lower_threshold &&
 						exponent <= shorter_interval_case_tie_upper_threshold)
 					{
 						if constexpr (correct_rounding_tag ==
-							dragonbox_correct_rounding::tie_to_even_tag)
+							correct_rounding::tie_to_even_tag)
 						{
 							ret_value.significand =
 								ret_value.significand % 2 == 0 ?
@@ -2123,7 +2160,7 @@ namespace jkj {
 								ret_value.significand - 1;
 						}
 						else if constexpr (correct_rounding_tag ==
-							dragonbox_correct_rounding::tie_to_odd_tag)
+							correct_rounding::tie_to_odd_tag)
 						{
 							ret_value.significand =
 								ret_value.significand % 2 != 0 ?
@@ -2140,14 +2177,19 @@ namespace jkj {
 				if (ret_value.significand < x) {
 					++ret_value.significand;
 				}
+
+				if constexpr (tzp == trailing_zero_policy::report)
+				{
+					ret_value.may_have_trailing_zeros = false;
+				}
 			}
 
 			template <
 				bool return_sign,
-				bool allow_trailing_zeros
+				trailing_zero_policy tzp
 			>
-			JKJ_SAFEBUFFERS
-			static fp_t<Float, return_sign> compute_left_closed_directed(ieee754_bits<Float> br) noexcept
+			JKJ_SAFEBUFFERS static fp_t<Float, return_sign, tzp == trailing_zero_policy::report>
+				compute_left_closed_directed(ieee754_bits<Float> br) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
@@ -2218,8 +2260,13 @@ namespace jkj {
 
 				// The ceiling is inside, so we are done
 				ret_value.exponent = minus_k + initial_kappa + 1;
-				if constexpr (!allow_trailing_zeros) {
+				if constexpr (tzp == trailing_zero_policy::remove)
+				{
 					ret_value.exponent += remove_trailing_zeros(ret_value.significand);
+				}
+				else if constexpr (tzp == trailing_zero_policy::report)
+				{
+					ret_value.may_have_trailing_zeros = true;
 				}
 				return ret_value;
 
@@ -2231,15 +2278,19 @@ namespace jkj {
 			small_divisor_case_label:
 				ret_value.significand *= 10;
 				ret_value -= div::small_division_by_pow10<initial_kappa>(r);
+				if constexpr (tzp == trailing_zero_policy::report)
+				{
+					ret_value.may_have_trailing_zeros = false;
+				}
 				return ret_value;
 			}
 
 			template <
 				bool return_sign,
-				bool allow_trailing_zeros
+				trailing_zero_policy tzp
 			>
-			JKJ_SAFEBUFFERS
-			static fp_t<Float, return_sign> compute_right_closed_directed(ieee754_bits<Float> br) noexcept
+			JKJ_SAFEBUFFERS static fp_t<Float, return_sign, tzp == trailing_zero_policy::report>
+				compute_right_closed_directed(ieee754_bits<Float> br) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
@@ -2305,8 +2356,12 @@ namespace jkj {
 
 				// The floor is inside, so we are done
 				ret_value.exponent = minus_k + initial_kappa + 1;
-				if constexpr (!allow_trailing_zeros) {
+				if constexpr (tzp == trailing_zero_policy::remove) {
 					ret_value.exponent += remove_trailing_zeros(ret_value.significand);
+				}
+				else if constexpr (tzp == trailing_zero_policy::report)
+				{
+					ret_value.may_have_trailing_zeros = true;
 				}
 				return ret_value;
 
@@ -2318,6 +2373,10 @@ namespace jkj {
 			small_divisor_case_label:
 				ret_value.significand *= 10;
 				ret_value += div::small_division_by_pow10<initial_kappa>(r);
+				if constexpr (tzp == trailing_zero_policy::report)
+				{
+					ret_value.may_have_trailing_zeros = false;
+				}
 				return ret_value;
 			}
 
@@ -2586,7 +2645,7 @@ namespace jkj {
 	}
 
 	// What to do with non-finite inputs?
-	namespace dragonbox_case_handlers {
+	namespace case_handlers {
 		struct assert_finite {
 			template <class Float>
 			void operator()([[maybe_unused]] ieee754_bits<Float> br) const
@@ -2604,12 +2663,13 @@ namespace jkj {
 		};
 	}
 
-	template <bool return_sign = true, bool allow_trailing_zeros = false, class Float,
-		class RoundingMode = dragonbox_rounding_modes::nearest_to_even,
-		class CorrectRounding = dragonbox_correct_rounding::tie_to_even,
-		class CaseHandler = dragonbox_case_handlers::assert_finite
+	template <bool return_sign = true,
+		trailing_zero_policy tzp = trailing_zero_policy::remove, class Float,
+		class RoundingMode = rounding_modes::nearest_to_even,
+		class CorrectRounding = correct_rounding::tie_to_even,
+		class CaseHandler = case_handlers::assert_finite
 	>
-	fp_t<Float, return_sign> dragonbox(Float x,
+	fp_t<Float, return_sign, tzp == trailing_zero_policy::report> to_decimal(Float x,
 		RoundingMode&& rounding_mode = {},
 		CorrectRounding&& crs = {},
 		CaseHandler&& case_handler = {})
@@ -2620,19 +2680,19 @@ namespace jkj {
 			[br](auto interval_type_provider) {
 				constexpr auto rounding_mode_tag = decltype(interval_type_provider)::tag;
 
-				if constexpr (rounding_mode_tag == dragonbox_rounding_modes::to_nearest_tag) {
-					return dragonbox_detail::dragonbox_impl<Float>::template
-						compute_nearest<return_sign, allow_trailing_zeros,
+				if constexpr (rounding_mode_tag == rounding_modes::to_nearest_tag) {
+					return detail::impl<Float>::template
+						compute_nearest<return_sign, tzp,
 						decltype(interval_type_provider),
 						std::remove_cv_t<std::remove_reference_t<CorrectRounding>>::tag>(br);
 				}
-				else if constexpr (rounding_mode_tag == dragonbox_rounding_modes::left_closed_directed_tag) {
-					return dragonbox_detail::dragonbox_impl<Float>::template
-						compute_left_closed_directed<return_sign, allow_trailing_zeros>(br);
+				else if constexpr (rounding_mode_tag == rounding_modes::left_closed_directed_tag) {
+					return detail::impl<Float>::template
+						compute_left_closed_directed<return_sign, tzp>(br);
 				}
 				else {
-					return dragonbox_detail::dragonbox_impl<Float>::template
-						compute_right_closed_directed<return_sign, allow_trailing_zeros>(br);
+					return detail::impl<Float>::template
+						compute_right_closed_directed<return_sign, tzp>(br);
 				}
 			});
 	}
