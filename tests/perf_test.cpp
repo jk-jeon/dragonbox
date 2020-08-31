@@ -26,7 +26,7 @@ void uniform_random_perf_test(std::size_t number_of_tests)
 	auto rg = generate_correctly_seeded_mt19937_64();
 	for (std::size_t test_idx = 0; test_idx < number_of_tests; ++test_idx) {
 		auto x = uniformly_randomly_generate_general_float<Float>(rg);
-		jkj::fp_to_chars<true>(x, buffer);
+		jkj::fp_to_chars<false>(x, buffer);
 	}
 }
 
@@ -48,7 +48,7 @@ void digit_perf_test(unsigned int digits, std::size_t number_of_tests)
 	auto rg = generate_correctly_seeded_mt19937_64();
 	for (std::size_t test_idx = 0; test_idx < number_of_tests; ++test_idx) {
 		auto x = randomly_generate_float_with_given_digits<Float>(digits, rg);
-		jkj::fp_to_chars<true>(x, buffer);
+		jkj::fp_to_chars<false>(x, buffer);
 	}
 }
 

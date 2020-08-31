@@ -2065,6 +2065,7 @@ namespace jkj {
 			template <bool allow_trailing_zeros,
 				dragonbox_correct_rounding::tag_t correct_rounding_tag,
 				bool has_sign, class IntervalType>
+			JKJ_FORCEINLINE
 			static void shorter_interval_case(fp_t<Float, has_sign>& ret_value,
 				int exponent, IntervalType interval_type) noexcept
 			{
