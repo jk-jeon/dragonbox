@@ -466,7 +466,7 @@ namespace jkj {
 			constexpr std::int32_t floor_shift(
 				std::uint32_t integer_part,
 				std::uint64_t fractional_digits,
-				std::size_t shift_amount)
+				std::size_t shift_amount) noexcept
 			{
 				assert(shift_amount < 32);
 				// Ensure no overflow
@@ -2066,7 +2066,7 @@ namespace jkj {
 				dragonbox_correct_rounding::tag_t correct_rounding_tag,
 				bool has_sign, class IntervalType>
 			static void shorter_interval_case(fp_t<Float, has_sign>& ret_value,
-				int exponent, IntervalType interval_type)
+				int exponent, IntervalType interval_type) noexcept
 			{
 				// Compute k and beta
 				int const minus_k = floor_log10_pow2_minus_log10_4_over_3(exponent);
@@ -2325,7 +2325,7 @@ namespace jkj {
 			}
 
 			// Remove trailing zeros from n and return the number of zeros removed
-			JKJ_FORCEINLINE static int remove_trailing_zeros(carrier_uint& n) {
+			JKJ_FORCEINLINE static int remove_trailing_zeros(carrier_uint& n) noexcept {
 				constexpr auto max_power = [] {
 					auto max_possible_significand =
 						std::numeric_limits<carrier_uint>::max() /
