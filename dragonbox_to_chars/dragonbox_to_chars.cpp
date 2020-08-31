@@ -26,7 +26,7 @@
 // Modifications Copyright 2020 Junekey Jeon
 //
 // Following modifications were made to the original contents:
-//  - Put everything inside the namespace jkj::fp_to_chars_detail
+//  - Put everything inside the namespace jkj::dragonbox::to_chars_detail
 //  - Combined decimalLength9 (from common.h) and decimalLength17 (from d2s.c)
 //    into a single template function decimal_length
 //  - Combined to_chars (from f2s.c) and to_chars (from d2s.c) into a
@@ -38,7 +38,7 @@
 //  under the same terms as the original contents.
 
 
-#include "../to_chars.h"
+#include "../dragonbox_to_chars.h"
 
 namespace jkj::dragonbox {
 	namespace to_chars_detail {

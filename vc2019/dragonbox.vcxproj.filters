@@ -19,7 +19,7 @@
     <Filter Include="benchmark\schubfach">
       <UniqueIdentifier>{a106ff15-d18c-4520-8c43-48b323d3766b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="to_chars">
+    <Filter Include="dragonbox_to_chars">
       <UniqueIdentifier>{10e7a7bb-c52d-42a7-808c-1d5b9431e28a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -79,11 +79,11 @@
     <ClCompile Include="..\tests\test_all_shorter_interval_cases.cpp">
       <Filter>tests</Filter>
     </ClCompile>
-    <ClCompile Include="..\to_chars\to_chars.cpp">
-      <Filter>to_chars</Filter>
-    </ClCompile>
     <ClCompile Include="..\benchmark\grisu_exact\fp_to_chars.cpp">
       <Filter>benchmark\grisu_exact</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dragonbox_to_chars\dragonbox_to_chars.cpp">
+      <Filter>dragonbox_to_chars</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -133,6 +133,6 @@
     <ClInclude Include="..\benchmark\schubfach\schubfach_64.h">
       <Filter>benchmark\schubfach</Filter>
     </ClInclude>
-    <ClInclude Include="..\to_chars.h" />
+    <ClInclude Include="..\dragonbox_to_chars.h" />
   </ItemGroup>
 </Project>
