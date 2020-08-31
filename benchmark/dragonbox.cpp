@@ -16,7 +16,7 @@
 // KIND, either express or implied.
 
 #include "benchmark.h"
-#include "../to_chars.h"
+#include "../dragonbox_to_chars.h"
 
 namespace {
 	void dragonbox_float_to_chars(float x, char* buffer)

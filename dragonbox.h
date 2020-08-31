@@ -468,7 +468,7 @@ namespace jkj::dragonbox {
 		// Utilities for fast/constexpr log computation
 		////////////////////////////////////////////////////////////////////////////////////////
 
-		namespace log_compute {
+		namespace log {
 			constexpr std::int32_t floor_shift(
 				std::uint32_t integer_part,
 				std::uint64_t fractional_digits,
@@ -521,43 +521,43 @@ namespace jkj::dragonbox {
 				}
 				return count;
 			}
-		}
 
-		constexpr int floor_log10_pow2(int e) noexcept {
-			using namespace log_compute;
-			return compute<
-				0, log10_2_fractional_digits,
-				floor_log10_pow2_shift_amount, 1700>(e);
-		}
+			constexpr int floor_log10_pow2(int e) noexcept {
+				using namespace log;
+				return compute<
+					0, log10_2_fractional_digits,
+					floor_log10_pow2_shift_amount, 1700>(e);
+			}
 
-		constexpr int floor_log2_pow10(int e) noexcept {
-			using namespace log_compute;
-			return compute<
-				3, log2_10_fractional_digits,
-				floor_log2_pow10_shift_amount, 1233>(e);
-		}
+			constexpr int floor_log2_pow10(int e) noexcept {
+				using namespace log;
+				return compute<
+					3, log2_10_fractional_digits,
+					floor_log2_pow10_shift_amount, 1233>(e);
+			}
 
-		constexpr int floor_log5_pow2(int e) noexcept {
-			using namespace log_compute;
-			return compute<
-				0, log5_2_fractional_digits,
-				floor_log5_pow2_shift_amount, 1492>(e);
-		}
+			constexpr int floor_log5_pow2(int e) noexcept {
+				using namespace log;
+				return compute<
+					0, log5_2_fractional_digits,
+					floor_log5_pow2_shift_amount, 1492>(e);
+			}
 
-		constexpr int floor_log5_pow2_minus_log5_3(int e) noexcept {
-			using namespace log_compute;
-			return compute<
-				0, log5_2_fractional_digits,
-				floor_log5_pow2_shift_amount, 2427,
-				0, log5_3_fractional_digits>(e);
-		}
+			constexpr int floor_log5_pow2_minus_log5_3(int e) noexcept {
+				using namespace log;
+				return compute<
+					0, log5_2_fractional_digits,
+					floor_log5_pow2_shift_amount, 2427,
+					0, log5_3_fractional_digits>(e);
+			}
 
-		constexpr int floor_log10_pow2_minus_log10_4_over_3(int e) noexcept {
-			using namespace log_compute;
-			return compute<
-				0, log10_2_fractional_digits,
-				floor_log10_pow2_shift_amount, 1700,
-				0, log10_4_over_3_fractional_digits>(e);
+			constexpr int floor_log10_pow2_minus_log10_4_over_3(int e) noexcept {
+				using namespace log;
+				return compute<
+					0, log10_2_fractional_digits,
+					floor_log10_pow2_shift_amount, 1700,
+					0, log10_4_over_3_fractional_digits>(e);
+			}
 		}
 
 		////////////////////////////////////////////////////////////////////////////////////////
@@ -663,7 +663,7 @@ namespace jkj::dragonbox {
 			constexpr bool check_divisibility_and_divide_by_pow5(std::uint32_t& n) noexcept
 			{
 				// Make sure the computation for max_n does not overflow
-				static_assert(N + 1 <= floor_log5_pow2(31));
+				static_assert(N + 1 <= log::floor_log5_pow2(31));
 				assert(n <= compute_power<N + 1>(std::uint32_t(5)) * 2);
 
 				using info = check_divisibility_and_divide_by_pow5_info<N>;
@@ -712,12 +712,12 @@ namespace jkj::dragonbox {
 				static_assert(N >= 0);
 
 				// Ensure no overflow
-				static_assert(max_pow2 + (floor_log2_pow10(max_pow5) - max_pow5) < sizeof(UInt) * 8);
+				static_assert(max_pow2 + (log::floor_log2_pow10(max_pow5) - max_pow5) < sizeof(UInt) * 8);
 
 				// Specialize for 64bit division by 1000
 				// Ensure that the correctness condition is met
 				if constexpr (std::is_same_v<UInt, std::uint64_t> && N == 3 &&
-					max_pow2 + (floor_log2_pow10(N + max_pow5) - (N + max_pow5)) < 70)
+					max_pow2 + (log::floor_log2_pow10(N + max_pow5) - (N + max_pow5)) < 70)
 				{
 					return wuint::umul128_upper64(n, 0x8312'6e97'8d4f'df3c) >> 9;
 				}
@@ -1844,21 +1844,21 @@ namespace jkj::dragonbox {
 
 			static constexpr int initial_kappa = format == ieee754_format::binary32 ? 1 : 2;
 			static_assert(initial_kappa >= 1);
-			static_assert(carrier_bits >= significand_bits + 2 + floor_log2_pow10(initial_kappa + 1));
+			static_assert(carrier_bits >= significand_bits + 2 + log::floor_log2_pow10(initial_kappa + 1));
 
 			static constexpr int min_k = [] {
-				constexpr auto a = -floor_log10_pow2_minus_log10_4_over_3(
+				constexpr auto a = -log::floor_log10_pow2_minus_log10_4_over_3(
 					int(max_exponent - significand_bits));
-				constexpr auto b = -floor_log10_pow2(
+				constexpr auto b = -log::floor_log10_pow2(
 					int(max_exponent - significand_bits)) + initial_kappa;
 				return a < b ? a : b;
 			}();
 			static_assert(min_k >= cache_holder<format>::min_k);
 
 			static constexpr int max_k = [] {
-				constexpr auto a = -floor_log10_pow2_minus_log10_4_over_3(
+				constexpr auto a = -log::floor_log10_pow2_minus_log10_4_over_3(
 					int(min_exponent - significand_bits + 1));
-				constexpr auto b = -floor_log10_pow2(
+				constexpr auto b = -log::floor_log10_pow2(
 					int(min_exponent - significand_bits)) + initial_kappa;
 				return a > b ? a : b;
 			}();
@@ -1869,15 +1869,15 @@ namespace jkj::dragonbox {
 			static constexpr auto cache_bits =
 				cache_holder<format>::cache_bits;
 
-			static constexpr int max_power_of_factor_of_5 = floor_log5_pow2(int(significand_bits + 1));
+			static constexpr int max_power_of_factor_of_5 = log::floor_log5_pow2(int(significand_bits + 1));
 			static constexpr int divtest_table_size = (decimal_digits > max_power_of_factor_of_5)
 				? decimal_digits : max_power_of_factor_of_5 + 1;
 
-			static constexpr int case_fc_pm_half_lower_threshold = -initial_kappa - floor_log5_pow2(initial_kappa);
-			static constexpr int case_fc_pm_half_upper_threshold = floor_log2_pow10(initial_kappa + 1);
+			static constexpr int case_fc_pm_half_lower_threshold = -initial_kappa - log::floor_log5_pow2(initial_kappa);
+			static constexpr int case_fc_pm_half_upper_threshold = log::floor_log2_pow10(initial_kappa + 1);
 
-			static constexpr int case_fc_lower_threshold = -initial_kappa - 1 - floor_log5_pow2(initial_kappa + 1);
-			static constexpr int case_fc_upper_threshold = floor_log2_pow10(initial_kappa + 1);
+			static constexpr int case_fc_lower_threshold = -initial_kappa - 1 - log::floor_log5_pow2(initial_kappa + 1);
+			static constexpr int case_fc_upper_threshold = log::floor_log2_pow10(initial_kappa + 1);
 
 			static constexpr int case_shorter_interval_left_endpoint_lower_threshold = 2;
 			static constexpr int case_shorter_interval_left_endpoint_upper_threshold = 3;
@@ -1886,10 +1886,10 @@ namespace jkj::dragonbox {
 			static constexpr int case_shorter_interval_right_endpoint_upper_threshold = 3;
 
 			static constexpr int shorter_interval_case_tie_lower_threshold =
-				-floor_log5_pow2_minus_log5_3(significand_bits + 4) - 2 - significand_bits;
+				-log::floor_log5_pow2_minus_log5_3(significand_bits + 4) - 2 - significand_bits;
 			static constexpr int shorter_interval_case_tie_upper_threshold = [] {
-				constexpr int threshold = -floor_log5_pow2_minus_log5_3(significand_bits + 3) - 2 - significand_bits;
-				constexpr int spurious_tie_threshold = -floor_log5_pow2(significand_bits + 2) - 2 - significand_bits;
+				constexpr int threshold = -log::floor_log5_pow2_minus_log5_3(significand_bits + 3) - 2 - significand_bits;
+				constexpr int spurious_tie_threshold = -log::floor_log5_pow2(significand_bits + 2) - 2 - significand_bits;
 
 				return threshold <= spurious_tie_threshold ? threshold : spurious_tie_threshold;
 			}();
@@ -1938,9 +1938,9 @@ namespace jkj::dragonbox {
 				}
 
 				// Compute k and beta
-				int const minus_k = floor_log10_pow2(exponent) - initial_kappa;
+				int const minus_k = log::floor_log10_pow2(exponent) - initial_kappa;
 				auto const cache = get_cache<Float>(-minus_k);
-				int const beta_minus_1 = exponent + floor_log2_pow10(-minus_k);
+				int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
 
 				// Compute zi and deltai
 				// 10^kappa0 <= deltai < 10^(kappa0 + 1)
@@ -2099,8 +2099,8 @@ namespace jkj::dragonbox {
 				int exponent, IntervalType interval_type) noexcept
 			{
 				// Compute k and beta
-				int const minus_k = floor_log10_pow2_minus_log10_4_over_3(exponent);
-				int const beta_minus_1 = exponent + floor_log2_pow10(-minus_k);
+				int const minus_k = log::floor_log10_pow2_minus_log10_4_over_3(exponent);
+				int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
 
 				// Compute floor(x) and floor(z)
 				auto const cache = get_cache<Float>(-minus_k);
@@ -2214,9 +2214,9 @@ namespace jkj::dragonbox {
 				}
 
 				// Compute k and beta
-				int const minus_k = floor_log10_pow2(exponent) - initial_kappa;
+				int const minus_k = log::floor_log10_pow2(exponent) - initial_kappa;
 				auto const cache = get_cache<Float>(-minus_k);
-				int const beta = exponent + floor_log2_pow10(-minus_k) + 1;
+				int const beta = exponent + log::floor_log2_pow10(-minus_k) + 1;
 
 				// Compute yi and deltai
 				// 10^kappa0 <= deltai < 10^(kappa0 + 1)
@@ -2319,9 +2319,9 @@ namespace jkj::dragonbox {
 				}
 
 				// Compute k and beta
-				int const minus_k = floor_log10_pow2(exponent - closer_boundary ? 1 : 0) - initial_kappa;
+				int const minus_k = log::floor_log10_pow2(exponent - closer_boundary ? 1 : 0) - initial_kappa;
 				auto const cache = get_cache<Float>(-minus_k);
-				int const beta = exponent + floor_log2_pow10(-minus_k) + 1;
+				int const beta = exponent + log::floor_log2_pow10(-minus_k) + 1;
 
 				// Compute zi and deltai
 				// 10^kappa0 <= deltai < 10^(kappa0 + 1)

@@ -22,7 +22,7 @@
 
 int floor_log10_pow2_precise(int e)
 {
-	using namespace jkj::dragonbox::detail::log_compute;
+	using namespace jkj::dragonbox::detail::log;
 	constexpr auto c = floor_shift(0, log10_2_fractional_digits, floor_log10_pow2_shift_amount);
 
 	// Compute the maximum possible e
@@ -56,7 +56,7 @@ int floor_log10_pow2_precise(int e)
 
 int floor_log10_pow2_minus_log10_4_over_3_precise(int e)
 {
-	using namespace jkj::dragonbox::detail::log_compute;
+	using namespace jkj::dragonbox::detail::log;
 	constexpr auto c = floor_shift(0, log10_2_fractional_digits, floor_log10_pow2_shift_amount);
 
 	// Compute the maximum possible e
@@ -96,7 +96,7 @@ int floor_log10_pow2_minus_log10_4_over_3_precise(int e)
 
 int floor_log2_pow10_precise(int e)
 {
-	using namespace jkj::dragonbox::detail::log_compute;
+	using namespace jkj::dragonbox::detail::log;
 	constexpr auto c = floor_shift(0, log2_10_fractional_digits, floor_log2_pow10_shift_amount);
 
 	// Compute the maximum possible e
@@ -130,7 +130,7 @@ int floor_log2_pow10_precise(int e)
 
 int floor_log5_pow2_precise(int e)
 {
-	using namespace jkj::dragonbox::detail::log_compute;
+	using namespace jkj::dragonbox::detail::log;
 	constexpr auto c = floor_shift(0, log5_2_fractional_digits, floor_log5_pow2_shift_amount);
 
 	// Compute the maximum possible e
@@ -163,7 +163,7 @@ int floor_log5_pow2_precise(int e)
 
 int floor_log5_pow2_minus_log5_3_precise(int e)
 {
-	using namespace jkj::dragonbox::detail::log_compute;
+	using namespace jkj::dragonbox::detail::log;
 	constexpr auto c = floor_shift(0, log5_2_fractional_digits, floor_log5_pow2_shift_amount);
 
 	// Compute the maximum possible e
@@ -208,7 +208,7 @@ static void verify(std::string_view name,
 	std::function<int(int)> precise_calculator = nullptr)
 {
 	// Compute the constants
-	using jkj::dragonbox::detail::log_compute::floor_shift;
+	using jkj::dragonbox::detail::log::floor_shift;
 	constexpr auto c = floor_shift(c_integer_part, c_fractional_digits, shift_amount);
 	constexpr auto s = floor_shift(s_integer_part, s_fractional_digits, shift_amount);
 
@@ -288,7 +288,7 @@ static void verify(std::string_view name,
 
 void verify_log_computation()
 {
-	using namespace jkj::dragonbox::detail::log_compute;
+	using namespace jkj::dragonbox::detail::log;
 
 	std::cout << "[Verifying log computation...]\n";
 

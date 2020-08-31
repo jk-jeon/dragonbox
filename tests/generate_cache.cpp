@@ -60,7 +60,7 @@ std::array<std::bitset<precision>, std::size_t(max_k - min_k + 1)> generate_cach
 {
 	static_assert(max_k + min_k >= 0 && min_k <= 0 && max_k >= 0);
 	constexpr auto power_of_5_max_bits =
-		std::size_t(jkj::dragonbox::detail::floor_log2_pow10(max_k) - max_k + 1);
+		std::size_t(jkj::dragonbox::detail::log::floor_log2_pow10(max_k) - max_k + 1);
 	using bigint_type = jkj::dragonbox::detail::bigint<power_of_5_max_bits>;
 	using element_type = typename bigint_type::element_type;
 

@@ -29,8 +29,8 @@ static void verify_fast_multiplication_impl()
 	constexpr auto fl = (carrier_uint(1) << (impl::significand_bits + 2)) - 1;
 	constexpr auto fr = (carrier_uint(1) << (impl::significand_bits + 2)) + 2;
 
-	using jkj::dragonbox::detail::floor_log10_pow2_minus_log10_4_over_3;
-	using jkj::dragonbox::detail::floor_log2_pow10;
+	using jkj::dragonbox::detail::log::floor_log10_pow2_minus_log10_4_over_3;
+	using jkj::dragonbox::detail::log::floor_log2_pow10;
 
 	bool success = true;
 
