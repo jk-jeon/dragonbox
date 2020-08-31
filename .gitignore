@@ -11,3 +11,7 @@
 /vc2019/VTune Profiler Results/dragonbox
 /vc2019/x64
 /vc2019/debug.log
+/benchmark_results/digits_benchmark_binary32.pdf
+/benchmark_results/digits_benchmark_binary64.pdf
+/benchmark_results/uniform_benchmark_binary32.pdf
+/benchmark_results/uniform_benchmark_binary64.pdf
