@@ -85,6 +85,9 @@
     <ClCompile Include="..\dragonbox_to_chars\dragonbox_to_chars.cpp">
       <Filter>dragonbox_to_chars</Filter>
     </ClCompile>
+    <ClCompile Include="..\tests\verify_cache_length.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\tests\bigint.h">

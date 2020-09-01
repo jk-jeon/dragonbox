@@ -164,6 +164,7 @@
     <ClCompile Include="..\tests\perf_test.cpp" />
     <ClCompile Include="..\tests\test_all_shorter_interval_cases.cpp" />
     <ClCompile Include="..\tests\uniform_random_test.cpp" />
+    <ClCompile Include="..\tests\verify_cache_length.cpp" />
     <ClCompile Include="..\tests\verify_magic_division.cpp" />
     <ClCompile Include="..\tests\verify_fast_multiplication.cpp" />
     <ClCompile Include="..\tests\verify_log_computation.cpp" />
