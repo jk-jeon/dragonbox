@@ -20,7 +20,7 @@
 #include <functional>
 #include <iostream>
 
-int floor_log10_pow2_precise(int e)
+static int floor_log10_pow2_precise(int e)
 {
 	using namespace jkj::dragonbox::detail::log;
 	constexpr auto c = floor_shift(0, log10_2_fractional_digits, floor_log10_pow2_shift_amount);
@@ -54,7 +54,7 @@ int floor_log10_pow2_precise(int e)
 	return is_negative ? -k : k - 1;
 }
 
-int floor_log10_pow2_minus_log10_4_over_3_precise(int e)
+static int floor_log10_pow2_minus_log10_4_over_3_precise(int e)
 {
 	using namespace jkj::dragonbox::detail::log;
 	constexpr auto c = floor_shift(0, log10_2_fractional_digits, floor_log10_pow2_shift_amount);
@@ -94,7 +94,7 @@ int floor_log10_pow2_minus_log10_4_over_3_precise(int e)
 	}
 }
 
-int floor_log2_pow10_precise(int e)
+static int floor_log2_pow10_precise(int e)
 {
 	using namespace jkj::dragonbox::detail::log;
 	constexpr auto c = floor_shift(0, log2_10_fractional_digits, floor_log2_pow10_shift_amount);
@@ -128,7 +128,7 @@ int floor_log2_pow10_precise(int e)
 	return is_negative ? -k : k - 1;
 }
 
-int floor_log5_pow2_precise(int e)
+static int floor_log5_pow2_precise(int e)
 {
 	using namespace jkj::dragonbox::detail::log;
 	constexpr auto c = floor_shift(0, log5_2_fractional_digits, floor_log5_pow2_shift_amount);
@@ -161,7 +161,7 @@ int floor_log5_pow2_precise(int e)
 	return is_negative ? -k : k - 1;
 }
 
-int floor_log5_pow2_minus_log5_3_precise(int e)
+static int floor_log5_pow2_minus_log5_3_precise(int e)
 {
 	using namespace jkj::dragonbox::detail::log;
 	constexpr auto c = floor_shift(0, log5_2_fractional_digits, floor_log5_pow2_shift_amount);

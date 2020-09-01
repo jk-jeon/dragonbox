@@ -22,7 +22,7 @@
 #include <string_view>
 
 template <class Float, class TypenameString>
-void uniform_random_test(std::size_t number_of_tests, TypenameString&& type_name_string)
+static void uniform_random_test(std::size_t number_of_tests, TypenameString&& type_name_string)
 {
 	char buffer1[64];
 	char buffer2[64];

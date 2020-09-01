@@ -22,7 +22,7 @@
 #include <string>
 
 template <class Float>
-void live_test()
+static void live_test()
 {
 	char buffer[41];
 
