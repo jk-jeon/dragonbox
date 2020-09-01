@@ -20,7 +20,7 @@
 #include <iostream>
 
 template <class Float>
-void uniform_random_perf_test(std::size_t number_of_tests)
+static void uniform_random_perf_test(std::size_t number_of_tests)
 {
 	char buffer[41];
 	auto rg = generate_correctly_seeded_mt19937_64();
@@ -42,7 +42,7 @@ void uniform_random_perf_test_double(std::size_t number_of_tests) {
 }
 
 template <class Float>
-void digit_perf_test(unsigned int digits, std::size_t number_of_tests)
+static void digit_perf_test(unsigned int digits, std::size_t number_of_tests)
 {
 	char buffer[41];
 	auto rg = generate_correctly_seeded_mt19937_64();

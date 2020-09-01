@@ -20,72 +20,93 @@
 #include <bitset>
 #include <type_traits>
 
-template <class Float>
-struct bitset_to_uint;
+namespace {
+	template <class Float>
+	struct bitset_to_uint;
 
-template <>
-struct bitset_to_uint<float> {
-	static_assert(sizeof(float) * std::numeric_limits<unsigned char>::digits == 32);
+	template <>
+	struct bitset_to_uint<float> {
+		static_assert(sizeof(float)* std::numeric_limits<unsigned char>::digits == 32);
 
-	static std::uint64_t convert(std::bitset<64> const& bs) noexcept
-	{
-		static_assert(std::is_same_v<unsigned long long, std::uint64_t>);
-		return bs.to_ullong();
-	}
-};
-
-template <>
-struct bitset_to_uint<double> {
-	static_assert(sizeof(double) * std::numeric_limits<unsigned char>::digits == 64);
-
-	static jkj::dragonbox::detail::wuint::uint128 convert(std::bitset<128> const& bs) noexcept
-	{
-		static_assert(std::is_same_v<unsigned long long, std::uint64_t>);
-		std::bitset<64> temp;
-
-		for (std::size_t i = 0; i < 64; ++i)
-			temp[i] = bs[i];
-		auto low = temp.to_ullong();
-
-		for (std::size_t i = 0; i < 64; ++i)
-			temp[i] = bs[i + 64];
-		auto high = temp.to_ullong();
-
-		return{ high, low };
-	}
-};
-		
-template <std::size_t precision, int min_k, int max_k>
-std::array<std::bitset<precision>, std::size_t(max_k - min_k + 1)> generate_cache_bitset()
-{
-	static_assert(max_k + min_k >= 0 && min_k <= 0 && max_k >= 0);
-	constexpr auto power_of_5_max_bits =
-		std::size_t(jkj::dragonbox::detail::log::floor_log2_pow10(max_k) - max_k + 1);
-	using bigint_type = jkj::dragonbox::detail::bigint<power_of_5_max_bits>;
-	using element_type = typename bigint_type::element_type;
-
-	auto get_upper_bits = [](bigint_type const& n) {
-		std::bitset<precision> upper_bits;
-
-		std::size_t remaining = precision;
-		if (n.leading_one_pos.bit_pos >= precision) {
-			upper_bits = n.elements[n.leading_one_pos.element_pos] >>
-				(n.leading_one_pos.bit_pos - precision);
+		static std::uint64_t convert(std::bitset<64> const& bs) noexcept
+		{
+			static_assert(std::is_same_v<unsigned long long, std::uint64_t>);
+			return bs.to_ullong();
 		}
-		else {
-			auto mask = element_type(1) << (n.leading_one_pos.bit_pos - 1);
+	};
 
-			for (std::size_t idx = precision - 1;
-				idx >= precision - n.leading_one_pos.bit_pos; --idx)
-			{
-				upper_bits[idx] =
-					(n.elements[n.leading_one_pos.element_pos] & mask) == 0 ? false : true;
-				mask >>= 1;
+	template <>
+	struct bitset_to_uint<double> {
+		static_assert(sizeof(double)* std::numeric_limits<unsigned char>::digits == 64);
+
+		static jkj::dragonbox::detail::wuint::uint128 convert(std::bitset<128> const& bs) noexcept
+		{
+			static_assert(std::is_same_v<unsigned long long, std::uint64_t>);
+			std::bitset<64> temp;
+
+			for (std::size_t i = 0; i < 64; ++i)
+				temp[i] = bs[i];
+			auto low = temp.to_ullong();
+
+			for (std::size_t i = 0; i < 64; ++i)
+				temp[i] = bs[i + 64];
+			auto high = temp.to_ullong();
+
+			return{ high, low };
+		}
+	};
+
+	template <std::size_t precision, int min_k, int max_k>
+	std::array<std::bitset<precision>, std::size_t(max_k - min_k + 1)> generate_cache_bitset()
+	{
+		static_assert(max_k + min_k >= 0 && min_k <= 0 && max_k >= 0);
+		constexpr auto power_of_5_max_bits =
+			std::size_t(jkj::dragonbox::detail::log::floor_log2_pow10(max_k) - max_k + 1);
+		using bigint_type = jkj::dragonbox::detail::bigint<power_of_5_max_bits>;
+		using element_type = typename bigint_type::element_type;
+
+		auto get_upper_bits = [](bigint_type const& n) {
+			std::bitset<precision> upper_bits;
+
+			std::size_t remaining = precision;
+			if (n.leading_one_pos.bit_pos >= precision) {
+				upper_bits = n.elements[n.leading_one_pos.element_pos] >>
+					(n.leading_one_pos.bit_pos - precision);
 			}
-			remaining -= n.leading_one_pos.bit_pos;
+			else {
+				auto mask = element_type(1) << (n.leading_one_pos.bit_pos - 1);
 
-			std::size_t element_idx = n.leading_one_pos.element_pos;
-			while (remaining >= bigint_type::element_number_of_bits) {
+				for (std::size_t idx = precision - 1;
+					idx >= precision - n.leading_one_pos.bit_pos; --idx)
+				{
+					upper_bits[idx] =
+						(n.elements[n.leading_one_pos.element_pos] & mask) == 0 ? false : true;
+					mask >>= 1;
+				}
+				remaining -= n.leading_one_pos.bit_pos;
+
+				std::size_t element_idx = n.leading_one_pos.element_pos;
+				while (remaining >= bigint_type::element_number_of_bits) {
+					if (element_idx == 0) {
+						for (std::size_t i = 0; i < remaining; ++i)
+							upper_bits.reset(i);
+						return upper_bits;
+					}
+					--element_idx;
+
+					mask = element_type(1) << (bigint_type::element_number_of_bits - 1);
+					for (std::size_t idx = remaining - 1;
+						idx > remaining - bigint_type::element_number_of_bits; --idx)
+					{
+						upper_bits[idx] =
+							(n.elements[element_idx] & mask) == 0 ? false : true;
+						mask >>= 1;
+					}
+					remaining -= bigint_type::element_number_of_bits;
+					upper_bits[remaining] =
+						(n.elements[element_idx] & mask) == 0 ? false : true;
+				}
+
 				if (element_idx == 0) {
 					for (std::size_t i = 0; i < remaining; ++i)
 						upper_bits.reset(i);
@@ -93,94 +114,75 @@ std::array<std::bitset<precision>, std::size_t(max_k - min_k + 1)> generate_cach
 				}
 				--element_idx;
 
-				mask = element_type(1) << (bigint_type::element_number_of_bits - 1);
-				for (std::size_t idx = remaining - 1;
-					idx > remaining - bigint_type::element_number_of_bits; --idx)
-				{
+				mask = element_type(1) <<
+					(bigint_type::element_number_of_bits - remaining);
+				for (std::size_t idx = 0; idx < remaining; ++idx) {
 					upper_bits[idx] =
 						(n.elements[element_idx] & mask) == 0 ? false : true;
-					mask >>= 1;
+					mask <<= 1;
 				}
-				remaining -= bigint_type::element_number_of_bits;
-				upper_bits[remaining] =
-					(n.elements[element_idx] & mask) == 0 ? false : true;
 			}
 
-			if (element_idx == 0) {
-				for (std::size_t i = 0; i < remaining; ++i)
-					upper_bits.reset(i);
-				return upper_bits;
-			}
-			--element_idx;
+			return upper_bits;
+		};
 
-			mask = element_type(1) <<
-				(bigint_type::element_number_of_bits - remaining);
-			for (std::size_t idx = 0; idx < remaining; ++idx) {
-				upper_bits[idx] =
-					(n.elements[element_idx] & mask) == 0 ? false : true;
-				mask <<= 1;
+		using return_type = std::array<std::bitset<precision>, std::size_t(max_k - min_k + 1)>;
+		return_type ret;
+		auto cache = [&ret](int k) -> std::bitset<precision>& {
+			return ret[std::size_t(k - min_k)];
+		};
+
+		bigint_type power_of_5 = 1;
+
+		cache(0) = get_upper_bits(power_of_5);
+
+		int k = 1;
+		for (; k <= -min_k; ++k) {
+			power_of_5.multiply_5();
+
+			// Compute positive power
+			// - Compute 5^k
+			cache(k) = get_upper_bits(power_of_5);
+
+			// Compute negative power
+			// - Again, we can factor out 2^-k part by decrementing the exponent by k
+			// - To compute 1/5^k, set d = 1 and repeat the following procedure:
+			//   - Find the minimum n >= 0 such that d * 2^n >= 5^k; this means that d/5^k >= 1/2^n,
+			//     thus the nth digit of the binary expansion of d/5^k is 1
+			//   - Set d = d * 2^n - 5^k; this effectively calculates d/5^k - 1/2^n
+			//   - Now we conclude that the next (n-1) digits of the binary expansion of 1/5^k are zero,
+			//     while the next digit is one
+			//   - Repeat until reaching the maximum precision
+			bigint_type dividend = 1;
+			dividend.multiply_2_until(power_of_5);
+			std::bitset<precision> negative_power_digits = 1;
+
+			std::size_t accumulated_exp = 0;
+			while (true) {
+				dividend -= power_of_5;
+				auto new_exp = dividend.multiply_2_until(power_of_5);
+
+				accumulated_exp += new_exp;
+				if (accumulated_exp >= precision) {
+					negative_power_digits <<= (precision - 1 - (accumulated_exp - new_exp));
+					break;
+				}
+
+				negative_power_digits <<= new_exp;
+				negative_power_digits.set(0);
 			}
+
+			cache(-k) = negative_power_digits;
 		}
 
-		return upper_bits;
-	};
-
-	using return_type = std::array<std::bitset<precision>, std::size_t(max_k - min_k + 1)>;
-	return_type ret;
-	auto cache = [&ret](int k) -> std::bitset<precision>& {
-		return ret[std::size_t(k - min_k)];
-	};
-
-	bigint_type power_of_5 = 1;
-
-	cache(0) = get_upper_bits(power_of_5);
-
-	int k = 1;
-	for (; k <= -min_k; ++k) {
-		power_of_5.multiply_5();
-
-		// Compute positive power
-		// - Compute 5^k
-		cache(k) = get_upper_bits(power_of_5);
-
-		// Compute negative power
-		// - Again, we can factor out 2^-k part by decrementing the exponent by k
-		// - To compute 1/5^k, set d = 1 and repeat the following procedure:
-		//   - Find the minimum n >= 0 such that d * 2^n >= 5^k; this means that d/5^k >= 1/2^n,
-		//     thus the nth digit of the binary expansion of d/5^k is 1
-		//   - Set d = d * 2^n - 5^k; this effectively calculates d/5^k - 1/2^n
-		//   - Now we conclude that the next (n-1) digits of the binary expansion of 1/5^k are zero,
-		//     while the next digit is one
-		//   - Repeat until reaching the maximum precision
-		bigint_type dividend = 1;
-		dividend.multiply_2_until(power_of_5);
-		std::bitset<precision> negative_power_digits = 1;
-
-		std::size_t accumulated_exp = 0;
-		while (true) {
-			dividend -= power_of_5;
-			auto new_exp = dividend.multiply_2_until(power_of_5);
-
-			accumulated_exp += new_exp;
-			if (accumulated_exp >= precision) {
-				negative_power_digits <<= (precision - 1 - (accumulated_exp - new_exp));
-				break;
-			}
-
-			negative_power_digits <<= new_exp;
-			negative_power_digits.set(0);
+		// Compute remaining positive powers
+		for (; k <= max_k; ++k) {
+			power_of_5.multiply_5();
+			cache(k) = get_upper_bits(power_of_5);
 		}
 
-		cache(-k) = negative_power_digits;
+		return ret;
 	}
-
-	// Compute remaining positive powers
-	for (; k <= max_k; ++k) {
-		power_of_5.multiply_5();
-		cache(k) = get_upper_bits(power_of_5);
-	}
-
-	return ret;
 }
 
 #include <fstream>
