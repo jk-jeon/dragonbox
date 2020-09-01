@@ -94,7 +94,7 @@ extern void benchmark_test_float(std::size_t number_of_uniform_samples,
 	std::size_t number_of_digits_samples_per_digits, std::size_t number_of_iterations);
 
 // Do benchmark for binary64
-//#define BENCHMARK_TEST_DOUBLE
+#define BENCHMARK_TEST_DOUBLE
 static std::size_t number_of_uniform_benchmark_samples_double = 1000000;
 static std::size_t number_of_digits_benchmark_samples_per_digits_double = 100000;
 static std::size_t number_of_benchmark_iterations_double = 1000;

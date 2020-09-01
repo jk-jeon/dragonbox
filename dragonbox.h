@@ -361,8 +361,7 @@ namespace jkj::dragonbox {
 			};
 
 			// Get 128-bit result of multiplication of two 64-bit unsigned integers
-			JKJ_SAFEBUFFERS
-			inline uint128 umul128(std::uint64_t x, std::uint64_t y) noexcept {
+			JKJ_SAFEBUFFERS inline uint128 umul128(std::uint64_t x, std::uint64_t y) noexcept {
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__SIZEOF_INT128__) && defined(__x86_64__)
 				return (unsigned __int128)(x) * (unsigned __int128)(y);
 #elif defined(_MSC_VER) && defined(_M_X64)
@@ -389,8 +388,7 @@ namespace jkj::dragonbox {
 #endif
 			}
 
-			JKJ_SAFEBUFFERS
-			inline std::uint64_t umul128_upper64(std::uint64_t x, std::uint64_t y) noexcept {
+			JKJ_SAFEBUFFERS inline std::uint64_t umul128_upper64(std::uint64_t x, std::uint64_t y) noexcept {
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__SIZEOF_INT128__) && defined(__x86_64__)
 				auto p = (unsigned __int128)(x) * (unsigned __int128)(y);
 				return std::uint64_t(p >> 64);
@@ -416,8 +414,7 @@ namespace jkj::dragonbox {
 			}
 
 			// Get upper 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit unsigned integer
-			JKJ_SAFEBUFFERS
-			inline std::uint64_t umul192_upper64(std::uint64_t x, uint128 y) noexcept {
+			JKJ_SAFEBUFFERS inline std::uint64_t umul192_upper64(std::uint64_t x, uint128 y) noexcept {
 				auto g0 = umul128(x, y.high());
 				auto g10 = umul128_upper64(x, y.low());
 
@@ -440,15 +437,13 @@ namespace jkj::dragonbox {
 			}
 
 			// Get middle 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit unsigned integer
-			JKJ_SAFEBUFFERS
-			inline std::uint64_t umul192_middle64(std::uint64_t x, uint128 y) noexcept {
+			JKJ_SAFEBUFFERS inline std::uint64_t umul192_middle64(std::uint64_t x, uint128 y) noexcept {
 				auto g01 = x * y.high();
 				auto g10 = umul128_upper64(x, y.low());
 				return g01 + g10;
 			}
 
 			// Get middle 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit unsigned integer
-			JKJ_SAFEBUFFERS
 			inline std::uint64_t umul96_lower64(std::uint32_t x, std::uint64_t y) noexcept {
 				return x * y;
 			}
@@ -492,7 +487,7 @@ namespace jkj::dragonbox {
 				std::uint32_t s_integer_part = 0,
 				std::uint64_t s_fractional_digits = 0
 			>
-				constexpr int compute(int e) noexcept {
+			constexpr int compute(int e) noexcept {
 				assert(e <= max_exponent && e >= -max_exponent);
 				constexpr auto c = floor_shift(c_integer_part, c_fractional_digits, shift_amount);
 				constexpr auto s = floor_shift(s_integer_part, s_fractional_digits, shift_amount);
@@ -2094,7 +2089,7 @@ namespace jkj::dragonbox {
 			template <trailing_zero_policy tzp,
 				correct_rounding::tag_t correct_rounding_tag,
 				bool has_sign, class IntervalType>
-			JKJ_FORCEINLINE static void shorter_interval_case(
+			JKJ_FORCEINLINE JKJ_SAFEBUFFERS static void shorter_interval_case(
 				fp_t<Float, has_sign, tzp == trailing_zero_policy::report>& ret_value,
 				int exponent, IntervalType interval_type) noexcept
 			{
@@ -2195,7 +2190,7 @@ namespace jkj::dragonbox {
 				// Step 1: integer promotion & Schubfach multiplier calculation
 				//////////////////////////////////////////////////////////////////////
 
-				fp_t<Float, return_sign> ret_value;
+				fp_t<Float, return_sign, tzp == trailing_zero_policy::report> ret_value;
 
 				if constexpr (return_sign) {
 					ret_value.is_negative = br.is_negative();
@@ -2296,7 +2291,7 @@ namespace jkj::dragonbox {
 				// Step 1: integer promotion & Schubfach multiplier calculation
 				//////////////////////////////////////////////////////////////////////
 
-				fp_t<Float, return_sign> ret_value;
+				fp_t<Float, return_sign, tzp == trailing_zero_policy::report> ret_value;
 
 				if constexpr (return_sign) {
 					ret_value.is_negative = br.is_negative();
