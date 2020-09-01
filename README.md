@@ -152,7 +152,7 @@ The result of tests and benchmarks will be written in the directories [`test_res
 There are also some MATLAB scripts in the directory [`benchmark_results`](benchmark_results) for plot generation. If you have MATLAB installed on your machine and want to generate plots, then download these script files also.
 
 # Notes
-Correctness proof of Dragonbox is not yet done. I will also soon test Dragonbox against a binary-to-decimal floating-point conversion routine I developed.
+I will test Dragonbox against a binary-to-decimal floating-point conversion routine I developed. I will also write a document explaining the algorithm. Until then, this library is not yet production-ready.
 
 # License
 All code, except for those belong to third-party libraries (code in [`benchmark/ryu`](benchmark/ryu), [`benchmark/schubfach`](benchmark/schubfach), and [`benchmark_results/shaded_plots`](benchmark_results/shaded_plots)), is licensed under either of
