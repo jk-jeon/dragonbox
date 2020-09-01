@@ -2314,13 +2314,15 @@ namespace jkj::dragonbox {
 				}
 
 				// Compute k and beta
-				int const minus_k = log::floor_log10_pow2(exponent - closer_boundary ? 1 : 0) - initial_kappa;
+				int const minus_k = log::floor_log10_pow2(exponent - (closer_boundary ? 1 : 0)) - initial_kappa;
 				auto const cache = get_cache<Float>(-minus_k);
 				int const beta = exponent + log::floor_log2_pow10(-minus_k) + 1;
 
 				// Compute zi and deltai
 				// 10^kappa0 <= deltai < 10^(kappa0 + 1)
-				auto const deltai = compute_delta(cache, beta - 1);
+				auto const deltai = closer_boundary ?
+					compute_delta(cache, beta - 2) :
+					compute_delta(cache, beta - 1);
 				carrier_uint zi = compute_mul(significand << beta, cache);
 
 
@@ -2342,11 +2344,18 @@ namespace jkj::dragonbox {
 				}
 				else if (r == deltai) {
 					// Compare the fractional parts
-					if (compute_mul_parity(significand - 1, cache, beta))
-					{
-						goto small_divisor_case_label;
+					if (closer_boundary) {
+						if (compute_mul_parity((significand * 2) - 1, cache, beta - 1))
+						{
+							goto small_divisor_case_label;
+						}
 					}
-
+					else {
+						if (compute_mul_parity(significand - 1, cache, beta))
+						{
+							goto small_divisor_case_label;
+						}
+					}
 				}
 
 				// The floor is inside, so we are done
