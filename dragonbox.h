@@ -1531,7 +1531,7 @@ namespace jkj::dragonbox {
 
 		// Perform correct rounding search; tie-to-odd
 		struct tie_to_odd {
-			static constexpr tag_t tag = tie_to_even_tag;
+			static constexpr tag_t tag = tie_to_odd_tag;
 		};
 
 		// Perform correct rounding search; tie-to-up
