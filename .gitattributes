@@ -1,0 +1,4 @@
+benchmark_results/shaded_plots/* linguist-vendored
+benchmark/ryu/* linguist-vendored
+benchmark/grisu_exact/* linguist-vendored
+benchmark/schubfach/* linguist-vendored
