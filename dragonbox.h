@@ -46,6 +46,11 @@
 #endif
 
 namespace jkj::dragonbox {
+	namespace detail {
+		template <class T>
+		constexpr std::size_t bits_in = sizeof(T) * std::numeric_limits<unsigned char>::digits;
+	}
+
 	enum class ieee754_format {
 		binary32,
 		binary64
@@ -79,17 +84,19 @@ namespace jkj::dragonbox {
 	// To reduce boilerplates
 	template <class T>
 	struct default_ieee754_traits {
+		static_assert(detail::bits_in<T> == 32 || detail::bits_in<T> == 64);
+
 		using type = T;
 		static constexpr ieee754_format format =
-			sizeof(T) == 4 ? ieee754_format::binary32 : ieee754_format::binary64;
+			detail::bits_in<T> == 32 ? ieee754_format::binary32 : ieee754_format::binary64;
 
 		using carrier_uint = std::conditional_t<
-			sizeof(T) == 4,
+			detail::bits_in<T> == 32,
 			std::uint32_t,
 			std::uint64_t>;
 		static_assert(sizeof(carrier_uint) == sizeof(T));
 
-		static constexpr int carrier_bits = int(sizeof(carrier_uint) * 8);
+		static constexpr int carrier_bits = int(detail::bits_in<carrier_uint>);
 
 		static T carrier_to_float(carrier_uint u) noexcept {
 			T x;
@@ -173,8 +180,8 @@ namespace jkj::dragonbox {
 	struct ieee754_traits : default_ieee754_traits<T> {
 		static_assert(std::numeric_limits<T>::is_iec559&&
 			std::numeric_limits<T>::radix == 2 &&
-			(sizeof(T) == 4 || sizeof(T) == 8),
-			"default_ieee754_traits only worsk for 4 bytes or 8 bytes types "
+			(detail::bits_in<T> == 32 || detail::bits_in<T> == 64),
+			"default_ieee754_traits only worsk for 32-bits or 64-bits types "
 			"supporting binary32 or binary64 formats!");
 	};
 
@@ -272,7 +279,7 @@ namespace jkj::dragonbox {
 		namespace bits {
 			template <class UInt>
 			inline int countr_zero(UInt n) noexcept {
-				static_assert(std::is_unsigned_v<UInt> && sizeof(UInt) <= 8);
+				static_assert(std::is_unsigned_v<UInt> && bits_in<UInt> <= 64);
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
 #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 1
 				if constexpr (std::is_same_v<UInt, unsigned long>) {
@@ -296,10 +303,10 @@ namespace jkj::dragonbox {
 				}
 #else
 #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 0
-				int count = int(sizeof(UInt) * 8);
+				int count = int(bits_in<UInt>);
 
 				auto n32 = std::uint32_t(n);
-				if constexpr (sizeof(UInt) == 8) {
+				if constexpr (bits_in<UInt> == 64) {
 					if (n32 == 0) {
 						n32 = std::uint32_t(n >> 32);
 					}
@@ -307,10 +314,10 @@ namespace jkj::dragonbox {
 						count -= 32;
 					}
 				}
-				if constexpr (sizeof(UInt) >= 4) {
+				if constexpr (bits_in<UInt> >= 32) {
 					if ((n32 & 0x0000ffff) != 0) count -= 16;
 				}
-				if constexpr (sizeof(UInt) >= 2) {
+				if constexpr (bits_in<UInt> >= 16) {
 					if ((n32 & 0x00ff00ff) != 0) count -= 8;
 				}
 				if ((n32 & 0x0f0f0f0f) != 0) count -= 4;
@@ -561,7 +568,7 @@ namespace jkj::dragonbox {
 
 		namespace div {
 			template <class UInt, UInt a>
-			constexpr UInt modular_inverse(int bit_width = sizeof(UInt) * 8) noexcept {
+			constexpr UInt modular_inverse(int bit_width = int(bits_in<UInt>)) noexcept {
 				// By Euler's theorem, a^phi(2^n) == 1 (mod 2^n),
 				// where phi(2^n) = 2^(n-1), so the modular inverse of a is
 				// a^(2^(n-1) - 1) = a^(1 + 2 + 2^2 + ... + 2^(n-2))
@@ -569,7 +576,7 @@ namespace jkj::dragonbox {
 				for (int i = 1; i < bit_width; ++i) {
 					mod_inverse = mod_inverse * mod_inverse * a;
 				}
-				if (bit_width < sizeof(UInt) * 8) {
+				if (bit_width < bits_in<UInt>) {
 					auto mask = UInt((UInt(1) << bit_width) - 1);
 					return UInt(mod_inverse & mask);
 				}
@@ -610,7 +617,6 @@ namespace jkj::dragonbox {
 
 			template <std::size_t table_size, class UInt>
 			constexpr bool divisible_by_power_of_5(UInt x, unsigned int exp) noexcept {
-				static_assert(sizeof(UInt) == 4 || sizeof(UInt) == 8);
 				auto const& table = table_holder<UInt, 5, table_size>::table;
 				if (exp >= (unsigned int)(table.size)) {
 					return false;
@@ -625,7 +631,7 @@ namespace jkj::dragonbox {
 #if JKJ_HAS_COUNTR_ZERO_INTRINSIC
 				return bits::countr_zero(x) >= int(exp);
 #else
-				if (exp >= int(sizeof(UInt) * 8)) {
+				if (exp >= int(bits_in<UInt>)) {
 					return false;
 				}
 				return x == ((x >> exp) << exp);
@@ -707,7 +713,7 @@ namespace jkj::dragonbox {
 				static_assert(N >= 0);
 
 				// Ensure no overflow
-				static_assert(max_pow2 + (log::floor_log2_pow10(max_pow5) - max_pow5) < sizeof(UInt) * 8);
+				static_assert(max_pow2 + (log::floor_log2_pow10(max_pow5) - max_pow5) < bits_in<UInt>);
 
 				// Specialize for 64bit division by 1000
 				// Ensure that the correctness condition is met

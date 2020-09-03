@@ -22,7 +22,7 @@
 extern void verify_log_computation();
 
 // Find how many bits are needed for each cache entry
-#define VERIFY_CACHE_LENGTH
+//#define VERIFY_CACHE_LENGTH
 extern void verify_cache_length();
 
 // Generate all cache entries; check if overflow occurs
