@@ -48,7 +48,11 @@
 namespace jkj::dragonbox {
 	namespace detail {
 		template <class T>
-		constexpr std::size_t bits_in = sizeof(T) * std::numeric_limits<unsigned char>::digits;
+		constexpr std::size_t physical_bits = sizeof(T) * std::numeric_limits<unsigned char>::digits;
+
+		template <class T>
+		constexpr std::size_t value_bits =
+			std::numeric_limits<std::enable_if_t<std::is_unsigned_v<T>, T>>::digits;
 	}
 
 	enum class ieee754_format {
@@ -84,19 +88,19 @@ namespace jkj::dragonbox {
 	// To reduce boilerplates
 	template <class T>
 	struct default_ieee754_traits {
-		static_assert(detail::bits_in<T> == 32 || detail::bits_in<T> == 64);
+		static_assert(detail::physical_bits<T> == 32 || detail::physical_bits<T> == 64);
 
 		using type = T;
 		static constexpr ieee754_format format =
-			detail::bits_in<T> == 32 ? ieee754_format::binary32 : ieee754_format::binary64;
+			detail::physical_bits<T> == 32 ? ieee754_format::binary32 : ieee754_format::binary64;
 
 		using carrier_uint = std::conditional_t<
-			detail::bits_in<T> == 32,
+			detail::physical_bits<T> == 32,
 			std::uint32_t,
 			std::uint64_t>;
 		static_assert(sizeof(carrier_uint) == sizeof(T));
 
-		static constexpr int carrier_bits = int(detail::bits_in<carrier_uint>);
+		static constexpr int carrier_bits = int(detail::physical_bits<carrier_uint>);
 
 		static T carrier_to_float(carrier_uint u) noexcept {
 			T x;
@@ -109,11 +113,12 @@ namespace jkj::dragonbox {
 			return u;
 		}
 
-		static constexpr std::uint32_t extract_exponent_bits(carrier_uint u) noexcept {
+		static constexpr unsigned int extract_exponent_bits(carrier_uint u) noexcept {
 			constexpr int significand_bits = ieee754_format_info<format>::significand_bits;
 			constexpr int exponent_bits = ieee754_format_info<format>::exponent_bits;
-			constexpr auto exponent_bits_mask = std::uint32_t((std::uint32_t(1) << exponent_bits) - 1);
-			return std::uint32_t((u >> significand_bits) & exponent_bits_mask);
+			static_assert(detail::value_bits<unsigned int> > exponent_bits);
+			constexpr auto exponent_bits_mask = (unsigned int)(((unsigned int)(1) << exponent_bits) - 1);
+			return (unsigned int)((u >> significand_bits) & exponent_bits_mask);
 		}
 		static constexpr carrier_uint extract_significand_bits(carrier_uint u) noexcept {
 			constexpr int significand_bits = ieee754_format_info<format>::significand_bits;
@@ -178,9 +183,11 @@ namespace jkj::dragonbox {
 	// Speciailze this class template for possible extensions
 	template <class T>
 	struct ieee754_traits : default_ieee754_traits<T> {
-		static_assert(std::numeric_limits<T>::is_iec559&&
+		// I don't know if there is a truly reliable way of detecting
+		// IEEE-754 binary32/binary64 formats; I just did my best here
+		static_assert(std::numeric_limits<T>::is_iec559 &&
 			std::numeric_limits<T>::radix == 2 &&
-			(detail::bits_in<T> == 32 || detail::bits_in<T> == 64),
+			(detail::physical_bits<T> == 32 || detail::physical_bits<T> == 64),
 			"default_ieee754_traits only worsk for 32-bits or 64-bits types "
 			"supporting binary32 or binary64 formats!");
 	};
@@ -199,14 +206,14 @@ namespace jkj::dragonbox {
 		constexpr explicit ieee754_bits(carrier_uint u) noexcept : u{ u } {}
 		constexpr explicit ieee754_bits(T x) noexcept : u{ ieee754_traits<T>::float_to_carrier(x) } {}
 
-		T to_float() const noexcept {
+		constexpr T to_float() const noexcept {
 			return ieee754_traits<T>::carrier_to_float(u);
 		}
 
 		constexpr carrier_uint extract_significand_bits() const noexcept {
 			return ieee754_traits<T>::extract_significand_bits(u);
 		}
-		constexpr std::uint32_t extract_exponent_bits() const noexcept {
+		constexpr unsigned int extract_exponent_bits() const noexcept {
 			return ieee754_traits<T>::extract_exponent_bits(u);
 		}
 
@@ -279,7 +286,7 @@ namespace jkj::dragonbox {
 		namespace bits {
 			template <class UInt>
 			inline int countr_zero(UInt n) noexcept {
-				static_assert(std::is_unsigned_v<UInt> && bits_in<UInt> <= 64);
+				static_assert(std::is_unsigned_v<UInt> && value_bits<UInt> <= 64);
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
 #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 1
 				if constexpr (std::is_same_v<UInt, unsigned long>) {
@@ -303,21 +310,21 @@ namespace jkj::dragonbox {
 				}
 #else
 #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 0
-				int count = int(bits_in<UInt>);
+				int count = int(value_bits<UInt>);
 
 				auto n32 = std::uint32_t(n);
-				if constexpr (bits_in<UInt> == 64) {
+				if constexpr (value_bits<UInt> > 32) {
 					if (n32 == 0) {
 						n32 = std::uint32_t(n >> 32);
 					}
 					else if (n == n32) {
-						count -= 32;
+						count -= (value_bits<UInt> - 32);
 					}
 				}
-				if constexpr (bits_in<UInt> >= 32) {
+				if constexpr (value_bits<UInt> > 16) {
 					if ((n32 & 0x0000ffff) != 0) count -= 16;
 				}
-				if constexpr (bits_in<UInt> >= 16) {
+				if constexpr (value_bits<UInt> > 8) {
 					if ((n32 & 0x00ff00ff) != 0) count -= 8;
 				}
 				if ((n32 & 0x0f0f0f0f) != 0) count -= 4;
@@ -478,7 +485,7 @@ namespace jkj::dragonbox {
 			{
 				assert(shift_amount < 32);
 				// Ensure no overflow
-				assert(integer_part < (std::uint32_t(1) << (32 - shift_amount)));
+				assert(shift_amount == 0 || integer_part < (std::uint32_t(1) << (32 - shift_amount)));
 
 				return std::int32_t(
 					(integer_part << shift_amount) |
@@ -568,7 +575,7 @@ namespace jkj::dragonbox {
 
 		namespace div {
 			template <class UInt, UInt a>
-			constexpr UInt modular_inverse(int bit_width = int(bits_in<UInt>)) noexcept {
+			constexpr UInt modular_inverse(int bit_width = int(value_bits<UInt>)) noexcept {
 				// By Euler's theorem, a^phi(2^n) == 1 (mod 2^n),
 				// where phi(2^n) = 2^(n-1), so the modular inverse of a is
 				// a^(2^(n-1) - 1) = a^(1 + 2 + 2^2 + ... + 2^(n-2))
@@ -576,7 +583,7 @@ namespace jkj::dragonbox {
 				for (int i = 1; i < bit_width; ++i) {
 					mod_inverse = mod_inverse * mod_inverse * a;
 				}
-				if (bit_width < bits_in<UInt>) {
+				if (bit_width < value_bits<UInt>) {
 					auto mask = UInt((UInt(1) << bit_width) - 1);
 					return UInt(mod_inverse & mask);
 				}
@@ -631,7 +638,7 @@ namespace jkj::dragonbox {
 #if JKJ_HAS_COUNTR_ZERO_INTRINSIC
 				return bits::countr_zero(x) >= int(exp);
 #else
-				if (exp >= int(bits_in<UInt>)) {
+				if (exp >= int(value_bits<UInt>)) {
 					return false;
 				}
 				return x == ((x >> exp) << exp);
@@ -647,16 +654,16 @@ namespace jkj::dragonbox {
 			template <>
 			struct check_divisibility_and_divide_by_pow5_info<1> {
 				static constexpr std::uint32_t magic_number = 0xcccd;
-				using type_for_comparison = std::uint16_t;
-				static constexpr type_for_comparison threshold = 0x3333;
+				static constexpr int bits_for_comparison = 16;
+				static constexpr std::uint32_t threshold = 0x3333;
 				static constexpr int shift_amount = 18;
 			};
 
 			template <>
 			struct check_divisibility_and_divide_by_pow5_info<2> {
 				static constexpr std::uint32_t magic_number = 0xa429;
-				using type_for_comparison = std::uint8_t;
-				static constexpr type_for_comparison threshold = 0x0a;
+				static constexpr int bits_for_comparison = 8;
+				static constexpr std::uint32_t threshold = 0x0a;
 				static constexpr int shift_amount = 20;
 			};
 
@@ -669,9 +676,12 @@ namespace jkj::dragonbox {
 
 				using info = check_divisibility_and_divide_by_pow5_info<N>;
 				n *= info::magic_number;
-				using type_for_comparison = typename info::type_for_comparison;
-				if (type_for_comparison(n) <= info::threshold) {
-					n = type_for_comparison(n);
+				constexpr std::uint32_t comparison_mask =
+					info::bits_for_comparison >= 32 ? std::numeric_limits<std::uint32_t>::max() :
+					std::uint32_t((std::uint32_t(1) << info::bits_for_comparison) - 1);
+
+				if ((n & comparison_mask) <= info::threshold) {
+					n = (n & comparison_mask);
 					return true;
 				}
 				else {
@@ -713,7 +723,7 @@ namespace jkj::dragonbox {
 				static_assert(N >= 0);
 
 				// Ensure no overflow
-				static_assert(max_pow2 + (log::floor_log2_pow10(max_pow5) - max_pow5) < bits_in<UInt>);
+				static_assert(max_pow2 + (log::floor_log2_pow10(max_pow5) - max_pow5) < value_bits<UInt>);
 
 				// Specialize for 64bit division by 1000
 				// Ensure that the correctness condition is met
