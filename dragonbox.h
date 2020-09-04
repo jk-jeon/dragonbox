@@ -1914,7 +1914,7 @@ namespace jkj::dragonbox {
 				correct_rounding::tag_t correct_rounding_tag
 			>
 			JKJ_SAFEBUFFERS static fp_t<Float, return_sign, tzp == trailing_zero_policy::report>
-				compute_nearest(ieee754_bits<Float> br) noexcept
+				compute_nearest(ieee754_bits<Float> const br) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
@@ -1922,7 +1922,7 @@ namespace jkj::dragonbox {
 
 				fp_t<Float, return_sign, tzp == trailing_zero_policy::report> ret_value;
 
-				auto interval_type = IntervalTypeProvider{}(br);
+				auto const interval_type = IntervalTypeProvider{}(br);
 
 				if constexpr (return_sign) {
 					ret_value.is_negative = br.is_negative();
@@ -1972,7 +1972,7 @@ namespace jkj::dragonbox {
 				// better than the compiler; we are computing zi / big_divisor here
 				ret_value.significand = div::divide_by_pow10<initial_kappa + 1,
 					significand_bits + initial_kappa + 2, initial_kappa + 1>(zi);
-				auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
+				auto const r = std::uint32_t(zi - big_divisor * ret_value.significand);
 
 				if (r > deltai) {
 					goto small_divisor_case_label;
@@ -2107,7 +2107,7 @@ namespace jkj::dragonbox {
 				bool has_sign, class IntervalType>
 			JKJ_FORCEINLINE JKJ_SAFEBUFFERS static void shorter_interval_case(
 				fp_t<Float, has_sign, tzp == trailing_zero_policy::report>& ret_value,
-				int exponent, IntervalType interval_type) noexcept
+				int const exponent, IntervalType const interval_type) noexcept
 			{
 				// Compute k and beta
 				int const minus_k = log::floor_log10_pow2_minus_log10_4_over_3(exponent);
@@ -2200,7 +2200,7 @@ namespace jkj::dragonbox {
 				trailing_zero_policy tzp
 			>
 			JKJ_SAFEBUFFERS static fp_t<Float, return_sign, tzp == trailing_zero_policy::report>
-				compute_left_closed_directed(ieee754_bits<Float> br) noexcept
+				compute_left_closed_directed(ieee754_bits<Float> const br) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
@@ -2301,7 +2301,7 @@ namespace jkj::dragonbox {
 				trailing_zero_policy tzp
 			>
 			JKJ_SAFEBUFFERS static fp_t<Float, return_sign, tzp == trailing_zero_policy::report>
-				compute_right_closed_directed(ieee754_bits<Float> br) noexcept
+				compute_right_closed_directed(ieee754_bits<Float> const br) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
@@ -2339,7 +2339,7 @@ namespace jkj::dragonbox {
 				auto const deltai = closer_boundary ?
 					compute_delta(cache, beta - 2) :
 					compute_delta(cache, beta - 1);
-				carrier_uint zi = compute_mul(significand << beta, cache);
+				carrier_uint const zi = compute_mul(significand << beta, cache);
 
 
 				//////////////////////////////////////////////////////////////////////
@@ -2353,7 +2353,7 @@ namespace jkj::dragonbox {
 				// better than the compiler; we are computing yi / big_divisor here
 				ret_value.significand = div::divide_by_pow10<initial_kappa + 1,
 					significand_bits + initial_kappa + 2, initial_kappa + 1>(zi);
-				auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
+				auto const r = std::uint32_t(zi - big_divisor * ret_value.significand);
 
 				if (r > deltai) {
 					goto small_divisor_case_label;
@@ -2416,7 +2416,7 @@ namespace jkj::dragonbox {
 					return k;
 				}();
 
-				auto t = bits::countr_zero(n);
+				auto const t = bits::countr_zero(n);
 				if (t > max_power) {
 					t = max_power;
 				}
