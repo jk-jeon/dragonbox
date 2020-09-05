@@ -1972,7 +1972,7 @@ namespace jkj::dragonbox {
 				// better than the compiler; we are computing zi / big_divisor here
 				ret_value.significand = div::divide_by_pow10<initial_kappa + 1,
 					significand_bits + initial_kappa + 2, initial_kappa + 1>(zi);
-				auto const r = std::uint32_t(zi - big_divisor * ret_value.significand);
+				auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
 
 				if (r > deltai) {
 					goto small_divisor_case_label;
@@ -2416,7 +2416,7 @@ namespace jkj::dragonbox {
 					return k;
 				}();
 
-				auto const t = bits::countr_zero(n);
+				auto t = bits::countr_zero(n);
 				if (t > max_power) {
 					t = max_power;
 				}
