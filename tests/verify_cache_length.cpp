@@ -135,21 +135,21 @@ namespace {
 
 		// Compute required bits to hold big integers
 		// 1. Should be able to hold 2^(E - p - 1 + k)
-		//    One can show E - p - 1 + k < (k0 - k + 1)log2(10) + k - 1
+		//    One can show E - p - 1 + k < (kappa0 - k + 1)log2(10) + k - 1
 		//    and the RHS is a decreasing function of k;
-		//    we need floor((k0 - k + 1)log2(10)) + k + 1 bits
+		//    we need floor((kappa0 - k + 1)log2(10)) + k + 1 bits
 		// 2. Should be able to hold 5^-k * (2^(p + 2) - 1)
 		//    Enough to have ceil((-k)log2(5)) + p + 3 bits,
 		//    which is a decreasing function of k, or equivalently,
 		//    floor((-k)log2(10)) + k + p + 4 bits
 		constexpr auto max_bits = std::size_t(std::max(
-			log::floor_log2_pow10(impl<Float>::k0 - impl<Float>::min_k + 1) + impl<Float>::min_k + 1,
+			log::floor_log2_pow10(impl<Float>::initial_kappa - impl<Float>::min_k + 1) + impl<Float>::min_k + 1,
 			log::floor_log2_pow10(-impl<Float>::min_k) + impl<Float>::min_k + impl<Float>::significand_bits + 4));
 
 		using bigint_type = bigint<max_bits>;
 
 		constexpr auto range = (std::uint64_t(1) << (impl<Float>::significand_bits + 2)) - 1;
-		constexpr int min_exponent = log::floor_log2_pow10(impl<Float>::k0 + 1)
+		constexpr int min_exponent = log::floor_log2_pow10(impl<Float>::initial_kappa + 1)
 			+ impl<Float>::significand_bits + 1;
 
 		std::size_t max_required_bits = 0;
@@ -157,7 +157,7 @@ namespace {
 		bigint_type power_of_5 = 1;
 		int prev_k = 0;
 		for (int e = min_exponent; e <= impl<Float>::max_exponent; ++e) {
-			int k = impl<Float>::k0 - log::floor_log10_pow2(e - impl<Float>::significand_bits);
+			int k = impl<Float>::initial_kappa - log::floor_log10_pow2(e - impl<Float>::significand_bits);
 			assert(k < 0);
 
 			if (k != prev_k) {
@@ -198,21 +198,21 @@ namespace {
 
 		// Compute required bits to hold big integers
 		// 1. Should be able to hold 2^(-k - E + p + 1)
-		//    One can show -k - E + p + 1 <= (k - k0)log2(10) - k + 1
+		//    One can show -k - E + p + 1 <= (k - kappa0)log2(10) - k + 1
 		//    and the RHS is an increasing function of k;
-		//    we need floor((k - k0)log2(10)) - k + 1 bits
+		//    we need floor((k - kappa0)log2(10)) - k + 1 bits
 		// 2. Should be able to hold 5^k * (2^(p + 2) - 1)
 		//    Enough to have ceil(k log2(5)) + p + 3 bits,
 		//    which is an increasing function of k, or equivalently,
 		//    floor(k log2(10)) - k + p + 4 bits
 		constexpr auto max_bits = std::size_t(std::max(
-			log::floor_log2_pow10(impl<Float>::max_k - impl<Float>::k0) - impl<Float>::max_k + 1,
+			log::floor_log2_pow10(impl<Float>::max_k - impl<Float>::initial_kappa) - impl<Float>::max_k + 1,
 			log::floor_log2_pow10(impl<Float>::max_k) - impl<Float>::max_k + impl<Float>::significand_bits + 4));
 
 		using bigint_type = bigint<max_bits>;
 
 		constexpr auto range = (std::uint64_t(1) << (impl<Float>::significand_bits + 2)) - 1;
-		constexpr int max_exponent = log::floor_log2_pow10(impl<Float>::k0 + 1)
+		constexpr int max_exponent = log::floor_log2_pow10(impl<Float>::initial_kappa + 1)
 			+ impl<Float>::significand_bits;
 
 		std::size_t max_required_bits = 0;
@@ -220,7 +220,7 @@ namespace {
 		bigint_type power_of_5 = 1;
 		int prev_k = 0;
 		for (int e = max_exponent; e >= impl<Float>::min_exponent; --e) {
-			int k = impl<Float>::k0 - log::floor_log10_pow2(e - impl<Float>::significand_bits);
+			int k = impl<Float>::initial_kappa - log::floor_log10_pow2(e - impl<Float>::significand_bits);
 			assert(k >= 0);
 
 			if (k != prev_k) {
@@ -427,15 +427,15 @@ namespace {
 		// Compute required bits to hold big integers
 		// 1. Should be able to hold 2^(E + k)
 		//    Hence, (E + k + 1) bits should be sufficient
-		//    One can show E + k + 1 < (k0 - k + 1)log2(10) + k + p + 1
+		//    One can show E + k + 1 < (kappa0 - k + 1)log2(10) + k + p + 1
 		//    and the RHS is a decreasing function of k, so we need at most
-		//    floor((k0 - k + 1)log2(10)) + k + p + 2 bits
+		//    floor((kappa0 - k + 1)log2(10)) + k + p + 2 bits
 		// 2. Should be able to hold 5^-k * 2^(p + 1)
 		//    Enough to have ceil((-k)log2(5)) + p + 2 bits,
 		//    which is a decreasing function of k, or equivalently,
 		//    floor((-k)log2(10)) + k + p + 3 bits
 		constexpr auto max_bits = std::size_t(std::max(
-			log::floor_log2_pow10(impl<Float>::k0 - impl<Float>::min_k + 1)
+			log::floor_log2_pow10(impl<Float>::initial_kappa - impl<Float>::min_k + 1)
 				+ impl<Float>::min_k + impl<Float>::significand_bits + 2,
 			log::floor_log2_pow10(-impl<Float>::min_k) + impl<Float>::min_k + impl<Float>::significand_bits + 3));
 
@@ -443,7 +443,7 @@ namespace {
 
 		constexpr auto two_fl = (std::uint64_t(1) << (impl<Float>::significand_bits + 1)) - 1;
 		constexpr auto two_fr = (std::uint64_t(1) << (impl<Float>::significand_bits + 1));
-		constexpr int min_exponent = log::floor_log2_pow10(impl<Float>::k0 + 1) +
+		constexpr int min_exponent = log::floor_log2_pow10(impl<Float>::initial_kappa + 1) +
 			impl<Float>::significand_bits + 2;
 
 		std::size_t max_required_bits = 0;
@@ -451,7 +451,7 @@ namespace {
 		bigint_type power_of_5 = 1;
 		int prev_k = 0;
 		for (int e = min_exponent; e <= impl<Float>::max_exponent; ++e) {
-			int k = -log::floor_log10_pow2(e - impl<Float>::significand_bits - 1) + impl<Float>::k0;
+			int k = -log::floor_log10_pow2(e - impl<Float>::significand_bits - 1) + impl<Float>::initial_kappa;
 			assert(k < 0);
 
 			if (k != prev_k) {
@@ -509,22 +509,22 @@ namespace {
 
 		// Compute required bits to hold big integers
 		// 1. Should be able to hold 2^(-k - E + p + 1)
-		//    One can show -k - E + p + 1 <= (k - k0)log2(10) - k
+		//    One can show -k - E + p + 1 <= (k - kappa0)log2(10) - k
 		//    and the RHS is an increasing function of k;
-		//    we need floor((k - k0)log2(10)) - k + 1 bits
+		//    we need floor((k - kappa0)log2(10)) - k + 1 bits
 		// 2. Should be able to hold 5^k * 2^(p + 1)
 		//    Enough to have ceil(k log2(5)) + p + 2 bits,
 		//    which is an increasing function of k, or equivalently,
 		//    floor(k log2(10)) - k + p + 3 bits
 		constexpr auto max_bits = std::size_t(std::max(
-			log::floor_log2_pow10(impl<Float>::max_k - impl<Float>::k0) - impl<Float>::max_k + 1,
+			log::floor_log2_pow10(impl<Float>::max_k - impl<Float>::initial_kappa) - impl<Float>::max_k + 1,
 			log::floor_log2_pow10(impl<Float>::max_k) - impl<Float>::max_k + impl<Float>::significand_bits + 3));
 
 		using bigint_type = bigint<max_bits>;
 
 		constexpr auto two_fl = (std::uint64_t(1) << (impl<Float>::significand_bits + 1)) - 1;
 		constexpr auto two_fr = (std::uint64_t(1) << (impl<Float>::significand_bits + 1));
-		constexpr int max_exponent = log::floor_log2_pow10(impl<Float>::k0 + 1) +
+		constexpr int max_exponent = log::floor_log2_pow10(impl<Float>::initial_kappa + 1) +
 			impl<Float>::significand_bits + 1;
 
 		std::size_t max_required_bits = 0;
@@ -532,7 +532,7 @@ namespace {
 		bigint_type power_of_5 = 1;
 		int prev_k = 0;
 		for (int e = max_exponent; e >= impl<Float>::min_exponent; --e) {
-			int k = -log::floor_log10_pow2(e - impl<Float>::significand_bits - 1) + impl<Float>::k0;
+			int k = -log::floor_log10_pow2(e - impl<Float>::significand_bits - 1) + impl<Float>::initial_kappa;
 			assert(k >= 0);
 
 			if (k != prev_k) {
