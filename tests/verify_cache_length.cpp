@@ -143,13 +143,13 @@ namespace {
 		//    which is a decreasing function of k, or equivalently,
 		//    floor((-k)log2(10)) + k + p + 4 bits
 		constexpr auto max_bits = std::size_t(std::max(
-			log::floor_log2_pow10(impl<Float>::initial_kappa - impl<Float>::min_k + 1) + impl<Float>::min_k + 1,
+			log::floor_log2_pow10(impl<Float>::kappa0 - impl<Float>::min_k + 1) + impl<Float>::min_k + 1,
 			log::floor_log2_pow10(-impl<Float>::min_k) + impl<Float>::min_k + impl<Float>::significand_bits + 4));
 
 		using bigint_type = bigint<max_bits>;
 
 		constexpr auto range = (std::uint64_t(1) << (impl<Float>::significand_bits + 2)) - 1;
-		constexpr int min_exponent = log::floor_log2_pow10(impl<Float>::initial_kappa + 1)
+		constexpr int min_exponent = log::floor_log2_pow10(impl<Float>::kappa0 + 1)
 			+ impl<Float>::significand_bits + 1;
 
 		std::size_t max_required_bits = 0;
@@ -157,7 +157,7 @@ namespace {
 		bigint_type power_of_5 = 1;
 		int prev_k = 0;
 		for (int e = min_exponent; e <= impl<Float>::max_exponent; ++e) {
-			int k = impl<Float>::initial_kappa - log::floor_log10_pow2(e - impl<Float>::significand_bits);
+			int k = impl<Float>::kappa0 - log::floor_log10_pow2(e - impl<Float>::significand_bits);
 			assert(k < 0);
 
 			if (k != prev_k) {
@@ -206,13 +206,13 @@ namespace {
 		//    which is an increasing function of k, or equivalently,
 		//    floor(k log2(10)) - k + p + 4 bits
 		constexpr auto max_bits = std::size_t(std::max(
-			log::floor_log2_pow10(impl<Float>::max_k - impl<Float>::initial_kappa) - impl<Float>::max_k + 1,
+			log::floor_log2_pow10(impl<Float>::max_k - impl<Float>::kappa0) - impl<Float>::max_k + 1,
 			log::floor_log2_pow10(impl<Float>::max_k) - impl<Float>::max_k + impl<Float>::significand_bits + 4));
 
 		using bigint_type = bigint<max_bits>;
 
 		constexpr auto range = (std::uint64_t(1) << (impl<Float>::significand_bits + 2)) - 1;
-		constexpr int max_exponent = log::floor_log2_pow10(impl<Float>::initial_kappa + 1)
+		constexpr int max_exponent = log::floor_log2_pow10(impl<Float>::kappa0 + 1)
 			+ impl<Float>::significand_bits;
 
 		std::size_t max_required_bits = 0;
@@ -220,7 +220,7 @@ namespace {
 		bigint_type power_of_5 = 1;
 		int prev_k = 0;
 		for (int e = max_exponent; e >= impl<Float>::min_exponent; --e) {
-			int k = impl<Float>::initial_kappa - log::floor_log10_pow2(e - impl<Float>::significand_bits);
+			int k = impl<Float>::kappa0 - log::floor_log10_pow2(e - impl<Float>::significand_bits);
 			assert(k >= 0);
 
 			if (k != prev_k) {
@@ -435,7 +435,7 @@ namespace {
 		//    which is a decreasing function of k, or equivalently,
 		//    floor((-k)log2(10)) + k + p + 3 bits
 		constexpr auto max_bits = std::size_t(std::max(
-			log::floor_log2_pow10(impl<Float>::initial_kappa - impl<Float>::min_k + 1)
+			log::floor_log2_pow10(impl<Float>::kappa0 - impl<Float>::min_k + 1)
 				+ impl<Float>::min_k + impl<Float>::significand_bits + 2,
 			log::floor_log2_pow10(-impl<Float>::min_k) + impl<Float>::min_k + impl<Float>::significand_bits + 3));
 
@@ -443,7 +443,7 @@ namespace {
 
 		constexpr auto two_fl = (std::uint64_t(1) << (impl<Float>::significand_bits + 1)) - 1;
 		constexpr auto two_fr = (std::uint64_t(1) << (impl<Float>::significand_bits + 1));
-		constexpr int min_exponent = log::floor_log2_pow10(impl<Float>::initial_kappa + 1) +
+		constexpr int min_exponent = log::floor_log2_pow10(impl<Float>::kappa0 + 1) +
 			impl<Float>::significand_bits + 2;
 
 		std::size_t max_required_bits = 0;
@@ -451,7 +451,7 @@ namespace {
 		bigint_type power_of_5 = 1;
 		int prev_k = 0;
 		for (int e = min_exponent; e <= impl<Float>::max_exponent; ++e) {
-			int k = -log::floor_log10_pow2(e - impl<Float>::significand_bits - 1) + impl<Float>::initial_kappa;
+			int k = -log::floor_log10_pow2(e - impl<Float>::significand_bits - 1) + impl<Float>::kappa0;
 			assert(k < 0);
 
 			if (k != prev_k) {
@@ -517,14 +517,14 @@ namespace {
 		//    which is an increasing function of k, or equivalently,
 		//    floor(k log2(10)) - k + p + 3 bits
 		constexpr auto max_bits = std::size_t(std::max(
-			log::floor_log2_pow10(impl<Float>::max_k - impl<Float>::initial_kappa) - impl<Float>::max_k + 1,
+			log::floor_log2_pow10(impl<Float>::max_k - impl<Float>::kappa0) - impl<Float>::max_k + 1,
 			log::floor_log2_pow10(impl<Float>::max_k) - impl<Float>::max_k + impl<Float>::significand_bits + 3));
 
 		using bigint_type = bigint<max_bits>;
 
 		constexpr auto two_fl = (std::uint64_t(1) << (impl<Float>::significand_bits + 1)) - 1;
 		constexpr auto two_fr = (std::uint64_t(1) << (impl<Float>::significand_bits + 1));
-		constexpr int max_exponent = log::floor_log2_pow10(impl<Float>::initial_kappa + 1) +
+		constexpr int max_exponent = log::floor_log2_pow10(impl<Float>::kappa0 + 1) +
 			impl<Float>::significand_bits + 1;
 
 		std::size_t max_required_bits = 0;
@@ -532,7 +532,7 @@ namespace {
 		bigint_type power_of_5 = 1;
 		int prev_k = 0;
 		for (int e = max_exponent; e >= impl<Float>::min_exponent; --e) {
-			int k = -log::floor_log10_pow2(e - impl<Float>::significand_bits - 1) + impl<Float>::initial_kappa;
+			int k = -log::floor_log10_pow2(e - impl<Float>::significand_bits - 1) + impl<Float>::kappa0;
 			assert(k >= 0);
 
 			if (k != prev_k) {
