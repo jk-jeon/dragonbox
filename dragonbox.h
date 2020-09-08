@@ -1853,15 +1853,15 @@ namespace jkj::dragonbox {
 			using ieee754_format_info<format>::exponent_bias;
 			using ieee754_format_info<format>::decimal_digits;
 
-			static constexpr int initial_kappa = format == ieee754_format::binary32 ? 1 : 2;
-			static_assert(initial_kappa >= 1);
-			static_assert(carrier_bits >= significand_bits + 2 + log::floor_log2_pow10(initial_kappa + 1));
+			static constexpr int k0 = format == ieee754_format::binary32 ? 1 : 2;
+			static_assert(k0 >= 1);
+			static_assert(carrier_bits >= significand_bits + 2 + log::floor_log2_pow10(k0 + 1));
 
 			static constexpr int min_k = [] {
 				constexpr auto a = -log::floor_log10_pow2_minus_log10_4_over_3(
 					int(max_exponent - significand_bits));
 				constexpr auto b = -log::floor_log10_pow2(
-					int(max_exponent - significand_bits)) + initial_kappa;
+					int(max_exponent - significand_bits)) + k0;
 				return a < b ? a : b;
 			}();
 			static_assert(min_k >= cache_holder<format>::min_k);
@@ -1870,7 +1870,7 @@ namespace jkj::dragonbox {
 				constexpr auto a = -log::floor_log10_pow2_minus_log10_4_over_3(
 					int(min_exponent - significand_bits + 1));
 				constexpr auto b = -log::floor_log10_pow2(
-					int(min_exponent - significand_bits)) + initial_kappa;
+					int(min_exponent - significand_bits)) + k0;
 				return a > b ? a : b;
 			}();
 			static_assert(max_k <= cache_holder<format>::max_k);
@@ -1884,11 +1884,11 @@ namespace jkj::dragonbox {
 			static constexpr int divtest_table_size = (decimal_digits > max_power_of_factor_of_5)
 				? decimal_digits : max_power_of_factor_of_5 + 1;
 
-			static constexpr int case_fc_pm_half_lower_threshold = -initial_kappa - log::floor_log5_pow2(initial_kappa);
-			static constexpr int case_fc_pm_half_upper_threshold = log::floor_log2_pow10(initial_kappa + 1);
+			static constexpr int case_fc_pm_half_lower_threshold = -k0 - log::floor_log5_pow2(k0);
+			static constexpr int case_fc_pm_half_upper_threshold = log::floor_log2_pow10(k0 + 1);
 
-			static constexpr int case_fc_lower_threshold = -initial_kappa - 1 - log::floor_log5_pow2(initial_kappa + 1);
-			static constexpr int case_fc_upper_threshold = log::floor_log2_pow10(initial_kappa + 1);
+			static constexpr int case_fc_lower_threshold = -k0 - 1 - log::floor_log5_pow2(k0 + 1);
+			static constexpr int case_fc_upper_threshold = log::floor_log2_pow10(k0 + 1);
 
 			static constexpr int case_shorter_interval_left_endpoint_lower_threshold = 2;
 			static constexpr int case_shorter_interval_left_endpoint_upper_threshold = 3;
@@ -1949,12 +1949,12 @@ namespace jkj::dragonbox {
 				}
 
 				// Compute k and beta
-				int const minus_k = log::floor_log10_pow2(exponent) - initial_kappa;
+				int const minus_k = log::floor_log10_pow2(exponent) - k0;
 				auto const cache = get_cache<Float>(-minus_k);
 				int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
 
 				// Compute zi and deltai
-				// 10^kappa0 <= deltai < 10^(kappa0 + 1)
+				// 10^k0 <= deltai < 10^(k0 + 1)
 				auto const deltai = compute_delta(cache, beta_minus_1);
 				carrier_uint const two_fc = significand << 1;
 				carrier_uint const two_fr = two_fc | 1;
@@ -1965,13 +1965,13 @@ namespace jkj::dragonbox {
 				// Step 2: Try larger divisor; remove trailing zeros if necessary
 				//////////////////////////////////////////////////////////////////////
 
-				constexpr auto big_divisor = compute_power<initial_kappa + 1>(std::uint32_t(10));
-				constexpr auto small_divisor = compute_power<initial_kappa>(std::uint32_t(10));
+				constexpr auto big_divisor = compute_power<k0 + 1>(std::uint32_t(10));
+				constexpr auto small_divisor = compute_power<k0>(std::uint32_t(10));
 
 				// Using an upper bound on zi, we might be able to optimize the division
 				// better than the compiler; we are computing zi / big_divisor here
-				ret_value.significand = div::divide_by_pow10<initial_kappa + 1,
-					significand_bits + initial_kappa + 2, initial_kappa + 1>(zi);
+				ret_value.significand = div::divide_by_pow10<k0 + 1,
+					significand_bits + k0 + 2, k0 + 1>(zi);
 				auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
 
 				if (r > deltai) {
@@ -2007,7 +2007,7 @@ namespace jkj::dragonbox {
 						goto small_divisor_case_label;
 					}
 				}
-				ret_value.exponent = minus_k + initial_kappa + 1;
+				ret_value.exponent = minus_k + k0 + 1;
 
 				// We may need to remove trailing zeros
 				if constexpr (tzp == trailing_zero_policy::remove)
@@ -2027,17 +2027,17 @@ namespace jkj::dragonbox {
 
 			small_divisor_case_label:
 				ret_value.significand *= 10;
-				ret_value.exponent = minus_k + initial_kappa;
+				ret_value.exponent = minus_k + k0;
 				auto dist = r - (deltai / 2) + (small_divisor / 2);
-				constexpr auto mask = (std::uint32_t(1) << initial_kappa) - 1;
+				constexpr auto mask = (std::uint32_t(1) << k0) - 1;
 
 				// Is dist divisible by 2^kappa?
 				if ((dist & mask) == 0) {
 					bool const approx_y_parity = ((dist ^ (small_divisor / 2)) & 1) != 0;
-					dist >>= initial_kappa;
+					dist >>= k0;
 
 					// Is dist divisible by 5^kappa?
-					if (div::check_divisibility_and_divide_by_pow5<initial_kappa>(dist)) {
+					if (div::check_divisibility_and_divide_by_pow5<k0>(dist)) {
 						ret_value.significand += dist;
 
 						// Check z^(f) >= epsilon^(f)
@@ -2092,7 +2092,7 @@ namespace jkj::dragonbox {
 				else {
 					// Since we know dist is small, we might be able to optimize the division
 					// better than the compiler; we are computing dist / small_divisor here
-					ret_value.significand += div::small_division_by_pow10<initial_kappa>(dist);
+					ret_value.significand += div::small_division_by_pow10<k0>(dist);
 				}
 
 				if constexpr (tzp == trailing_zero_policy::report)
@@ -2225,12 +2225,12 @@ namespace jkj::dragonbox {
 				}
 
 				// Compute k and beta
-				int const minus_k = log::floor_log10_pow2(exponent) - initial_kappa;
+				int const minus_k = log::floor_log10_pow2(exponent) - k0;
 				auto const cache = get_cache<Float>(-minus_k);
 				int const beta = exponent + log::floor_log2_pow10(-minus_k) + 1;
 
 				// Compute yi and deltai
-				// 10^kappa0 <= deltai < 10^(kappa0 + 1)
+				// 10^k0 <= deltai < 10^(k0 + 1)
 				auto const deltai = compute_delta(cache, beta - 1);
 				carrier_uint yi = compute_mul(significand << beta, cache);
 
@@ -2242,13 +2242,13 @@ namespace jkj::dragonbox {
 				// Step 2: Try larger divisor; remove trailing zeros if necessary
 				//////////////////////////////////////////////////////////////////////
 
-				constexpr auto big_divisor = compute_power<initial_kappa + 1>(std::uint32_t(10));
-				constexpr auto small_divisor = compute_power<initial_kappa>(std::uint32_t(10));
+				constexpr auto big_divisor = compute_power<k0 + 1>(std::uint32_t(10));
+				constexpr auto small_divisor = compute_power<k0>(std::uint32_t(10));
 
 				// Using an upper bound on yi, we might be able to optimize the division
 				// better than the compiler; we are computing yi / big_divisor here
-				ret_value.significand = div::divide_by_pow10<initial_kappa + 1,
-					significand_bits + initial_kappa + 2, initial_kappa + 1>(yi);
+				ret_value.significand = div::divide_by_pow10<k0 + 1,
+					significand_bits + k0 + 2, k0 + 1>(yi);
 				auto r = std::uint32_t(yi - big_divisor * ret_value.significand);
 
 				if (r != 0) {
@@ -2270,7 +2270,7 @@ namespace jkj::dragonbox {
 				}
 
 				// The ceiling is inside, so we are done
-				ret_value.exponent = minus_k + initial_kappa + 1;
+				ret_value.exponent = minus_k + k0 + 1;
 				if constexpr (tzp == trailing_zero_policy::remove)
 				{
 					ret_value.exponent += remove_trailing_zeros(ret_value.significand);
@@ -2288,7 +2288,7 @@ namespace jkj::dragonbox {
 
 			small_divisor_case_label:
 				ret_value.significand *= 10;
-				ret_value -= div::small_division_by_pow10<initial_kappa>(r);
+				ret_value -= div::small_division_by_pow10<k0>(r);
 				if constexpr (tzp == trailing_zero_policy::report)
 				{
 					ret_value.may_have_trailing_zeros = false;
@@ -2330,12 +2330,12 @@ namespace jkj::dragonbox {
 				}
 
 				// Compute k and beta
-				int const minus_k = log::floor_log10_pow2(exponent - (closer_boundary ? 1 : 0)) - initial_kappa;
+				int const minus_k = log::floor_log10_pow2(exponent - (closer_boundary ? 1 : 0)) - k0;
 				auto const cache = get_cache<Float>(-minus_k);
 				int const beta = exponent + log::floor_log2_pow10(-minus_k) + 1;
 
 				// Compute zi and deltai
-				// 10^kappa0 <= deltai < 10^(kappa0 + 1)
+				// 10^k0 <= deltai < 10^(k0 + 1)
 				auto const deltai = closer_boundary ?
 					compute_delta(cache, beta - 2) :
 					compute_delta(cache, beta - 1);
@@ -2346,13 +2346,13 @@ namespace jkj::dragonbox {
 				// Step 2: Try larger divisor; remove trailing zeros if necessary
 				//////////////////////////////////////////////////////////////////////
 
-				constexpr auto big_divisor = compute_power<initial_kappa + 1>(std::uint32_t(10));
-				constexpr auto small_divisor = compute_power<initial_kappa>(std::uint32_t(10));
+				constexpr auto big_divisor = compute_power<k0 + 1>(std::uint32_t(10));
+				constexpr auto small_divisor = compute_power<k0>(std::uint32_t(10));
 
 				// Using an upper bound on yi, we might be able to optimize the division
 				// better than the compiler; we are computing yi / big_divisor here
-				ret_value.significand = div::divide_by_pow10<initial_kappa + 1,
-					significand_bits + initial_kappa + 2, initial_kappa + 1>(zi);
+				ret_value.significand = div::divide_by_pow10<k0 + 1,
+					significand_bits + k0 + 2, k0 + 1>(zi);
 				auto const r = std::uint32_t(zi - big_divisor * ret_value.significand);
 
 				if (r > deltai) {
@@ -2375,7 +2375,7 @@ namespace jkj::dragonbox {
 				}
 
 				// The floor is inside, so we are done
-				ret_value.exponent = minus_k + initial_kappa + 1;
+				ret_value.exponent = minus_k + k0 + 1;
 				if constexpr (tzp == trailing_zero_policy::remove) {
 					ret_value.exponent += remove_trailing_zeros(ret_value.significand);
 				}
@@ -2392,7 +2392,7 @@ namespace jkj::dragonbox {
 
 			small_divisor_case_label:
 				ret_value.significand *= 10;
-				ret_value += div::small_division_by_pow10<initial_kappa>(r);
+				ret_value += div::small_division_by_pow10<k0>(r);
 				if constexpr (tzp == trailing_zero_policy::report)
 				{
 					ret_value.may_have_trailing_zeros = false;
@@ -2405,7 +2405,7 @@ namespace jkj::dragonbox {
 				constexpr auto max_power = [] {
 					auto max_possible_significand =
 						std::numeric_limits<carrier_uint>::max() /
-						compute_power<initial_kappa + 1>(std::uint32_t(10));
+						compute_power<k0 + 1>(std::uint32_t(10));
 
 					int k = 0;
 					carrier_uint p = 1;
@@ -2442,7 +2442,7 @@ namespace jkj::dragonbox {
 				}
 				else {
 					static_assert(format == ieee754_format::binary64);
-					static_assert(initial_kappa >= 2);
+					static_assert(k0 >= 2);
 
 					// Divide by 10^8 and reduce to 32-bits
 					// Since ret_value.significand <= (2^64 - 1) / 1000 < 10^17,

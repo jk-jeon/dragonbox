@@ -25,15 +25,15 @@ static void verify_check_divisibility_and_divide_by_pow5()
 {
 	using namespace jkj::dragonbox::detail;
 
-	constexpr int initial_kappa = impl<Float>::initial_kappa;
-	constexpr auto max_n = compute_power<initial_kappa + 1>(std::uint32_t(5)) * 2;
-	constexpr auto divisor = compute_power<initial_kappa>(std::uint32_t(5));
+	constexpr int k0 = impl<Float>::k0;
+	constexpr auto max_n = compute_power<k0 + 1>(std::uint32_t(5)) * 2;
+	constexpr auto divisor = compute_power<k0>(std::uint32_t(5));
 
 	bool success = true;
 	for (std::uint32_t n = 0; n <= max_n; ++n) {
 		std::uint32_t computed_quotient = n;
 		auto computed_divisibility =
-			div::check_divisibility_and_divide_by_pow5<initial_kappa>(computed_quotient);
+			div::check_divisibility_and_divide_by_pow5<k0>(computed_quotient);
 
 		if (computed_quotient != (n / divisor)) {
 			std::cout << "Dividing n = " << n << " by " << divisor
@@ -63,13 +63,13 @@ static void verify_divide_by_pow10()
 {
 	using namespace jkj::dragonbox::detail;
 
-	constexpr int initial_kappa = impl<Float>::initial_kappa;
-	constexpr auto max_n = compute_power<initial_kappa + 1>(std::uint32_t(10));
-	constexpr auto divisor = compute_power<initial_kappa>(std::uint32_t(10));
+	constexpr int k0 = impl<Float>::k0;
+	constexpr auto max_n = compute_power<k0 + 1>(std::uint32_t(10));
+	constexpr auto divisor = compute_power<k0>(std::uint32_t(10));
 
 	bool success = true;
 	for (std::uint32_t n = 0; n <= max_n; ++n) {
-		auto computed_quotient = div::small_division_by_pow10<initial_kappa>(n);
+		auto computed_quotient = div::small_division_by_pow10<k0>(n);
 
 		if (computed_quotient != (n / divisor)) {
 			std::cout << "Dividing n = " << n << " by " << divisor
