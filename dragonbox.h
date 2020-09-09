@@ -1879,8 +1879,8 @@ namespace jkj::dragonbox {
 				cache_holder<format>::cache_bits;
 
 			static constexpr int max_power_of_factor_of_5 = log::floor_log5_pow2(int(significand_bits + 2));
-			static constexpr int max_power_of_5_exponent_threshold =
-				log::floor_log2_pow10(max_power_of_factor_of_5 + kappa + 1) + 1;
+			static constexpr int divisibility_check_by_5_threshold =
+				log::floor_log2_pow10(max_power_of_factor_of_5 + kappa + 1);
 
 			static constexpr int case_fc_pm_half_lower_threshold = -kappa - log::floor_log5_pow2(kappa);
 			static constexpr int case_fc_pm_half_upper_threshold = log::floor_log2_pow10(kappa + 1);
@@ -2647,7 +2647,7 @@ namespace jkj::dragonbox {
 						return true;
 					}
 					// For k < 0
-					else if (exponent >= max_power_of_5_exponent_threshold) {
+					else if (exponent > divisibility_check_by_5_threshold) {
 						return false;
 					}
 					else {
@@ -2659,7 +2659,7 @@ namespace jkj::dragonbox {
 				else
 				{
 					// Exponent for 5 is negative
-					if (exponent >= max_power_of_5_exponent_threshold) {
+					if (exponent > divisibility_check_by_5_threshold) {
 						return false;
 					}
 					else if (exponent > case_fc_upper_threshold) {
