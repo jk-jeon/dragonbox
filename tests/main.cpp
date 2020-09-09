@@ -30,7 +30,7 @@ extern void verify_cache_length();
 extern void generate_cache();
 
 // Check if the fast divisibility check and division algorithms are correct
-#define VERIFY_MAGIC_DIVISION
+//#define VERIFY_MAGIC_DIVISION
 extern void verify_magic_division();
 
 // Check if the fast multiplication algorithm for the closer boundary case is correct

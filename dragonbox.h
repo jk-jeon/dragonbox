@@ -2026,78 +2026,86 @@ namespace jkj::dragonbox {
 				//////////////////////////////////////////////////////////////////////
 
 			small_divisor_case_label:
+				if constexpr (tzp == trailing_zero_policy::report)
+				{
+					ret_value.may_have_trailing_zeros = false;
+				}
 				ret_value.significand *= 10;
 				ret_value.exponent = minus_k + kappa;
-				auto dist = r - (deltai / 2) + (small_divisor / 2);
-				constexpr auto mask = (std::uint32_t(1) << kappa) - 1;
 
-				// Is dist divisible by 2^kappa?
-				if ((dist & mask) == 0) {
-					bool const approx_y_parity = ((dist ^ (small_divisor / 2)) & 1) != 0;
-					dist >>= kappa;
+				if constexpr (correct_rounding_tag ==
+					correct_rounding::do_not_care_tag)
+				{
+					ret_value.significand += div::small_division_by_pow10<kappa>(r);
+				}
+				else
+				{
+					auto dist = r - (deltai / 2) + (small_divisor / 2);
+					constexpr auto mask = (std::uint32_t(1) << kappa) - 1;
 
-					// Is dist divisible by 5^kappa?
-					if (div::check_divisibility_and_divide_by_pow5<kappa>(dist)) {
-						ret_value.significand += dist;
+					// Is dist divisible by 2^kappa?
+					if ((dist & mask) == 0) {
+						bool const approx_y_parity = ((dist ^ (small_divisor / 2)) & 1) != 0;
+						dist >>= kappa;
 
-						// Check z^(f) >= epsilon^(f)
-						// We have either yi == zi - epsiloni or yi == (zi - epsiloni) - 1,
-						// where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f)
-						// Since there are only 2 possibilities, we only need to care about the parity
-						// Also, zi and r should have the same parity since the divisor
-						// is an even number
-						if (compute_mul_parity(two_fc, cache, beta_minus_1) != approx_y_parity) {
-							--ret_value.significand;
-						}
-						else {
-							// If z^(f) >= epsilon^(f), we might have a tie
-							// when z^(f) == epsilon^(f), or equivalently, when y is an integer
-							// For tie-to-up case, we can just choose the upper one
-							if constexpr (correct_rounding_tag !=
-								correct_rounding::tie_to_up_tag)
-							{
-								if (is_product_integer<integer_check_case_id::fc>(
-									two_fc, exponent, minus_k))
+						// Is dist divisible by 5^kappa?
+						if (div::check_divisibility_and_divide_by_pow5<kappa>(dist)) {
+							ret_value.significand += dist;
+
+							// Check z^(f) >= epsilon^(f)
+							// We have either yi == zi - epsiloni or yi == (zi - epsiloni) - 1,
+							// where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f)
+							// Since there are only 2 possibilities, we only need to care about the parity
+							// Also, zi and r should have the same parity since the divisor
+							// is an even number
+							if (compute_mul_parity(two_fc, cache, beta_minus_1) != approx_y_parity) {
+								--ret_value.significand;
+							}
+							else {
+								// If z^(f) >= epsilon^(f), we might have a tie
+								// when z^(f) == epsilon^(f), or equivalently, when y is an integer
+								// For tie-to-up case, we can just choose the upper one
+								if constexpr (correct_rounding_tag !=
+									correct_rounding::tie_to_up_tag)
 								{
-									if constexpr (correct_rounding_tag ==
-										correct_rounding::tie_to_even_tag)
+									if (is_product_integer<integer_check_case_id::fc>(
+										two_fc, exponent, minus_k))
 									{
-										ret_value.significand =
-											ret_value.significand % 2 == 0 ?
-											ret_value.significand :
-											ret_value.significand - 1;
-									}
-									else if constexpr (correct_rounding_tag ==
-										correct_rounding::tie_to_odd_tag)
-									{
-										ret_value.significand =
-											ret_value.significand % 2 != 0 ?
-											ret_value.significand :
-											ret_value.significand - 1;
-									}
-									else {
-										// tie-to-down
-										--ret_value.significand;
+										if constexpr (correct_rounding_tag ==
+											correct_rounding::tie_to_even_tag)
+										{
+											ret_value.significand =
+												ret_value.significand % 2 == 0 ?
+												ret_value.significand :
+												ret_value.significand - 1;
+										}
+										else if constexpr (correct_rounding_tag ==
+											correct_rounding::tie_to_odd_tag)
+										{
+											ret_value.significand =
+												ret_value.significand % 2 != 0 ?
+												ret_value.significand :
+												ret_value.significand - 1;
+										}
+										else {
+											// tie-to-down
+											--ret_value.significand;
+										}
 									}
 								}
 							}
 						}
+						// Is dist not divisible by 5^kappa?
+						else {
+							ret_value.significand += dist;
+						}
 					}
-					// Is dist not divisible by 5^kappa?
+					// Is dist not divisible by 2^kappa?
 					else {
-						ret_value.significand += dist;
+						// Since we know dist is small, we might be able to optimize the division
+						// better than the compiler; we are computing dist / small_divisor here
+						ret_value.significand += div::small_division_by_pow10<kappa>(dist);
 					}
-				}
-				// Is dist not divisible by 2^kappa?
-				else {
-					// Since we know dist is small, we might be able to optimize the division
-					// better than the compiler; we are computing dist / small_divisor here
-					ret_value.significand += div::small_division_by_pow10<kappa>(dist);
-				}
-
-				if constexpr (tzp == trailing_zero_policy::report)
-				{
-					ret_value.may_have_trailing_zeros = false;
 				}
 				return ret_value;
 			}
@@ -2157,6 +2165,8 @@ namespace jkj::dragonbox {
 
 				// When tie occurs, choose one of them according to the rule
 				if constexpr (correct_rounding_tag !=
+					correct_rounding::do_not_care_tag &&
+					correct_rounding_tag !=
 					correct_rounding::tie_to_up_tag)
 				{
 					if (exponent >= shorter_interval_case_tie_lower_threshold &&
