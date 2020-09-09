@@ -681,7 +681,7 @@ namespace jkj::dragonbox {
 					std::uint32_t((std::uint32_t(1) << info::bits_for_comparison) - 1);
 
 				if ((n & comparison_mask) <= info::threshold) {
-					n = (n & comparison_mask);
+					n >>= info::shift_amount;
 					return true;
 				}
 				else {
