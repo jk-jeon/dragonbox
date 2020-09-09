@@ -625,9 +625,7 @@ namespace jkj::dragonbox {
 			template <std::size_t table_size, class UInt>
 			constexpr bool divisible_by_power_of_5(UInt x, unsigned int exp) noexcept {
 				auto const& table = table_holder<UInt, 5, table_size>::table;
-				if (exp >= (unsigned int)(table.size)) {
-					return false;
-				}
+				assert(exp < (unsigned int)(table.size));
 				return (x * table.mod_inv[exp]) <= table.max_quotients[exp];
 			}
 
@@ -2650,7 +2648,12 @@ namespace jkj::dragonbox {
 					}
 					// For k < 0
 					else {
-						return div::divisible_by_power_of_5<divtest_table_size>(two_f, minus_k);
+						if (minus_k >= divtest_table_size) {
+							return false;
+						}
+						else {
+							return div::divisible_by_power_of_5<divtest_table_size>(two_f, minus_k);
+						}
 					}
 				}
 				// Case II: f = fc + 1
@@ -2659,7 +2662,12 @@ namespace jkj::dragonbox {
 				{
 					// Exponent for 5 is negative
 					if (exponent > case_fc_upper_threshold) {
-						return div::divisible_by_power_of_5<divtest_table_size>(two_f, minus_k);
+						if (minus_k >= divtest_table_size) {
+							return false;
+						}
+						else {
+							return div::divisible_by_power_of_5<divtest_table_size>(two_f, minus_k);
+						}
 					}
 					// Both exponents are nonnegative
 					else if (exponent >= case_fc_lower_threshold) {
