@@ -1879,8 +1879,8 @@ namespace jkj::dragonbox {
 				cache_holder<format>::cache_bits;
 
 			static constexpr int max_power_of_factor_of_5 = log::floor_log5_pow2(int(significand_bits + 1));
-			static constexpr int divtest_table_size = (decimal_digits > max_power_of_factor_of_5)
-				? decimal_digits : max_power_of_factor_of_5 + 1;
+			static constexpr int max_power_of_5_exponent_threshold =
+				log::floor_log2_pow10(max_power_of_factor_of_5 + kappa + 1) + 1;
 
 			static constexpr int case_fc_pm_half_lower_threshold = -kappa - log::floor_log5_pow2(kappa);
 			static constexpr int case_fc_pm_half_upper_threshold = log::floor_log2_pow10(kappa + 1);
@@ -2431,7 +2431,7 @@ namespace jkj::dragonbox {
 
 				if constexpr (format == ieee754_format::binary32) {
 					constexpr auto const& divtable =
-						div::table_holder<carrier_uint, 5, divtest_table_size>::table;
+						div::table_holder<carrier_uint, 5, decimal_digits>::table;
 
 					int s = 0;
 					for (; s < t - 1; s += 2) {
@@ -2647,13 +2647,11 @@ namespace jkj::dragonbox {
 						return true;
 					}
 					// For k < 0
+					else if (exponent >= max_power_of_5_exponent_threshold) {
+						return false;
+					}
 					else {
-						if (minus_k >= divtest_table_size) {
-							return false;
-						}
-						else {
-							return div::divisible_by_power_of_5<divtest_table_size>(two_f, minus_k);
-						}
+						return div::divisible_by_power_of_5<max_power_of_factor_of_5 + 1>(two_f, minus_k);
 					}
 				}
 				// Case II: f = fc + 1
@@ -2661,13 +2659,11 @@ namespace jkj::dragonbox {
 				else
 				{
 					// Exponent for 5 is negative
-					if (exponent > case_fc_upper_threshold) {
-						if (minus_k >= divtest_table_size) {
-							return false;
-						}
-						else {
-							return div::divisible_by_power_of_5<divtest_table_size>(two_f, minus_k);
-						}
+					if (exponent >= max_power_of_5_exponent_threshold) {
+						return false;
+					}
+					else if (exponent > case_fc_upper_threshold) {
+						return div::divisible_by_power_of_5<max_power_of_factor_of_5 + 1>(two_f, minus_k);
 					}
 					// Both exponents are nonnegative
 					else if (exponent >= case_fc_lower_threshold) {
