@@ -1878,7 +1878,7 @@ namespace jkj::dragonbox {
 			static constexpr auto cache_bits =
 				cache_holder<format>::cache_bits;
 
-			static constexpr int max_power_of_factor_of_5 = log::floor_log5_pow2(int(significand_bits + 1));
+			static constexpr int max_power_of_factor_of_5 = log::floor_log5_pow2(int(significand_bits + 2));
 			static constexpr int max_power_of_5_exponent_threshold =
 				log::floor_log2_pow10(max_power_of_factor_of_5 + kappa + 1) + 1;
 
