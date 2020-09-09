@@ -140,7 +140,7 @@ Uniform benchmark (top: `float`, bottom: `double`):
 ![uniform_benchmark_binary64](benchmark_results/uniform_benchmark_binary64_notzr_msvc.png)
 
 # Comprehensive Explanation of the Algorithm
-In preparation.
+This is not done yet, but [here](other_files/Dragonbox.pdf) is a partially written paper.
 
 # How to Run Tests
 In order to run tests and benchmarks, you need `.cpp/.h` files in the directories [`tests`](tests) and [`benchmarks`](benchmarks), in addition to [`dragonbox.h`](dragonbox.h), [`dragonbox_to_chars.h`](dragonbox_to_chars.h), and [`dragonbox_to_chars.cpp`](dragonbox_to_chars/dragonbox_to_chars.cpp). There is no third party dependencies other than those included in this repository, so this should be enough.
