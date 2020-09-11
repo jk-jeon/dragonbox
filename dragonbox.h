@@ -1906,7 +1906,7 @@ namespace jkj::dragonbox {
 					count_factors<5>((carrier_uint(1) << (significand_bits + 2)) - 1) + 1
 				>(10) / 3);
 
-			static constexpr int case_shorter_interval_right_endpoint_lower_threshold = 2;
+			static constexpr int case_shorter_interval_right_endpoint_lower_threshold = 0;
 			static constexpr int case_shorter_interval_right_endpoint_upper_threshold = 2 +
 				log::floor_log2(compute_power<
 					count_factors<5>((carrier_uint(1) << (significand_bits + 1)) + 1) + 1
