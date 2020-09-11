@@ -487,7 +487,8 @@ namespace jkj::dragonbox {
 				// Ensure no overflow
 				assert(shift_amount == 0 || integer_part < (std::uint32_t(1) << (32 - shift_amount)));
 
-				return std::int32_t(
+				return shift_amount == 0 ? std::int32_t(integer_part) :
+					std::int32_t(
 					(integer_part << shift_amount) |
 					(fractional_digits >> (64 - shift_amount)));
 			}
