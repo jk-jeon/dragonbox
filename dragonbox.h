@@ -2119,32 +2119,32 @@ namespace jkj::dragonbox {
 				int const minus_k = log::floor_log10_pow2_minus_log10_4_over_3(exponent);
 				int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
 
-				// Compute floor(x) and floor(z)
+				// Compute xi and zi
 				auto const cache = get_cache<Float>(-minus_k);
 
-				auto x = compute_left_endpoint_for_shorter_interval_case(cache, beta_minus_1);
-				auto z = compute_right_endpoint_for_shorter_interval_case(cache, beta_minus_1);
+				auto xi = compute_left_endpoint_for_shorter_interval_case(cache, beta_minus_1);
+				auto zi = compute_right_endpoint_for_shorter_interval_case(cache, beta_minus_1);
 
 				// If we don't accept the right endpoint and
-				// if the righr endpoint is an integer, decrease it
+				// if the right endpoint is an integer, decrease it
 				if (!interval_type.include_right_endpoint() &&
 					is_right_endpoint_integer_shorter_interval(exponent))
 				{
-					--z;
+					--zi;
 				}
 				// If we don't accept the left endpoint or
 				// if the left endpoint is not an integer, increase it
 				if (!interval_type.include_left_endpoint() ||
 					!is_left_endpoint_integer_shorter_interval(exponent))
 				{
-					++x;
+					++xi;
 				}
 
 				// Try bigger divisor
-				ret_value.significand = z / 10;
+				ret_value.significand = zi / 10;
 
 				// If succeed, remove trailing zeros if necessary and return
-				if (ret_value.significand * 10 >= x) {
+				if (ret_value.significand * 10 >= xi) {
 					ret_value.exponent = minus_k + 1;
 					if constexpr (tzp == trailing_zero_policy::remove)
 					{
@@ -2193,7 +2193,7 @@ namespace jkj::dragonbox {
 					}
 				}
 
-				if (ret_value.significand < x) {
+				if (ret_value.significand < xi) {
 					++ret_value.significand;
 				}
 
