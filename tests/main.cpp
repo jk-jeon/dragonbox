@@ -34,7 +34,7 @@ extern void generate_cache();
 extern void verify_magic_division();
 
 // Check if the fast multiplication algorithm for the closer boundary case is correct
-//#define VERIFY_FAST_MULTIPLICATION
+#define VERIFY_FAST_MULTIPLICATION
 extern void verify_fast_multiplication();
 
 // Check if the fast multiplication algorithm for the closer boundary case is correct

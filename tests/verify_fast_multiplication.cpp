@@ -20,7 +20,7 @@
 #include <iostream>
 
 template <class Float>
-static void verify_fast_multiplication_impl()
+static void verify_fast_multiplication_xz()
 {
 	using impl = jkj::dragonbox::detail::impl<Float>;
 	using jkj::dragonbox::detail::get_cache;
@@ -77,13 +77,58 @@ static void verify_fast_multiplication_impl()
 	}
 }
 
+template <class Float>
+static void verify_fast_multiplication_yru()
+{
+	using impl = jkj::dragonbox::detail::impl<Float>;
+	using jkj::dragonbox::detail::get_cache;
+
+	bool success = true;
+
+	for (int k = impl::min_k; k < 0; ++k) {
+		auto const cache = get_cache<Float>(k);
+
+		// Since p + beta <= q, suffices to check that the lower half of the cache is not 0
+		auto const lower_half = [cache] {
+			if constexpr (impl::format == jkj::dragonbox::ieee754_format::binary32)
+			{
+				return std::uint32_t(cache);
+			}
+			else
+			{
+				return cache.low();
+			}
+		}();
+
+		if (lower_half == 0) {
+			std::cout << "(k = " << k << ") computation might be incorrect\n";
+			success = false;
+		}
+	}
+
+	if (success) {
+		std::cout << "All cases are verified.\n";
+	}
+	else {
+		std::cout << "Error detected.\n";
+	}
+}
+
 void verify_fast_multiplication()
 {
-	std::cout << "[Verifying fast multiplication of closer boundary case for binary32...]\n";
-	verify_fast_multiplication_impl<float>();
+	std::cout << "[Verifying fast computation of xi and zi for the closer boundary case (binary32)...]\n";
+	verify_fast_multiplication_xz<float>();
 	std::cout << "Done.\n\n\n";
 
-	std::cout << "[Verifying fast multiplication of closer boundary case for binary64...]\n";
-	verify_fast_multiplication_impl<double>();
+	std::cout << "[Verifying fast computation of yru for the closer boundary case (binary32)...]\n";
+	verify_fast_multiplication_yru<float>();
+	std::cout << "Done.\n\n\n";
+
+	std::cout << "[Verifying fast computation of xi and zi for the closer boundary case (binary64)...]\n";
+	verify_fast_multiplication_xz<double>();
+	std::cout << "Done.\n\n\n";
+
+	std::cout << "[Verifying fast computation of yru for the closer boundary case (binary64)...]\n";
+	verify_fast_multiplication_yru<double>();
 	std::cout << "Done.\n\n\n";
 }
