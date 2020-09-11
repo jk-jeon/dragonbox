@@ -1966,12 +1966,8 @@ namespace jkj::dragonbox {
 
 			static constexpr int shorter_interval_case_tie_lower_threshold =
 				-log::floor_log5_pow2_minus_log5_3(significand_bits + 4) - 2 - significand_bits;
-			static constexpr int shorter_interval_case_tie_upper_threshold = [] {
-				constexpr int threshold = -log::floor_log5_pow2_minus_log5_3(significand_bits + 3) - 2 - significand_bits;
-				constexpr int spurious_tie_threshold = -log::floor_log5_pow2(significand_bits + 2) - 2 - significand_bits;
-
-				return threshold <= spurious_tie_threshold ? threshold : spurious_tie_threshold;
-			}();
+			static constexpr int shorter_interval_case_tie_upper_threshold =
+				-log::floor_log5_pow2(significand_bits + 2) - 2 - significand_bits;
 
 			//// The main algorithm assumes the input is a normal/subnormal finite number
 
@@ -2262,10 +2258,15 @@ namespace jkj::dragonbox {
 							--ret_value.significand;
 						}
 					}
+					else if (ret_value.significand < xi) {
+						++ret_value.significand;
+					}
 				}
-
-				if (ret_value.significand < xi) {
-					++ret_value.significand;
+				else
+				{
+					if (ret_value.significand < xi) {
+						++ret_value.significand;
+					}
 				}
 
 				if constexpr (tzp == trailing_zero_policy::report)
