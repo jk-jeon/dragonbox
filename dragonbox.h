@@ -1641,6 +1641,10 @@ namespace jkj::dragonbox {
 			};
 		}
 
+		namespace detail {
+			struct shorter_interval_case_tag {};
+		}
+
 		struct nearest_to_even {
 			static constexpr tag_t tag = to_nearest_tag;
 
@@ -1651,6 +1655,12 @@ namespace jkj::dragonbox {
 			template <class Float>
 			constexpr interval_type::symmetric_boundary operator()(ieee754_bits<Float> br) const noexcept {
 				return{ br.u % 2 == 0 };
+			}
+			template <class Float>
+			constexpr interval_type::closed operator()(ieee754_bits<Float>,
+				detail::shorter_interval_case_tag) const noexcept
+			{
+				return{};
 			}
 		};
 		struct nearest_to_odd {
@@ -1664,6 +1674,12 @@ namespace jkj::dragonbox {
 			constexpr interval_type::symmetric_boundary operator()(ieee754_bits<Float> br) const noexcept {
 				return{ br.u % 2 != 0 };
 			}
+			template <class Float>
+			constexpr interval_type::open operator()(ieee754_bits<Float>,
+				detail::shorter_interval_case_tag) const noexcept
+			{
+				return{};
+			}
 		};
 		struct nearest_toward_plus_infinity {
 			static constexpr tag_t tag = to_nearest_tag;
@@ -1676,6 +1692,12 @@ namespace jkj::dragonbox {
 			constexpr interval_type::asymmetric_boundary operator()(ieee754_bits<Float> br) const noexcept {
 				return{ !br.is_negative() };
 			}
+			template <class Float>
+			constexpr interval_type::asymmetric_boundary operator()(ieee754_bits<Float> br,
+				detail::shorter_interval_case_tag) const noexcept
+			{
+				return{ !br.is_negative() };
+			}
 		};
 		struct nearest_toward_minus_infinity {
 			static constexpr tag_t tag = to_nearest_tag;
@@ -1686,6 +1708,12 @@ namespace jkj::dragonbox {
 			}
 			template <class Float>
 			constexpr interval_type::asymmetric_boundary operator()(ieee754_bits<Float> br) const noexcept {
+				return{ br.is_negative() };
+			}
+			template <class Float>
+			constexpr interval_type::asymmetric_boundary operator()(ieee754_bits<Float> br,
+				detail::shorter_interval_case_tag) const noexcept
+			{
 				return{ br.is_negative() };
 			}
 		};
@@ -1701,6 +1729,12 @@ namespace jkj::dragonbox {
 			constexpr interval_type::right_closed_left_open operator()(ieee754_bits<Float>) const noexcept {
 				return{};
 			}
+			template <class Float>
+			constexpr interval_type::right_closed_left_open operator()(ieee754_bits<Float>,
+				detail::shorter_interval_case_tag) const noexcept
+			{
+				return{};
+			}
 		};
 		struct nearest_away_from_zero {
 			static constexpr tag_t tag = to_nearest_tag;
@@ -1713,6 +1747,12 @@ namespace jkj::dragonbox {
 			constexpr interval_type::left_closed_right_open operator()(ieee754_bits<Float>) const noexcept {
 				return{};
 			}
+			template <class Float>
+			constexpr interval_type::left_closed_right_open operator()(ieee754_bits<Float>,
+				detail::shorter_interval_case_tag) const noexcept
+			{
+				return{};
+			}
 		};
 
 		namespace detail {
@@ -1723,12 +1763,24 @@ namespace jkj::dragonbox {
 				constexpr interval_type::closed operator()(ieee754_bits<Float>) const noexcept {
 					return{};
 				}
+				template <class Float>
+				constexpr interval_type::closed operator()(ieee754_bits<Float>,
+					detail::shorter_interval_case_tag) const noexcept
+				{
+					return{};
+				}
 			};
 			struct nearest_always_open {
 				static constexpr tag_t tag = to_nearest_tag;
 
 				template <class Float>
 				constexpr interval_type::open operator()(ieee754_bits<Float>) const noexcept {
+					return{};
+				}
+				template <class Float>
+				constexpr interval_type::open operator()(ieee754_bits<Float>,
+					detail::shorter_interval_case_tag) const noexcept
+				{
 					return{};
 				}
 			};
@@ -1938,8 +1990,6 @@ namespace jkj::dragonbox {
 
 				fp_t<Float, return_sign, tzp == trailing_zero_policy::report> ret_value;
 
-				auto const interval_type = IntervalTypeProvider{}(br);
-
 				if constexpr (return_sign) {
 					ret_value.is_negative = br.is_negative();
 				}
@@ -1953,7 +2003,8 @@ namespace jkj::dragonbox {
 					// Closer boundary case; proceed like Schubfach
 					if (significand == 0) {
 						shorter_interval_case<tzp, correct_rounding_tag>(
-							ret_value, exponent, interval_type);
+							ret_value, exponent,
+							IntervalTypeProvider{}(br, rounding_modes::detail::shorter_interval_case_tag{}));
 						return ret_value;
 					}
 
@@ -1963,6 +2014,8 @@ namespace jkj::dragonbox {
 				else {
 					exponent = min_exponent - significand_bits;
 				}
+
+				auto const interval_type = IntervalTypeProvider{}(br);
 
 				// Compute k and beta
 				int const minus_k = log::floor_log10_pow2(exponent) - kappa;
