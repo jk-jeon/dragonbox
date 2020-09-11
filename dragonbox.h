@@ -464,13 +464,24 @@ namespace jkj::dragonbox {
 		}
 
 		template <int k, class Int>
-		static constexpr Int compute_power(Int a) {
+		static constexpr Int compute_power(Int a) noexcept {
 			static_assert(k >= 0);
 			Int p = 1;
 			for (int i = 0; i < k; ++i) {
 				p *= a;
 			}
 			return p;
+		}
+
+		template <int a, class UInt>
+		static constexpr int count_factors(UInt n) noexcept {
+			static_assert(a > 1);
+			int c = 0;
+			while (n % a == 0) {
+				n /= a;
+				++c;
+			}
+			return c;
 		}
 
 		////////////////////////////////////////////////////////////////////////////////////////
@@ -1890,10 +1901,16 @@ namespace jkj::dragonbox {
 			static constexpr int case_fc_upper_threshold = log::floor_log2_pow10(kappa + 1);
 
 			static constexpr int case_shorter_interval_left_endpoint_lower_threshold = 2;
-			static constexpr int case_shorter_interval_left_endpoint_upper_threshold = 3;
+			static constexpr int case_shorter_interval_left_endpoint_upper_threshold = 2 +
+				log::floor_log2(compute_power<
+					count_factors<5>((carrier_uint(1) << (significand_bits + 2)) - 1) + 1
+				>(10) / 3);
 
 			static constexpr int case_shorter_interval_right_endpoint_lower_threshold = 2;
-			static constexpr int case_shorter_interval_right_endpoint_upper_threshold = 3;
+			static constexpr int case_shorter_interval_right_endpoint_upper_threshold = 2 +
+				log::floor_log2(compute_power<
+					count_factors<5>((carrier_uint(1) << (significand_bits + 1)) + 1) + 1
+				>(10) / 3);
 
 			static constexpr int shorter_interval_case_tie_lower_threshold =
 				-log::floor_log5_pow2_minus_log5_3(significand_bits + 4) - 2 - significand_bits;
