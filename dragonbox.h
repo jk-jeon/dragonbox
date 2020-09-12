@@ -2051,6 +2051,7 @@ namespace jkj::dragonbox {
 							correct_rounding::do_not_care_tag)
 						{
 							ret_value.significand *= 10;
+							ret_value.exponent = minus_k + kappa;
 							--ret_value.significand;
 							return ret_value;
 						}
@@ -2098,15 +2099,42 @@ namespace jkj::dragonbox {
 				ret_value.significand *= 10;
 				ret_value.exponent = minus_k + kappa;
 
+				constexpr auto mask = (std::uint32_t(1) << kappa) - 1;
+
 				if constexpr (correct_rounding_tag ==
 					correct_rounding::do_not_care_tag)
 				{
-					ret_value.significand += div::small_division_by_pow10<kappa>(r);
+					// Normally, we want to compute
+					// ret_value.significand += r / small_divisor
+					// and return, but we need to take care of the case that the resulting
+					// value is exactly the right endpoint, while that is not included in the interval
+					if (!interval_type.include_right_endpoint()) {
+						// Is r divisible by 2^kappa?
+						if ((r & mask) == 0) {
+							r >>= kappa;
+
+							// Is r divisible by 5^kappa?
+							if (div::check_divisibility_and_divide_by_pow5<kappa>(r) &&
+								is_product_integer<integer_check_case_id::fc_pm_half>(two_fr, exponent, minus_k))
+							{
+								// This should be in the interval
+								ret_value.significand += r - 1;
+							}
+							else {
+								ret_value.significand += r;
+							}
+						}
+						else {
+							ret_value.significand += div::small_division_by_pow10<kappa>(r);
+						}
+					}
+					else {
+						ret_value.significand += div::small_division_by_pow10<kappa>(r);
+					}
 				}
 				else
 				{
 					auto dist = r - (deltai / 2) + (small_divisor / 2);
-					constexpr auto mask = (std::uint32_t(1) << kappa) - 1;
 
 					// Is dist divisible by 2^kappa?
 					if ((dist & mask) == 0) {
@@ -2368,7 +2396,7 @@ namespace jkj::dragonbox {
 
 			small_divisor_case_label:
 				ret_value.significand *= 10;
-				ret_value -= div::small_division_by_pow10<kappa>(r);
+				ret_value.significand -= div::small_division_by_pow10<kappa>(r);
 				ret_value.exponent = minus_k + kappa;
 				if constexpr (tzp == trailing_zero_policy::report)
 				{
@@ -2442,13 +2470,13 @@ namespace jkj::dragonbox {
 				else if (r == deltai) {
 					// Compare the fractional parts
 					if (closer_boundary) {
-						if (compute_mul_parity((significand * 2) - 1, cache, beta - 1))
+						if (!compute_mul_parity((significand * 2) - 1, cache, beta - 1))
 						{
 							goto small_divisor_case_label;
 						}
 					}
 					else {
-						if (compute_mul_parity(significand - 1, cache, beta))
+						if (!compute_mul_parity(significand - 1, cache, beta))
 						{
 							goto small_divisor_case_label;
 						}
@@ -2473,7 +2501,7 @@ namespace jkj::dragonbox {
 
 			small_divisor_case_label:
 				ret_value.significand *= 10;
-				ret_value += div::small_division_by_pow10<kappa>(r);
+				ret_value.significand += div::small_division_by_pow10<kappa>(r);
 				ret_value.exponent = minus_k + kappa;
 				if constexpr (tzp == trailing_zero_policy::report)
 				{
