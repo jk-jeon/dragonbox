@@ -181,7 +181,7 @@ namespace {
 			auto required_bits = log2_res_p1 + e - impl<Float>::significand_bits +
 				log::floor_log2_pow10(k);
 
-			on_each(e, required_bits);
+			on_each(e - impl<Float>::significand_bits, required_bits);
 
 			if (required_bits > max_required_bits) {
 				max_required_bits = required_bits;
@@ -248,7 +248,7 @@ namespace {
 				required_bits = log::floor_log2_pow10(k) - k + 1;
 			}
 
-			on_each(e, required_bits);
+			on_each(e - impl<Float>::significand_bits, required_bits);
 
 			if (required_bits > max_required_bits) {
 				max_required_bits = required_bits;
@@ -328,7 +328,7 @@ namespace {
 					log::floor_log2_pow10(k) - 1;
 			}
 
-			on_each(e, required_bits);
+			on_each(e - impl<Float>::significand_bits, required_bits);
 
 			if (required_bits > max_required_bits) {
 				max_required_bits = required_bits;
@@ -409,7 +409,7 @@ namespace {
 				required_bits = log::floor_log2_pow10(k) - k + 1;
 			}
 
-			on_each(e, required_bits);
+			on_each(e - impl<Float>::significand_bits, required_bits);
 
 			if (required_bits > max_required_bits) {
 				max_required_bits = required_bits;
@@ -492,7 +492,7 @@ namespace {
 					log::floor_log2_pow10(k);
 			}
 
-			on_each(e, required_bits);
+			on_each(e - impl<Float>::significand_bits, required_bits);
 
 			if (required_bits > max_required_bits) {
 				max_required_bits = required_bits;
@@ -574,7 +574,7 @@ namespace {
 				required_bits = log::floor_log2_pow10(k) - k + 1;
 			}
 
-			on_each(e, required_bits);
+			on_each(e - impl<Float>::significand_bits, required_bits);
 
 			if (required_bits > max_required_bits) {
 				max_required_bits = required_bits;
