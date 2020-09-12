@@ -2309,13 +2309,13 @@ namespace jkj::dragonbox {
 				auto const cache = get_cache<Float>(-minus_k);
 				int const beta = exponent + log::floor_log2_pow10(-minus_k) + 1;
 
-				// Compute yi and deltai
+				// Compute xi and deltai
 				// 10^kappa <= deltai < 10^(kappa + 1)
 				auto const deltai = compute_delta(cache, beta - 1);
-				carrier_uint yi = compute_mul(significand << beta, cache);
+				carrier_uint xi = compute_mul(significand << beta, cache);
 
 				if (!is_product_integer<integer_check_case_id::fc>(significand, exponent + 1, minus_k)) {
-					++yi;
+					++xi;
 				}
 
 				//////////////////////////////////////////////////////////////////////
@@ -2325,11 +2325,11 @@ namespace jkj::dragonbox {
 				constexpr auto big_divisor = compute_power<kappa + 1>(std::uint32_t(10));
 				constexpr auto small_divisor = compute_power<kappa>(std::uint32_t(10));
 
-				// Using an upper bound on yi, we might be able to optimize the division
-				// better than the compiler; we are computing yi / big_divisor here
+				// Using an upper bound on xi, we might be able to optimize the division
+				// better than the compiler; we are computing xi / big_divisor here
 				ret_value.significand = div::divide_by_pow10<kappa + 1,
-					significand_bits + kappa + 2, kappa + 1>(yi);
-				auto r = std::uint32_t(yi - big_divisor * ret_value.significand);
+					significand_bits + kappa + 2, kappa + 1>(xi);
+				auto r = std::uint32_t(xi - big_divisor * ret_value.significand);
 
 				if (r != 0) {
 					++ret_value.significand;
@@ -2430,8 +2430,8 @@ namespace jkj::dragonbox {
 				constexpr auto big_divisor = compute_power<kappa + 1>(std::uint32_t(10));
 				constexpr auto small_divisor = compute_power<kappa>(std::uint32_t(10));
 
-				// Using an upper bound on yi, we might be able to optimize the division
-				// better than the compiler; we are computing yi / big_divisor here
+				// Using an upper bound on zi, we might be able to optimize the division
+				// better than the compiler; we are computing zi / big_divisor here
 				ret_value.significand = div::divide_by_pow10<kappa + 1,
 					significand_bits + kappa + 2, kappa + 1>(zi);
 				auto const r = std::uint32_t(zi - big_divisor * ret_value.significand);
