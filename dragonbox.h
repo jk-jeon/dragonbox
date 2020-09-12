@@ -2369,6 +2369,7 @@ namespace jkj::dragonbox {
 			small_divisor_case_label:
 				ret_value.significand *= 10;
 				ret_value -= div::small_division_by_pow10<kappa>(r);
+				ret_value.exponent = minus_k + kappa;
 				if constexpr (tzp == trailing_zero_policy::report)
 				{
 					ret_value.may_have_trailing_zeros = false;
@@ -2473,6 +2474,7 @@ namespace jkj::dragonbox {
 			small_divisor_case_label:
 				ret_value.significand *= 10;
 				ret_value += div::small_division_by_pow10<kappa>(r);
+				ret_value.exponent = minus_k + kappa;
 				if constexpr (tzp == trailing_zero_policy::report)
 				{
 					ret_value.may_have_trailing_zeros = false;
