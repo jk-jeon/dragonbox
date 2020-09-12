@@ -140,7 +140,7 @@ Uniform benchmark (top: `float`, bottom: `double`):
 ![uniform_benchmark_binary64](benchmark_results/uniform_benchmark_binary64_notzr_msvc.png)
 
 # Comprehensive Explanation of the Algorithm
-This is not done yet, but [here](other_files/Dragonbox.pdf) is a partially written paper.
+Please see [this](other_files/Dragonbox.pdf) paper.
 
 # How to Run Tests
 In order to run tests and benchmarks, you need `.cpp/.h` files in the directories [`tests`](tests) and [`benchmarks`](benchmarks), in addition to [`dragonbox.h`](dragonbox.h), [`dragonbox_to_chars.h`](dragonbox_to_chars.h), and [`dragonbox_to_chars.cpp`](dragonbox_to_chars/dragonbox_to_chars.cpp). There is no third party dependencies other than those included in this repository, so this should be enough.
@@ -152,7 +152,7 @@ The result of tests and benchmarks will be written in the directories [`test_res
 There are also some MATLAB scripts in the directory [`benchmark_results`](benchmark_results) for plot generation. If you have MATLAB installed on your machine and want to generate plots, then download these script files also.
 
 # Notes
-I will test Dragonbox against a binary-to-decimal floating-point conversion routine I developed. I will also write a document explaining the algorithm. Until then, this library is not yet production-ready.
+I will test Dragonbox against a binary-to-decimal floating-point conversion routine I developed. Until then, this library is not yet production-ready.
 
 # License
 All code, except for those belong to third-party libraries (code in [`benchmark/ryu`](benchmark/ryu), [`benchmark/schubfach`](benchmark/schubfach), and [`benchmark_results/shaded_plots`](benchmark_results/shaded_plots)), is licensed under either of
