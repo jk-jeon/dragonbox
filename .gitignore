@@ -1,8 +1,4 @@
-﻿################################################################################
-# 이 .gitignore 파일은 Microsoft(R) Visual Studio에서 자동으로 만들어졌습니다.
-################################################################################
-
-/.vs
+﻿/.vs
 /benchmark_results/uniform_benchmark_binary64.csv
 /benchmark_results/uniform_benchmark_binary32.csv
 /benchmark_results/digits_benchmark_binary64.csv

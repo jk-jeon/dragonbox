@@ -31,9 +31,9 @@ namespace {
 			jkj::dragonbox::rounding_modes::nearest_to_even{},
 			jkj::dragonbox::correct_rounding::tie_to_even{});
 	}
-	/*register_function_for_benchmark dummy("Dragonbox",
+	register_function_for_benchmark dummy("Dragonbox",
 		dragonbox_float_to_chars,
-		dragonbox_double_to_chars);*/
+		dragonbox_double_to_chars);
 
 	void dragonbox_wo_tzremoval_float_to_chars(float x, char* buffer)
 	{
@@ -47,7 +47,7 @@ namespace {
 			jkj::dragonbox::rounding_modes::nearest_to_even{},
 			jkj::dragonbox::correct_rounding::tie_to_even{});
 	}
-	register_function_for_benchmark dummy2("Dragonbox (w/o trailing zero removal)",
+	/*register_function_for_benchmark dummy2("Dragonbox (w/o trailing zero removal)",
 		dragonbox_wo_tzremoval_float_to_chars,
-		dragonbox_wo_tzremoval_double_to_chars);
+		dragonbox_wo_tzremoval_double_to_chars);*/
 }

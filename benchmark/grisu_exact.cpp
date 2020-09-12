@@ -31,7 +31,7 @@ namespace {
 			jkj::grisu_exact_rounding_modes::nearest_to_even{},
 			jkj::grisu_exact_correct_rounding::tie_to_even{});
 	}
-	/*register_function_for_benchmark dummy("Grisu-Exact",
+	register_function_for_benchmark dummy("Grisu-Exact",
 		grisu_exact_float_to_chars,
-		grisu_exact_double_to_chars);*/
+		grisu_exact_double_to_chars);
 }

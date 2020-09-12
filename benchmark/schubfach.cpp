@@ -26,5 +26,5 @@ namespace {
 	void schubfach_64(double x, char* buf) {
 		schubfach::Dtoa(buf, x);
 	}
-	register_function_for_benchmark dummy("Schubfach", schubfach_32, schubfach_64);
+	//register_function_for_benchmark dummy("Schubfach", schubfach_32, schubfach_64);
 }
