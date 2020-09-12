@@ -1359,7 +1359,7 @@ namespace jkj {
 
 		// Perform correct rounding search; tie-to-odd
 		struct tie_to_odd {
-			static constexpr tag_t tag = tie_to_even_tag;
+			static constexpr tag_t tag = tie_to_odd_tag;
 			template <bool return_sign, class Float, class IntervalTypeProvider>
 			fp_t<Float, return_sign> delegate(bit_representation_t<Float> br,
 				IntervalTypeProvider&&) const
@@ -1809,7 +1809,7 @@ namespace jkj {
 				assert(-minus_beta >= alpha && -minus_beta <= gamma);
 
 				// Compute zi and deltai
-				auto const cache = grisu_exact_detail::get_cache<Float>(-minus_k);
+				auto const cache = jkj::grisu_exact_detail::get_cache<Float>(-minus_k);
 
 				extended_significand_type zi;
 				if constexpr (IntervalTypeProvider::tag ==
