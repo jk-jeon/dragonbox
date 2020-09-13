@@ -158,6 +158,7 @@
     <ClCompile Include="..\benchmark\schubfach\schubfach_64.cc" />
     <ClCompile Include="..\dragonbox_to_chars\dragonbox_to_chars.cpp" />
     <ClCompile Include="..\tests\generate_cache.cpp" />
+    <ClCompile Include="..\tests\generate_compressed_cache_error_table.cpp" />
     <ClCompile Include="..\tests\live_test.cpp" />
     <ClCompile Include="..\tests\main.cpp" />
     <ClCompile Include="..\tests\misc_test.cpp" />
@@ -165,6 +166,7 @@
     <ClCompile Include="..\tests\test_all_shorter_interval_cases.cpp" />
     <ClCompile Include="..\tests\uniform_random_test.cpp" />
     <ClCompile Include="..\tests\verify_cache_length.cpp" />
+    <ClCompile Include="..\tests\verify_compressed_cache.cpp" />
     <ClCompile Include="..\tests\verify_magic_division.cpp" />
     <ClCompile Include="..\tests\verify_fast_multiplication.cpp" />
     <ClCompile Include="..\tests\verify_log_computation.cpp" />

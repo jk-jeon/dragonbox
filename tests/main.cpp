@@ -29,6 +29,14 @@ extern void verify_cache_length();
 //#define GENERATE_CACHE
 extern void generate_cache();
 
+// Generate the error table for the compressed cache
+#define GENERATE_COMPRESSED_CACHE_ERROR_TABLE
+extern void generate_compressed_cache_error_table();
+
+// Check successful recovery of all cache entries from the compressed cache
+#define VERIFY_COMPRESSED_CACHE
+extern void verify_compressed_cache();
+
 // Check if the fast divisibility check and division algorithms are correct
 //#define VERIFY_MAGIC_DIVISION
 extern void verify_magic_division();
@@ -86,7 +94,7 @@ extern void live_test_double();
 extern void misc_test();
 
 // Do benchmark for binary32
-#define BENCHMARK_TEST_FLOAT
+//#define BENCHMARK_TEST_FLOAT
 static std::size_t number_of_uniform_benchmark_samples_float = 1000000;
 static std::size_t number_of_digits_benchmark_samples_per_digits_float = 100000;
 static std::size_t number_of_benchmark_iterations_float = 1000;
@@ -113,6 +121,14 @@ int main()
 
 #ifdef GENERATE_CACHE
 	generate_cache();
+#endif
+
+#ifdef GENERATE_COMPRESSED_CACHE_ERROR_TABLE
+	generate_compressed_cache_error_table();
+#endif
+
+#ifdef VERIFY_COMPRESSED_CACHE
+	verify_compressed_cache();
 #endif
 
 #ifdef VERIFY_MAGIC_DIVISION

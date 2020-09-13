@@ -88,6 +88,12 @@
     <ClCompile Include="..\tests\verify_cache_length.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="..\tests\verify_compressed_cache.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tests\generate_compressed_cache_error_table.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\tests\bigint.h">

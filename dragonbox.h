@@ -318,7 +318,7 @@ namespace jkj::dragonbox {
 						n32 = std::uint32_t(n >> 32);
 					}
 					else if (n == n32) {
-						count -= (value_bits<UInt> - 32);
+						count -= (value_bits<UInt> -32);
 					}
 				}
 				if constexpr (value_bits<UInt> > 16) {
@@ -358,6 +358,11 @@ namespace jkj::dragonbox {
 				constexpr std::uint64_t low() const noexcept {
 					return std::uint64_t(internal_);
 				}
+
+				uint128& operator+=(std::uint64_t n) & noexcept {
+					internal_ += n;
+					return *this;
+				}
 #else
 				std::uint64_t	high_;
 				std::uint64_t	low_;
@@ -370,6 +375,19 @@ namespace jkj::dragonbox {
 				}
 				constexpr std::uint64_t low() const noexcept {
 					return low_;
+				}
+
+				uint128& operator+=(std::uint64_t n) & noexcept {
+#if defined(_MSC_VER) && defined(_M_X64)
+					auto carry = _addcarry_u64(0, low_, n, &low_);
+					_addcarry_u64(carry, high_, 0, &high_);
+					return *this;
+#else
+					auto sum = low_ + n;
+					high_ += (sum < low_ ? 1 : 0);
+					low_ = sum;
+					return *this;
+#endif
 				}
 #endif
 			};
@@ -430,19 +448,8 @@ namespace jkj::dragonbox {
 			// Get upper 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit unsigned integer
 			JKJ_SAFEBUFFERS inline std::uint64_t umul192_upper64(std::uint64_t x, uint128 y) noexcept {
 				auto g0 = umul128(x, y.high());
-				auto g10 = umul128_upper64(x, y.low());
-
-#if (defined(__GNUC__) || defined(__clang__)) && defined(__SIZEOF_INT128__) && defined(__x86_64__)
-				return uint128{ g0.internal_ + g10 }.high();
-#elif defined(_MSC_VER) && defined(_M_X64)
-				std::uint64_t high, low;
-				auto carry = _addcarry_u64(0, g0.low(), g10, &low);
-				_addcarry_u64(carry, g0.high(), 0, &high);
-				return high;
-#else
-				auto intermediate = g0.low() + g10;
-				return g0.high() + (intermediate < g10);
-#endif
+				g0 += umul128_upper64(x, y.low());
+				return g0.high();
 			}
 
 			// Get upper 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit unsigned integer
@@ -500,8 +507,8 @@ namespace jkj::dragonbox {
 
 				return shift_amount == 0 ? std::int32_t(integer_part) :
 					std::int32_t(
-					(integer_part << shift_amount) |
-					(fractional_digits >> (64 - shift_amount)));
+						(integer_part << shift_amount) |
+						(fractional_digits >> (64 - shift_amount)));
 			}
 
 			// Compute floor(e * c - s)
@@ -513,7 +520,7 @@ namespace jkj::dragonbox {
 				std::uint32_t s_integer_part = 0,
 				std::uint64_t s_fractional_digits = 0
 			>
-			constexpr int compute(int e) noexcept {
+				constexpr int compute(int e) noexcept {
 				assert(e <= max_exponent && e >= -max_exponent);
 				constexpr auto c = floor_shift(c_integer_part, c_fractional_digits, shift_amount);
 				constexpr auto s = floor_shift(s_integer_part, s_fractional_digits, shift_amount);
@@ -748,7 +755,14 @@ namespace jkj::dragonbox {
 				}
 			}
 		}
+	}
 
+	enum class cache_policy {
+		normal,
+		compressed
+	};
+	
+	namespace detail {
 		////////////////////////////////////////////////////////////////////////////////////////
 		// Computed cache entries
 		////////////////////////////////////////////////////////////////////////////////////////
@@ -1473,13 +1487,112 @@ namespace jkj::dragonbox {
 			};
 		};
 
-		template <class Float>
-		constexpr typename cache_holder<ieee754_traits<Float>::format>::cache_entry_type const&
+		// Compressed cache for double
+		struct compressed_cache_detail {
+			static constexpr int compression_ratio = 27;
+			static constexpr std::size_t compressed_table_size =
+				(cache_holder<ieee754_format::binary64>::max_k -
+					cache_holder<ieee754_format::binary64>::min_k + compression_ratio) / compression_ratio;
+
+			struct cache_holder_t {
+				wuint::uint128 table[compressed_table_size];
+			};
+			static constexpr cache_holder_t cache = [] {
+				cache_holder_t res{};
+				for (std::size_t i = 0; i < compressed_table_size; ++i) {
+					res.table[i] = cache_holder<ieee754_format::binary64>::cache[i * compression_ratio];
+				}
+				return res;
+			}();
+
+			struct pow5_holder_t {
+				std::uint64_t table[compression_ratio];
+			};
+			static constexpr pow5_holder_t pow5 = [] {
+				pow5_holder_t res{};
+				std::uint64_t p = 1;
+				for (std::size_t i = 0; i < compression_ratio; ++i) {
+					res.table[i] = p;
+					p *= 5;
+				}
+				return res;
+			}();
+
+			static constexpr std::uint32_t errors[] = {
+				0x50001400, 0x54044100, 0x54014555, 0x55954415, 0x54115555,
+				0x00000001, 0x50000000, 0x00104000, 0x54010004, 0x05004001,
+				0x55555544, 0x41545555, 0x54040551, 0x15445545, 0x51555514,
+				0x10000015, 0x00101100, 0x01100015, 0x00000000, 0x00000000,
+				0x00000000, 0x00000000, 0x04450514, 0x45414110, 0x55555145,
+				0x50544050, 0x15040155, 0x11054140, 0x50111514, 0x11451454,
+				0x00400541, 0x00000000, 0x55555450, 0x10056551, 0x10054011,
+				0x55551014, 0x69514555, 0x05151109, 0x00155555
+			};
+		};
+
+		template <class Float, cache_policy cp = cache_policy::normal>
+		constexpr typename cache_holder<ieee754_traits<Float>::format>::cache_entry_type
 			get_cache(int k) noexcept
 		{
 			constexpr auto format = ieee754_traits<Float>::format;
 			assert(k >= cache_holder<format>::min_k && k <= cache_holder<format>::max_k);
-			return cache_holder<format>::cache[std::size_t(k - cache_holder<format>::min_k)];
+
+			if constexpr (cp == cache_policy::compressed && format == ieee754_format::binary64)
+			{
+				// Compute base index
+				auto cache_index = (k - cache_holder<format>::min_k) / compressed_cache_detail::compression_ratio;
+				auto kb = cache_index * compressed_cache_detail::compression_ratio + cache_holder<format>::min_k;
+				auto offset = k - kb;
+
+				// Get base cache
+				auto base_cache = compressed_cache_detail::cache.table[cache_index];
+
+				if (offset == 0) {
+					return base_cache;
+				}
+				else {
+					// Compute the required amount of bit-shift
+					auto alpha = log::floor_log2_pow10(kb + offset) - log::floor_log2_pow10(kb) - offset;
+					assert(alpha > 0 && alpha < 64);
+
+					// Try to recover the real cache
+					auto pow5 = compressed_cache_detail::pow5.table[offset];
+					auto recovered_cache = wuint::umul128(base_cache.high(), pow5);
+					auto [middle, low] = wuint::umul128(base_cache.low() - (kb < 0 ? 1 : 0), pow5);
+
+					recovered_cache += middle;
+
+					auto high_to_middle = recovered_cache.high() << (64 - alpha);
+					auto middle_to_low = recovered_cache.low() << (64 - alpha);
+
+					recovered_cache = wuint::uint128{
+						(recovered_cache.low() >> alpha) | high_to_middle,
+						((low >> alpha) | middle_to_low)
+					};
+
+					if (kb < 0) {
+						recovered_cache += 1;
+					}
+
+					// Get error
+					auto error_idx = (k - cache_holder<format>::min_k) / 16;
+					auto error = (compressed_cache_detail::errors[error_idx] >>
+						((k - cache_holder<format>::min_k) % 16) * 2) & 0x3;
+
+					// Add the error back
+					assert(recovered_cache.low() + error >= recovered_cache.low());
+					recovered_cache = {
+						recovered_cache.high(),
+						recovered_cache.low() + error
+					};
+
+					return recovered_cache;
+				}
+			}
+			else
+			{
+				return cache_holder<format>::cache[std::size_t(k - cache_holder<format>::min_k)];
+			}
 		}
 	}
 
@@ -1974,6 +2087,7 @@ namespace jkj::dragonbox {
 			template <
 				bool return_sign,
 				trailing_zero_policy tzp,
+				cache_policy cp,
 				class IntervalTypeProvider,
 				correct_rounding::tag_t correct_rounding_tag
 			>
@@ -1998,7 +2112,7 @@ namespace jkj::dragonbox {
 
 					// Closer boundary case; proceed like Schubfach
 					if (significand == 0) {
-						shorter_interval_case<tzp, correct_rounding_tag>(
+						shorter_interval_case<tzp, cp, correct_rounding_tag>(
 							ret_value, exponent,
 							IntervalTypeProvider{}(br, rounding_modes::detail::shorter_interval_case_tag{}));
 						return ret_value;
@@ -2015,7 +2129,7 @@ namespace jkj::dragonbox {
 
 				// Compute k and beta
 				int const minus_k = log::floor_log10_pow2(exponent) - kappa;
-				auto const cache = get_cache<Float>(-minus_k);
+				auto const cache = get_cache<Float, cp>(-minus_k);
 				int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
 
 				// Compute zi and deltai
@@ -2203,7 +2317,7 @@ namespace jkj::dragonbox {
 				return ret_value;
 			}
 
-			template <trailing_zero_policy tzp,
+			template <trailing_zero_policy tzp, cache_policy cp,
 				correct_rounding::tag_t correct_rounding_tag,
 				bool has_sign, class IntervalType>
 			JKJ_FORCEINLINE JKJ_SAFEBUFFERS static void shorter_interval_case(
@@ -2215,7 +2329,7 @@ namespace jkj::dragonbox {
 				int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
 
 				// Compute xi and zi
-				auto const cache = get_cache<Float>(-minus_k);
+				auto const cache = get_cache<Float, cp>(-minus_k);
 
 				auto xi = compute_left_endpoint_for_shorter_interval_case(cache, beta_minus_1);
 				auto zi = compute_right_endpoint_for_shorter_interval_case(cache, beta_minus_1);
@@ -2305,7 +2419,8 @@ namespace jkj::dragonbox {
 
 			template <
 				bool return_sign,
-				trailing_zero_policy tzp
+				trailing_zero_policy tzp,
+				cache_policy cp
 			>
 			JKJ_SAFEBUFFERS static fp_t<Float, return_sign, tzp == trailing_zero_policy::report>
 				compute_left_closed_directed(ieee754_bits<Float> const br) noexcept
@@ -2334,7 +2449,7 @@ namespace jkj::dragonbox {
 
 				// Compute k and beta
 				int const minus_k = log::floor_log10_pow2(exponent) - kappa;
-				auto const cache = get_cache<Float>(-minus_k);
+				auto const cache = get_cache<Float, cp>(-minus_k);
 				int const beta = exponent + log::floor_log2_pow10(-minus_k) + 1;
 
 				// Compute xi and deltai
@@ -2407,7 +2522,8 @@ namespace jkj::dragonbox {
 
 			template <
 				bool return_sign,
-				trailing_zero_policy tzp
+				trailing_zero_policy tzp,
+				cache_policy cp
 			>
 			JKJ_SAFEBUFFERS static fp_t<Float, return_sign, tzp == trailing_zero_policy::report>
 				compute_right_closed_directed(ieee754_bits<Float> const br) noexcept
@@ -2440,7 +2556,7 @@ namespace jkj::dragonbox {
 
 				// Compute k and beta
 				int const minus_k = log::floor_log10_pow2(exponent - (closer_boundary ? 1 : 0)) - kappa;
-				auto const cache = get_cache<Float>(-minus_k);
+				auto const cache = get_cache<Float, cp>(-minus_k);
 				int const beta = exponent + log::floor_log2_pow10(-minus_k) + 1;
 
 				// Compute zi and deltai
@@ -2800,7 +2916,8 @@ namespace jkj::dragonbox {
 	}
 
 	template <bool return_sign = true,
-		trailing_zero_policy tzp = trailing_zero_policy::remove, class Float,
+		trailing_zero_policy tzp = trailing_zero_policy::remove,
+		cache_policy cp = cache_policy::normal, class Float,
 		class RoundingMode = rounding_modes::nearest_to_even,
 		class CorrectRounding = correct_rounding::tie_to_even,
 		class CaseHandler = case_handlers::assert_finite
@@ -2818,17 +2935,17 @@ namespace jkj::dragonbox {
 
 				if constexpr (rounding_mode_tag == rounding_modes::to_nearest_tag) {
 					return detail::impl<Float>::template
-						compute_nearest<return_sign, tzp,
+						compute_nearest<return_sign, tzp, cp,
 						decltype(interval_type_provider),
 						std::remove_cv_t<std::remove_reference_t<CorrectRounding>>::tag>(br);
 				}
 				else if constexpr (rounding_mode_tag == rounding_modes::left_closed_directed_tag) {
 					return detail::impl<Float>::template
-						compute_left_closed_directed<return_sign, tzp>(br);
+						compute_left_closed_directed<return_sign, tzp, cp>(br);
 				}
 				else {
 					return detail::impl<Float>::template
-						compute_right_closed_directed<return_sign, tzp>(br);
+						compute_right_closed_directed<return_sign, tzp, cp>(br);
 				}
 			});
 	}

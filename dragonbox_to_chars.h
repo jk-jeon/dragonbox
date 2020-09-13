@@ -27,7 +27,8 @@ namespace jkj::dragonbox {
 	}
 
 	// Returns the next-to-end position
-	template <bool allow_trailing_zeros = false, class Float,
+	template <bool allow_trailing_zeros = false,
+		cache_policy cp = cache_policy::normal, class Float,
 		class RoundingMode = rounding_modes::nearest_to_even,
 		class CorrectRoundingSearch = correct_rounding::tie_to_even
 	>
@@ -47,7 +48,7 @@ namespace jkj::dragonbox {
 				return to_chars_detail::to_chars(
 					to_decimal<false, allow_trailing_zeros ?
 						trailing_zero_policy::do_not_care :
-						trailing_zero_policy::remove>(x,
+						trailing_zero_policy::remove, cp>(x,
 					std::forward<RoundingMode>(rounding_mode),
 					std::forward<CorrectRoundingSearch>(crs)), buffer);
 			}
@@ -74,7 +75,8 @@ namespace jkj::dragonbox {
 	}
 
 	// Null-terminate and bypass the return value of fp_to_chars_n
-	template <bool allow_trailing_zeros = false, class Float,
+	template <bool allow_trailing_zeros = false,
+		cache_policy cp = cache_policy::normal, class Float,
 		class RoundingMode = rounding_modes::nearest_to_even,
 		class CorrectRoundingSearch = correct_rounding::tie_to_even
 	>
@@ -82,7 +84,7 @@ namespace jkj::dragonbox {
 		RoundingMode&& rounding_mode = {},
 		CorrectRoundingSearch&& crs = {})
 	{
-		auto ptr = to_chars_n<allow_trailing_zeros>(x, buffer,
+		auto ptr = to_chars_n<allow_trailing_zeros, cp>(x, buffer,
 			std::forward<RoundingMode>(rounding_mode),
 			std::forward<CorrectRoundingSearch>(crs));
 		*ptr = '\0';
