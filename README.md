@@ -171,6 +171,8 @@ All of these policies can be specified also to `jkj::dragonbox::to_chars`/`jkj::
 
 - `jkj::dragonbox::policy::input_validation::do_nothing`: Do nothing even if the input is not finite. It might be sometimes useful for debugging.
 
+You cannot specify input validation policy to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
+
 
 # Performance
 In my machine (Intel Core i7-7700HQ 2.80GHz, Windows 10), it defeats or is on par with other contemporary algorithms including Grisu-Exact and Ryu.
