@@ -61,16 +61,16 @@ void generate_compressed_cache_error_table()
 
 			// Try to recover the real cache
 			auto recovered_cache = wuint::umul128(base_cache.high(), pow5);
-			auto [middle, low] = wuint::umul128(base_cache.low() - (kb < 0 ? 1 : 0), pow5);
+			auto middle_low = wuint::umul128(base_cache.low() - (kb < 0 ? 1 : 0), pow5);
 
-			recovered_cache += middle;
+			recovered_cache += middle_low.high();
 
 			auto high_to_middle = recovered_cache.high() << (64 - alpha);
 			auto middle_to_low = recovered_cache.low() << (64 - alpha);
 
 			recovered_cache = wuint::uint128{
 				(recovered_cache.low() >> alpha) | high_to_middle,
-				((low >> alpha) | middle_to_low)
+				((middle_low.low() >> alpha) | middle_to_low)
 			};
 
 			if (kb < 0) {
