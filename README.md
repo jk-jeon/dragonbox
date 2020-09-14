@@ -20,7 +20,7 @@ The core idea of Schubfach, which Dragonbox is based on, is a continuous analogu
 # How to Use
 Although Drgonbox is intended for float-to-string conversion routines, the actual string generation is not officially a part of the algorithm. Dragonbox just outputs two integers (the decimal significand/exponent) that can be consumed by a string generation procedure. The header file [`dragonbox.h`](dragonbox.h) includes everything needed for this. It is header-only; you just need these two steps for using it:
 
-1) Drop [`dragonbox.h`](grisu_exact.h) in your include directory, and
+1) Drop [`dragonbox.h`](dragonbox.h) in your include directory, and
 2) `#include` it. That's it.
 
 Nevertheless, a string generation procedure is included in the library. There are two additional files needed for that: [`dragonbox_to_chars.h`](dragonbox_to_chars.h) and [`dragonbox_to_chars.cpp`](dragonbox_to_chars/dragonbox_to_chars.cpp) (the `.cpp` file is in the directory [`dragonbox_to_chars`](dragonbox_to_chars)). If you want to use them too, then:
