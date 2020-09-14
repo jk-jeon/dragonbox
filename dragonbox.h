@@ -3183,7 +3183,7 @@ namespace jkj::dragonbox {
 	////////////////////////////////////////////////////////////////////////////////////////
 
 	template <class Float, class... Policies>
-	auto to_decimal(Float x, Policies... policies)
+	JKJ_SAFEBUFFERS JKJ_FORCEINLINE auto to_decimal(Float x, Policies... policies)
 	{
 		// Build policy holder type
 		using namespace detail::policy_impl;
