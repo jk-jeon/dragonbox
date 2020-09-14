@@ -3149,7 +3149,7 @@ namespace jkj::dragonbox {
 			}
 
 			template <bool repeated, class... RawPolicies>
-			constexpr auto convert_to_policy_holder(found_policy_pair_list<repeated>, RawPolicies... policies) {
+			constexpr auto convert_to_policy_holder(found_policy_pair_list<repeated>, RawPolicies...) {
 				return policy_holder<RawPolicies...>{};
 			}
 
