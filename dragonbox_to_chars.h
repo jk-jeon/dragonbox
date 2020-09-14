@@ -27,15 +27,21 @@ namespace jkj::dragonbox {
 	}
 
 	// Returns the next-to-end position
-	template <bool allow_trailing_zeros = false,
-		cache_policy cp = cache_policy::normal, class Float,
-		class RoundingMode = rounding_modes::nearest_to_even,
-		class CorrectRoundingSearch = correct_rounding::tie_to_even
-	>
-	char* to_chars_n(Float x, char* buffer,
-		RoundingMode&& rounding_mode = {},
-		CorrectRoundingSearch&& crs = {})
+	template <class Float, class... Policies>
+	char* to_chars_n(Float x, char* buffer, Policies... policies)
 	{
+		using namespace jkj::dragonbox::detail::policy_impl;
+		using policy_holder = decltype(make_policy_holder(
+			base_default_pair_list<
+				base_default_pair<trailing_zero::base, trailing_zero::remove>,
+				base_default_pair<rounding_mode::base, rounding_mode::nearest_to_even>,
+				base_default_pair<correct_rounding::base, correct_rounding::to_even>,
+				base_default_pair<cache::base, cache::normal>
+			>{}, policies...));
+
+		static_assert(!policy_holder::report_trailing_zeros,
+			"jkj::dragonbox::policy::trailing_zeros::report is not valid for to_chars & to_chars_n");
+
 		using ieee754_format_info = ieee754_format_info<ieee754_traits<Float>::format>;
 
 		auto br = ieee754_bits(x);
@@ -45,12 +51,13 @@ namespace jkj::dragonbox {
 				++buffer;
 			}
 			if (br.is_nonzero()) {
-				return to_chars_detail::to_chars(
-					to_decimal<false, allow_trailing_zeros ?
-						trailing_zero_policy::do_not_care :
-						trailing_zero_policy::remove, cp>(x,
-					std::forward<RoundingMode>(rounding_mode),
-					std::forward<CorrectRoundingSearch>(crs)), buffer);
+				return to_chars_detail::to_chars(to_decimal(x,
+					policy::sign::ignore,
+					typename policy_holder::trailing_zero_policy{},
+					typename policy_holder::rounding_mode_policy{},
+					typename policy_holder::correct_rounding_policy{},
+					typename policy_holder::cache_policy{}),
+					buffer);
 			}
 			else {
 				std::memcpy(buffer, "0E0", 3);
@@ -75,18 +82,10 @@ namespace jkj::dragonbox {
 	}
 
 	// Null-terminate and bypass the return value of fp_to_chars_n
-	template <bool allow_trailing_zeros = false,
-		cache_policy cp = cache_policy::normal, class Float,
-		class RoundingMode = rounding_modes::nearest_to_even,
-		class CorrectRoundingSearch = correct_rounding::tie_to_even
-	>
-	char* to_chars(Float x, char* buffer,
-		RoundingMode&& rounding_mode = {},
-		CorrectRoundingSearch&& crs = {})
+	template <class Float, class... Policies>
+	char* to_chars(Float x, char* buffer, Policies... policies)
 	{
-		auto ptr = to_chars_n<allow_trailing_zeros, cp>(x, buffer,
-			std::forward<RoundingMode>(rounding_mode),
-			std::forward<CorrectRoundingSearch>(crs));
+		auto ptr = to_chars_n(x, buffer, policies...);
 		*ptr = '\0';
 		return ptr;
 	}

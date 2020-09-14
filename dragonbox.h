@@ -272,12 +272,6 @@ namespace jkj::dragonbox {
 		}
 	};
 
-	enum class trailing_zero_policy {
-		remove,
-		report,
-		do_not_care
-	};
-
 	namespace detail {
 		////////////////////////////////////////////////////////////////////////////////////////
 		// Bit operation intrinsics
@@ -757,16 +751,65 @@ namespace jkj::dragonbox {
 		}
 	}
 
-	enum class cache_policy {
-		normal,
-		compressed
-	};
-	
-	namespace detail {
-		////////////////////////////////////////////////////////////////////////////////////////
-		// Computed cache entries
-		////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////
+	// DIY floating-point data type
+	////////////////////////////////////////////////////////////////////////////////////////
 
+	template <class Float, bool is_signed, bool trailing_zero_flag>
+	struct fp_t;
+
+	template <class Float>
+	struct fp_t<Float, false, false> {
+		using float_type = Float;
+		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
+
+		carrier_uint	significand;
+		int				exponent;
+	};
+
+	template <class Float>
+	struct fp_t<Float, true, false> {
+		using float_type = Float;
+		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
+
+		carrier_uint	significand;
+		int				exponent;
+		bool			is_negative;
+	};
+
+	template <class Float>
+	struct fp_t<Float, false, true> {
+		using float_type = Float;
+		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
+
+		carrier_uint	significand;
+		int				exponent;
+		bool			may_have_trailing_zeros;
+	};
+
+	template <class Float>
+	struct fp_t<Float, true, true> {
+		using float_type = Float;
+		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
+
+		carrier_uint	significand;
+		int				exponent;
+		bool			is_negative;
+		bool			may_have_trailing_zeros;
+	};
+
+	template <class Float>
+	using unsigned_fp_t = fp_t<Float, false, false>;
+
+	template <class Float>
+	using signed_fp_t = fp_t<Float, true, false>;
+	
+
+	////////////////////////////////////////////////////////////////////////////////////////
+	// Computed cache entries
+	////////////////////////////////////////////////////////////////////////////////////////
+
+	namespace detail {
 		template <ieee754_format format>
 		struct cache_holder;
 
@@ -1529,483 +1572,661 @@ namespace jkj::dragonbox {
 				0x55551014, 0x69514555, 0x05151109, 0x00155555
 			};
 		};
+	}
+	
 
-		template <class Float, cache_policy cp = cache_policy::normal>
-		constexpr typename cache_holder<ieee754_traits<Float>::format>::cache_entry_type
-			get_cache(int k) noexcept
-		{
-			constexpr auto format = ieee754_traits<Float>::format;
-			assert(k >= cache_holder<format>::min_k && k <= cache_holder<format>::max_k);
+	////////////////////////////////////////////////////////////////////////////////////////
+	// Policies
+	////////////////////////////////////////////////////////////////////////////////////////
 
-			if constexpr (cp == cache_policy::compressed && format == ieee754_format::binary64)
-			{
-				// Compute base index
-				auto cache_index = (k - cache_holder<format>::min_k) / compressed_cache_detail::compression_ratio;
-				auto kb = cache_index * compressed_cache_detail::compression_ratio + cache_holder<format>::min_k;
-				auto offset = k - kb;
+	namespace detail {
+		// Forward declare the implementation class
+		template <class Float>
+		struct impl;
 
-				// Get base cache
-				auto base_cache = compressed_cache_detail::cache.table[cache_index];
+		namespace policy_impl {
+			// Sign policy
+			namespace sign {
+				struct base {};
 
-				if (offset == 0) {
-					return base_cache;
-				}
-				else {
-					// Compute the required amount of bit-shift
-					auto alpha = log::floor_log2_pow10(kb + offset) - log::floor_log2_pow10(kb) - offset;
-					assert(alpha > 0 && alpha < 64);
+				struct ignore : base {
+					using sign_policy = ignore;
+					static constexpr bool return_has_sign = false;
 
-					// Try to recover the real cache
-					auto pow5 = compressed_cache_detail::pow5.table[offset];
-					auto recovered_cache = wuint::umul128(base_cache.high(), pow5);
-					auto [middle, low] = wuint::umul128(base_cache.low() - (kb < 0 ? 1 : 0), pow5);
+					template <class Float, class Fp>
+					static constexpr void handle_sign(ieee754_bits<Float>, Fp&) noexcept {}
+				};
 
-					recovered_cache += middle;
+				struct return_sign : base {
+					using sign_policy = return_sign;
+					static constexpr bool return_has_sign = true;
 
-					auto high_to_middle = recovered_cache.high() << (64 - alpha);
-					auto middle_to_low = recovered_cache.low() << (64 - alpha);
+					template <class Float, class Fp>
+					static constexpr void handle_sign(ieee754_bits<Float> br, Fp& fp) noexcept {
+						fp.is_negative = fp.is_negative();
+					}
+				};
+			}
 
-					recovered_cache = wuint::uint128{
-						(recovered_cache.low() >> alpha) | high_to_middle,
-						((low >> alpha) | middle_to_low)
-					};
+			// Trailing zero policy
+			namespace trailing_zero {
+				struct base {};
 
-					if (kb < 0) {
-						recovered_cache += 1;
+				struct ignore : base {
+					using trailing_zero_policy = ignore;
+					static constexpr bool report_trailing_zeros = false;
+
+					template <class Fp>
+					static constexpr void on_trailing_zeros(Fp&) noexcept {}
+
+					template <class Fp>
+					static constexpr void no_trailing_zeros(Fp&) noexcept {}
+				};
+
+				struct remove : base {
+					using trailing_zero_policy = remove;
+					static constexpr bool report_trailing_zeros = false;
+
+					template <class Fp>
+					static constexpr void on_trailing_zeros(Fp& fp) noexcept {
+						fp.exponent +=
+							impl<typename Fp::float_type>::remove_trailing_zeros(fp.significand);
 					}
 
-					// Get error
-					auto error_idx = (k - cache_holder<format>::min_k) / 16;
-					auto error = (compressed_cache_detail::errors[error_idx] >>
-						((k - cache_holder<format>::min_k) % 16) * 2) & 0x3;
+					template <class Fp>
+					static constexpr void no_trailing_zeros(Fp&) noexcept {}
+				};
 
-					// Add the error back
-					assert(recovered_cache.low() + error >= recovered_cache.low());
-					recovered_cache = {
-						recovered_cache.high(),
-						recovered_cache.low() + error
+				struct report : base {
+					using trailing_zero_policy = report;
+					static constexpr bool report_trailing_zeros = true;
+
+					template <class Fp>
+					static constexpr void on_trailing_zeros(Fp& fp) noexcept {
+						fp.may_have_trailing_zeros = true;
+					}
+
+					template <class Fp>
+					static constexpr void no_trailing_zeros(Fp& fp) noexcept {
+						fp.may_have_trailing_zeros = false;
+					}
+				};
+			}
+
+			// Rounding mode policy
+			namespace rounding_mode {
+				struct base {};
+
+				enum class tag_t {
+					to_nearest,
+					left_closed_directed,
+					right_closed_directed
+				};
+				namespace interval_type {
+					struct symmetric_boundary {
+						static constexpr bool is_symmetric = true;
+						bool is_closed;
+						constexpr bool include_left_endpoint() const noexcept {
+							return is_closed;
+						}
+						constexpr bool include_right_endpoint() const noexcept {
+							return is_closed;
+						}
 					};
-
-					return recovered_cache;
+					struct asymmetric_boundary {
+						static constexpr bool is_symmetric = false;
+						bool is_left_closed;
+						constexpr bool include_left_endpoint() const noexcept {
+							return is_left_closed;
+						}
+						constexpr bool include_right_endpoint() const noexcept {
+							return !is_left_closed;
+						}
+					};
+					struct closed {
+						static constexpr bool is_symmetric = true;
+						static constexpr bool include_left_endpoint() noexcept {
+							return true;
+						}
+						static constexpr bool include_right_endpoint() noexcept {
+							return true;
+						}
+					};
+					struct open {
+						static constexpr bool is_symmetric = true;
+						static constexpr bool include_left_endpoint() noexcept {
+							return false;
+						}
+						static constexpr bool include_right_endpoint() noexcept {
+							return false;
+						}
+					};
+					struct left_closed_right_open {
+						static constexpr bool is_symmetric = false;
+						static constexpr bool include_left_endpoint() noexcept {
+							return true;
+						}
+						static constexpr bool include_right_endpoint() noexcept {
+							return false;
+						}
+					};
+					struct right_closed_left_open {
+						static constexpr bool is_symmetric = false;
+						static constexpr bool include_left_endpoint() noexcept {
+							return false;
+						}
+						static constexpr bool include_right_endpoint() noexcept {
+							return true;
+						}
+					};
 				}
+
+				struct nearest_to_even : base {
+					using rounding_mode_policy = nearest_to_even;
+					static constexpr auto tag = tag_t::to_nearest;
+
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float>, Func&& f) noexcept {
+						return f(nearest_to_even{});
+					}
+
+					template <class Float>
+					static constexpr interval_type::symmetric_boundary
+						interval_type_normal(ieee754_bits<Float> br) noexcept
+					{
+						return{ br.u % 2 == 0 };
+					}
+					template <class Float>
+					static constexpr interval_type::closed
+						interval_type_shorter(ieee754_bits<Float>) noexcept
+					{
+						return{};
+					}
+				};
+				struct nearest_to_odd : base {
+					using rounding_mode_policy = nearest_to_odd;
+					static constexpr auto tag = tag_t::to_nearest;
+
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float>, Func&& f) noexcept {
+						return f(nearest_to_odd{});
+					}
+
+					template <class Float>
+					static constexpr interval_type::symmetric_boundary
+						interval_type_normal(ieee754_bits<Float> br) noexcept
+					{
+						return{ br.u % 2 != 0 };
+					}
+					template <class Float>
+					static constexpr interval_type::closed
+						interval_type_shorter(ieee754_bits<Float>) noexcept
+					{
+						return{};
+					}
+				};
+				struct nearest_toward_plus_infinity : base {
+					using rounding_mode_policy = nearest_toward_plus_infinity;
+					static constexpr auto tag = tag_t::to_nearest;
+
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float>, Func&& f) noexcept {
+						return f(nearest_toward_plus_infinity{});
+					}
+
+					template <class Float>
+					static constexpr interval_type::asymmetric_boundary
+						interval_type_normal(ieee754_bits<Float> br) noexcept
+					{
+						return{ !br.is_negative() };
+					}
+					template <class Float>
+					static constexpr interval_type::asymmetric_boundary
+						interval_type_shorter(ieee754_bits<Float> br) noexcept
+					{
+						return{ !br.is_negative() };
+					}
+				};
+				struct nearest_toward_minus_infinity : base {
+					using rounding_mode_policy = nearest_toward_minus_infinity;
+					static constexpr auto tag = tag_t::to_nearest;
+
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float>, Func&& f) noexcept {
+						return f(nearest_toward_minus_infinity{});
+					}
+
+					template <class Float>
+					static constexpr interval_type::asymmetric_boundary
+						interval_type_normal(ieee754_bits<Float> br) noexcept
+					{
+						return{ br.is_negative() };
+					}
+					template <class Float>
+					static constexpr interval_type::asymmetric_boundary
+						interval_type_shorter(ieee754_bits<Float> br) noexcept
+					{
+						return{ br.is_negative() };
+					}
+				};
+				struct nearest_toward_zero : base {
+					using rounding_mode_policy = nearest_toward_zero;
+					static constexpr auto tag = tag_t::to_nearest;
+
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float>, Func&& f) noexcept {
+						return f(nearest_toward_zero{});
+					}
+					template <class Float>
+					static constexpr interval_type::right_closed_left_open
+						interval_type_normal(ieee754_bits<Float>) noexcept
+					{
+						return{};
+					}
+					template <class Float>
+					static constexpr interval_type::right_closed_left_open
+						interval_type_shorter(ieee754_bits<Float>) noexcept
+					{
+						return{};
+					}
+				};
+				struct nearest_away_from_zero : base {
+					using rounding_mode_policy = nearest_away_from_zero;
+					static constexpr auto tag = tag_t::to_nearest;
+
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float>, Func&& f) noexcept {
+						return f(nearest_away_from_zero{});
+					}
+					template <class Float>
+					static constexpr interval_type::left_closed_right_open
+						interval_type_normal(ieee754_bits<Float>) noexcept
+					{
+						return{};
+					}
+					template <class Float>
+					static constexpr interval_type::left_closed_right_open
+						interval_type_shorter(ieee754_bits<Float>) noexcept
+					{
+						return{};
+					}
+				};
+
+				namespace detail {
+					struct nearest_always_closed {
+						static constexpr auto tag = tag_t::to_nearest;
+
+						template <class Float>
+						static constexpr interval_type::closed
+							interval_type_normal(ieee754_bits<Float>) noexcept
+						{
+							return{};
+						}
+						template <class Float>
+						static constexpr interval_type::closed
+							interval_type_shorter(ieee754_bits<Float>) noexcept
+						{
+							return{};
+						}
+					};
+					struct nearest_always_open {
+						static constexpr auto tag = tag_t::to_nearest;
+
+						template <class Float>
+						static constexpr interval_type::open
+							interval_type_normal(ieee754_bits<Float>) noexcept
+						{
+							return{};
+						}
+						template <class Float>
+						static constexpr interval_type::open
+							interval_type_shorter(ieee754_bits<Float>) noexcept
+						{
+							return{};
+						}
+					};
+				}
+
+				struct nearest_to_even_static_boundary : base {
+					using rounding_mode_policy = nearest_to_even_static_boundary;
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float> br, Func&& f) noexcept {
+						if (br.u % 2 == 0) {
+							return f(detail::nearest_always_closed{});
+						}
+						else {
+							return f(detail::nearest_always_open{});
+						}
+					}
+				};
+				struct nearest_to_odd_static_boundary : base {
+					using rounding_mode_policy = nearest_to_odd_static_boundary;
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float> br, Func&& f) noexcept {
+						if (br.u % 2 == 0) {
+							return f(detail::nearest_always_open{});
+						}
+						else {
+							return f(detail::nearest_always_closed{});
+						}
+					}
+				};
+				struct nearest_toward_plus_infinity_static_boundary : base {
+					using rounding_mode_policy = nearest_toward_plus_infinity_static_boundary;
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float> br, Func&& f) noexcept {
+						if (br.is_negative()) {
+							return f(nearest_toward_zero{});
+						}
+						else {
+							return f(nearest_away_from_zero{});
+						}
+					}
+				};
+				struct nearest_toward_minus_infinity_static_boundary : base {
+					using rounding_mode_policy = nearest_toward_minus_infinity_static_boundary;
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float> br, Func&& f) noexcept {
+						if (br.is_negative()) {
+							return f(nearest_away_from_zero{});
+						}
+						else {
+							return f(nearest_toward_zero{});
+						}
+					}
+				};
+
+				namespace detail {
+					struct left_closed_directed {
+						static constexpr auto tag = tag_t::left_closed_directed;
+
+						template <class Float>
+						static constexpr interval_type::left_closed_right_open
+							interval_type_normal(ieee754_bits<Float>) noexcept
+						{
+							return{};
+						}
+					};
+					struct right_closed_directed {
+						static constexpr auto tag = tag_t::right_closed_directed;
+
+						template <class Float>
+						static constexpr interval_type::right_closed_left_open
+							interval_type_normal(ieee754_bits<Float>) noexcept
+						{
+							return{};
+						}
+					};
+				}
+
+				struct toward_plus_infinity : base {
+					using rounding_mode_policy = toward_plus_infinity;
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float> br, Func&& f) noexcept {
+						if (br.is_negative()) {
+							return f(detail::left_closed_directed{});
+						}
+						else {
+							return f(detail::right_closed_directed{});
+						}
+					}
+				};
+				struct toward_minus_infinity : base {
+					using rounding_mode_policy = toward_minus_infinity;
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float> br, Func&& f) noexcept {
+						if (br.is_negative()) {
+							return f(detail::right_closed_directed{});
+						}
+						else {
+							return f(detail::left_closed_directed{});
+						}
+					}
+				};
+				struct toward_zero : base {
+					using rounding_mode_policy = toward_zero;
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float>, Func&& f) noexcept {
+						return f(detail::left_closed_directed{});
+					}
+				};
+				struct away_from_zero : base {
+					using rounding_mode_policy = away_from_zero;
+					template <class Float, class Func>
+					static auto delegate(ieee754_bits<Float>, Func&& f) noexcept {
+						return f(detail::right_closed_directed{});
+					}
+				};
 			}
-			else
-			{
-				return cache_holder<format>::cache[std::size_t(k - cache_holder<format>::min_k)];
+
+			// Correct rounding policy
+			namespace correct_rounding {
+				struct base {};
+
+				enum class tag_t {
+					do_not_care,
+					to_even,
+					to_odd,
+					away_from_zero,
+					toward_zero
+				};
+
+				struct do_not_care : base {
+					using correct_rounding_policy = do_not_care;
+					static constexpr auto tag = tag_t::do_not_care;
+					
+					template <class Fp>
+					static constexpr void break_rounding_tie(Fp&) noexcept {}
+				};
+
+				struct to_even : base {
+					using correct_rounding_policy = to_even;
+					static constexpr auto tag = tag_t::to_even;
+
+					template <class Fp>
+					static constexpr void break_rounding_tie(Fp& fp) noexcept
+					{
+						fp.significand = fp.significand % 2 == 0 ?
+							fp.significand : fp.significand - 1;
+					}
+				};
+
+				struct to_odd : base {
+					using correct_rounding_policy = to_odd;
+					static constexpr auto tag = tag_t::to_odd;
+
+					template <class Fp>
+					static constexpr void break_rounding_tie(Fp& fp) noexcept
+					{
+						fp.significand = fp.significand % 2 != 0 ?
+							fp.significand : fp.significand - 1;
+					}
+				};
+
+				struct away_from_zero : base {
+					using correct_rounding_policy = away_from_zero;
+					static constexpr auto tag = tag_t::away_from_zero;
+
+					template <class Fp>
+					static constexpr void break_rounding_tie(Fp& fp) noexcept {}
+				};
+
+				struct toward_zero : base {
+					using correct_rounding_policy = toward_zero;
+					static constexpr auto tag = tag_t::toward_zero;
+
+					template <class Fp>
+					static constexpr void break_rounding_tie(Fp& fp) noexcept
+					{
+						--fp.significand;
+					}
+				};
+			}
+
+			namespace cache {
+				struct base {};
+
+				struct normal : base {
+					using cache_policy = normal;
+					template <ieee754_format format>
+					static constexpr typename cache_holder<format>::cache_entry_type get_cache(int k) noexcept {
+						assert(k >= cache_holder<format>::min_k && k <= cache_holder<format>::max_k);
+						return cache_holder<format>::cache[std::size_t(k - cache_holder<format>::min_k)];
+					}
+				};
+
+				struct compressed : base {
+					using cache_policy = compressed;
+					template <ieee754_format format>
+					static constexpr typename cache_holder<format>::cache_entry_type get_cache(int k) noexcept {
+						assert(k >= cache_holder<format>::min_k && k <= cache_holder<format>::max_k);
+
+						if constexpr (format == ieee754_format::binary64)
+						{
+							// Compute base index
+							auto cache_index = (k - cache_holder<format>::min_k) /
+								compressed_cache_detail::compression_ratio;
+							auto kb = cache_index * compressed_cache_detail::compression_ratio
+								+ cache_holder<format>::min_k;
+							auto offset = k - kb;
+
+							// Get base cache
+							auto base_cache = compressed_cache_detail::cache.table[cache_index];
+
+							if (offset == 0) {
+								return base_cache;
+							}
+							else {
+								// Compute the required amount of bit-shift
+								auto alpha = log::floor_log2_pow10(kb + offset) - log::floor_log2_pow10(kb) - offset;
+								assert(alpha > 0 && alpha < 64);
+
+								// Try to recover the real cache
+								auto pow5 = compressed_cache_detail::pow5.table[offset];
+								auto recovered_cache = wuint::umul128(base_cache.high(), pow5);
+								auto [middle, low] = wuint::umul128(base_cache.low() - (kb < 0 ? 1 : 0), pow5);
+
+								recovered_cache += middle;
+
+								auto high_to_middle = recovered_cache.high() << (64 - alpha);
+								auto middle_to_low = recovered_cache.low() << (64 - alpha);
+
+								recovered_cache = wuint::uint128{
+									(recovered_cache.low() >> alpha) | high_to_middle,
+									((low >> alpha) | middle_to_low)
+								};
+
+								if (kb < 0) {
+									recovered_cache += 1;
+								}
+
+								// Get error
+								auto error_idx = (k - cache_holder<format>::min_k) / 16;
+								auto error = (compressed_cache_detail::errors[error_idx] >>
+									((k - cache_holder<format>::min_k) % 16) * 2) & 0x3;
+
+								// Add the error back
+								assert(recovered_cache.low() + error >= recovered_cache.low());
+								recovered_cache = {
+									recovered_cache.high(),
+									recovered_cache.low() + error
+								};
+
+								return recovered_cache;
+							}
+						}
+						else
+						{
+							return cache_holder<format>::cache[std::size_t(k - cache_holder<format>::min_k)];
+						}
+					}
+				};
+			}
+
+			namespace input_validation {
+				struct base {};
+
+				struct assert_finite : base {
+					using input_validation_policy = assert_finite;
+					template <class Float>
+					static void validate_input([[maybe_unused]] ieee754_bits<Float> br) noexcept
+					{
+						assert(br.is_finite());
+					}
+				};
+
+				struct do_nothing : base {
+					using input_validation_policy = do_nothing;
+					template <class Float>
+					static void validate_input(ieee754_bits<Float>) noexcept {}
+				};
 			}
 		}
 	}
+	
+	namespace policy {
+		namespace sign {
+			static constexpr auto ignore = detail::policy_impl::sign::ignore{};
+			static constexpr auto return_sign = detail::policy_impl::sign::return_sign{};
+		}
 
-	////////////////////////////////////////////////////////////////////////////////////////
-	// DIY floating-point data type
-	////////////////////////////////////////////////////////////////////////////////////////
+		namespace trailing_zero {
+			static constexpr auto ignore = detail::policy_impl::trailing_zero::ignore{};
+			static constexpr auto remove = detail::policy_impl::trailing_zero::remove{};
+			static constexpr auto report = detail::policy_impl::trailing_zero::report{};
+		}
 
-	template <class Float, bool is_signed, bool trailing_zero_flag>
-	struct fp_t;
+		namespace rounding_mode {
+			static constexpr auto nearest_to_even =
+				detail::policy_impl::rounding_mode::nearest_to_even{};
+			static constexpr auto nearest_to_odd =
+				detail::policy_impl::rounding_mode::nearest_to_odd{};
+			static constexpr auto nearest_toward_plus_infinity =
+				detail::policy_impl::rounding_mode::nearest_toward_plus_infinity{};
+			static constexpr auto nearest_toward_minus_infinity =
+				detail::policy_impl::rounding_mode::nearest_toward_minus_infinity{};
+			static constexpr auto nearest_toward_zero =
+				detail::policy_impl::rounding_mode::nearest_toward_zero{};
+			static constexpr auto nearest_away_from_zero =
+				detail::policy_impl::rounding_mode::nearest_away_from_zero{};
 
-	template <class Float>
-	struct fp_t<Float, false, false> {
-		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
+			static constexpr auto nearest_to_even_static_boundary =
+				detail::policy_impl::rounding_mode::nearest_to_even_static_boundary{};
+			static constexpr auto nearest_to_odd_static_boundary =
+				detail::policy_impl::rounding_mode::nearest_to_odd_static_boundary{};
+			static constexpr auto nearest_toward_plus_infinity_static_boundary =
+				detail::policy_impl::rounding_mode::nearest_toward_plus_infinity_static_boundary{};
+			static constexpr auto nearest_toward_minus_infinity_static_boundary =
+				detail::policy_impl::rounding_mode::nearest_toward_minus_infinity_static_boundary{};
 
-		carrier_uint	significand;
-		int				exponent;
-	};
+			static constexpr auto toward_plus_infinity =
+				detail::policy_impl::rounding_mode::toward_plus_infinity{};
+			static constexpr auto toward_minus_infinity =
+				detail::policy_impl::rounding_mode::toward_minus_infinity{};
+			static constexpr auto toward_zero =
+				detail::policy_impl::rounding_mode::toward_zero{};
+			static constexpr auto away_from_zero =
+				detail::policy_impl::rounding_mode::away_from_zero{};
+		}
 
-	template <class Float>
-	struct fp_t<Float, true, false> {
-		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
+		namespace correct_rounding {
+			static constexpr auto do_not_care = detail::policy_impl::correct_rounding::do_not_care{};
+			static constexpr auto to_even = detail::policy_impl::correct_rounding::to_even{};
+			static constexpr auto to_odd = detail::policy_impl::correct_rounding::to_odd{};
+			static constexpr auto away_from_zero = detail::policy_impl::correct_rounding::away_from_zero{};
+			static constexpr auto toward_zero = detail::policy_impl::correct_rounding::toward_zero{};
+		}
 
-		carrier_uint	significand;
-		int				exponent;
-		bool			is_negative;
-	};
+		namespace cache {
+			static constexpr auto normal = detail::policy_impl::cache::normal{};
+			static constexpr auto compressed = detail::policy_impl::cache::compressed{};
+		}
 
-	template <class Float>
-	struct fp_t<Float, false, true> {
-		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
-
-		carrier_uint	significand;
-		int				exponent;
-		bool			may_have_trailing_zeros;
-	};
-
-	template <class Float>
-	struct fp_t<Float, true, true> {
-		using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
-
-		carrier_uint	significand;
-		int				exponent;
-		bool			is_negative;
-		bool			may_have_trailing_zeros;
-	};
-
-	template <class Float>
-	using unsigned_fp_t = fp_t<Float, false, false>;
-
-	template <class Float>
-	using signed_fp_t = fp_t<Float, true, false>;
-
-	////////////////////////////////////////////////////////////////////////////////////////
-	// Determine what to do about the correct rounding guarantee
-	////////////////////////////////////////////////////////////////////////////////////////
-
-	namespace correct_rounding {
-		enum tag_t {
-			do_not_care_tag,
-			tie_to_even_tag,
-			tie_to_odd_tag,
-			tie_to_up_tag,
-			tie_to_down_tag
-		};
-
-		// Do not perform correct rounding search
-		struct do_not_care {
-			static constexpr tag_t tag = do_not_care_tag;
-		};
-
-		// Perform correct rounding search; tie-to-even
-		struct tie_to_even {
-			static constexpr tag_t tag = tie_to_even_tag;
-		};
-
-		// Perform correct rounding search; tie-to-odd
-		struct tie_to_odd {
-			static constexpr tag_t tag = tie_to_odd_tag;
-		};
-
-		// Perform correct rounding search; tie-to-up
-		struct tie_to_up {
-			static constexpr tag_t tag = tie_to_up_tag;
-		};
-
-		// Perform correct rounding search; tie-to-down
-		struct tie_to_down {
-			static constexpr tag_t tag = tie_to_down_tag;
-		};
+		namespace input_validation {
+			static constexpr auto assert_finite = detail::policy_impl::input_validation::assert_finite{};
+			static constexpr auto do_nothing = detail::policy_impl::input_validation::do_nothing{};
+		}
 	}
-
-	////////////////////////////////////////////////////////////////////////////////////////
-	// Rounding modes
-	////////////////////////////////////////////////////////////////////////////////////////
-
-	namespace rounding_modes {
-		enum tag_t {
-			to_nearest_tag,
-			left_closed_directed_tag,
-			right_closed_directed_tag
-		};
-		namespace interval_type {
-			struct symmetric_boundary {
-				static constexpr bool is_symmetric = true;
-				bool is_closed;
-
-				constexpr bool include_left_endpoint() const noexcept {
-					return is_closed;
-				}
-				constexpr bool include_right_endpoint() const noexcept {
-					return is_closed;
-				}
-			};
-			struct asymmetric_boundary {
-				static constexpr bool is_symmetric = false;
-				bool is_left_closed;
-				constexpr bool include_left_endpoint() const noexcept {
-					return is_left_closed;
-				}
-				constexpr bool include_right_endpoint() const noexcept {
-					return !is_left_closed;
-				}
-			};
-			struct closed {
-				static constexpr bool is_symmetric = true;
-				static constexpr bool include_left_endpoint() noexcept {
-					return true;
-				}
-				static constexpr bool include_right_endpoint() noexcept {
-					return true;
-				}
-			};
-			struct open {
-				static constexpr bool is_symmetric = true;
-				static constexpr bool include_left_endpoint() noexcept {
-					return false;
-				}
-				static constexpr bool include_right_endpoint() noexcept {
-					return false;
-				}
-			};
-			struct left_closed_right_open {
-				static constexpr bool is_symmetric = false;
-				static constexpr bool include_left_endpoint() noexcept {
-					return true;
-				}
-				static constexpr bool include_right_endpoint() noexcept {
-					return false;
-				}
-			};
-			struct right_closed_left_open {
-				static constexpr bool is_symmetric = false;
-				static constexpr bool include_left_endpoint() noexcept {
-					return false;
-				}
-				static constexpr bool include_right_endpoint() noexcept {
-					return true;
-				}
-			};
-		}
-
-		namespace detail {
-			struct shorter_interval_case_tag {};
-		}
-
-		struct nearest_to_even {
-			static constexpr tag_t tag = to_nearest_tag;
-
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
-				return f(*this);
-			}
-			template <class Float>
-			constexpr interval_type::symmetric_boundary operator()(ieee754_bits<Float> br) const noexcept {
-				return{ br.u % 2 == 0 };
-			}
-			template <class Float>
-			constexpr interval_type::closed operator()(ieee754_bits<Float>,
-				detail::shorter_interval_case_tag) const noexcept
-			{
-				return{};
-			}
-		};
-		struct nearest_to_odd {
-			static constexpr tag_t tag = to_nearest_tag;
-
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
-				return f(*this);
-			}
-			template <class Float>
-			constexpr interval_type::symmetric_boundary operator()(ieee754_bits<Float> br) const noexcept {
-				return{ br.u % 2 != 0 };
-			}
-			template <class Float>
-			constexpr interval_type::open operator()(ieee754_bits<Float>,
-				detail::shorter_interval_case_tag) const noexcept
-			{
-				return{};
-			}
-		};
-		struct nearest_toward_plus_infinity {
-			static constexpr tag_t tag = to_nearest_tag;
-
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
-				return f(*this);
-			}
-			template <class Float>
-			constexpr interval_type::asymmetric_boundary operator()(ieee754_bits<Float> br) const noexcept {
-				return{ !br.is_negative() };
-			}
-			template <class Float>
-			constexpr interval_type::asymmetric_boundary operator()(ieee754_bits<Float> br,
-				detail::shorter_interval_case_tag) const noexcept
-			{
-				return{ !br.is_negative() };
-			}
-		};
-		struct nearest_toward_minus_infinity {
-			static constexpr tag_t tag = to_nearest_tag;
-
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
-				return f(*this);
-			}
-			template <class Float>
-			constexpr interval_type::asymmetric_boundary operator()(ieee754_bits<Float> br) const noexcept {
-				return{ br.is_negative() };
-			}
-			template <class Float>
-			constexpr interval_type::asymmetric_boundary operator()(ieee754_bits<Float> br,
-				detail::shorter_interval_case_tag) const noexcept
-			{
-				return{ br.is_negative() };
-			}
-		};
-		// This may generate the fastest code among nearest rounding modes
-		struct nearest_toward_zero {
-			static constexpr tag_t tag = to_nearest_tag;
-
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
-				return f(*this);
-			}
-			template <class Float>
-			constexpr interval_type::right_closed_left_open operator()(ieee754_bits<Float>) const noexcept {
-				return{};
-			}
-			template <class Float>
-			constexpr interval_type::right_closed_left_open operator()(ieee754_bits<Float>,
-				detail::shorter_interval_case_tag) const noexcept
-			{
-				return{};
-			}
-		};
-		struct nearest_away_from_zero {
-			static constexpr tag_t tag = to_nearest_tag;
-
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
-				return f(*this);
-			}
-			template <class Float>
-			constexpr interval_type::left_closed_right_open operator()(ieee754_bits<Float>) const noexcept {
-				return{};
-			}
-			template <class Float>
-			constexpr interval_type::left_closed_right_open operator()(ieee754_bits<Float>,
-				detail::shorter_interval_case_tag) const noexcept
-			{
-				return{};
-			}
-		};
-
-		namespace detail {
-			struct nearest_always_closed {
-				static constexpr tag_t tag = to_nearest_tag;
-
-				template <class Float>
-				constexpr interval_type::closed operator()(ieee754_bits<Float>) const noexcept {
-					return{};
-				}
-				template <class Float>
-				constexpr interval_type::closed operator()(ieee754_bits<Float>,
-					detail::shorter_interval_case_tag) const noexcept
-				{
-					return{};
-				}
-			};
-			struct nearest_always_open {
-				static constexpr tag_t tag = to_nearest_tag;
-
-				template <class Float>
-				constexpr interval_type::open operator()(ieee754_bits<Float>) const noexcept {
-					return{};
-				}
-				template <class Float>
-				constexpr interval_type::open operator()(ieee754_bits<Float>,
-					detail::shorter_interval_case_tag) const noexcept
-				{
-					return{};
-				}
-			};
-		}
-
-		// Same as nearest_to_even, but generate separate codes for
-		// different boundary conditions; may produce faster (or slower) code, but bigger binary
-		struct nearest_to_even_static_boundary {
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float> br, Func&& f) const noexcept {
-				if (br.u % 2 == 0) {
-					return f(detail::nearest_always_closed{});
-				}
-				else {
-					return f(detail::nearest_always_open{});
-				}
-			}
-		};
-		// Same as nearest_to_odd, but generate separate codes for
-		// different boundary conditions; may produce faster (or slower) code, but bigger binary
-		struct nearest_to_odd_static_boundary {
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float> br, Func&& f) const noexcept {
-				if (br.u % 2 == 0) {
-					return f(detail::nearest_always_open{});
-				}
-				else {
-					return f(detail::nearest_always_closed{});
-				}
-			}
-		};
-		// Same as nearest_toward_plus_infinity, but generate separate codes for
-		// different boundary conditions; may produce faster (or slower) code, but bigger binary
-		struct nearest_toward_plus_infinity_static_boundary {
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float> br, Func&& f) const noexcept {
-				if (br.is_negative()) {
-					return f(nearest_toward_zero{});
-				}
-				else {
-					return f(nearest_away_from_zero{});
-				}
-			}
-		};
-		// Same as nearest_toward_minus_infinity, but generate separate codes for
-		// different boundary conditions; may produce faster (or slower) code, but bigger binary
-		struct nearest_toward_minus_infinity_static_boundary {
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float> br, Func&& f) const noexcept {
-				if (br.is_negative()) {
-					return f(nearest_away_from_zero{});
-				}
-				else {
-					return f(nearest_toward_zero{});
-				}
-			}
-		};
-
-		namespace detail {
-			struct left_closed_directed {
-				static constexpr tag_t tag = left_closed_directed_tag;
-
-				template <class Float>
-				constexpr interval_type::left_closed_right_open operator()(ieee754_bits<Float>) const noexcept {
-					return{};
-				}
-			};
-			struct right_closed_directed {
-				static constexpr tag_t tag = right_closed_directed_tag;
-
-				template <class Float>
-				constexpr interval_type::right_closed_left_open operator()(ieee754_bits<Float>) const noexcept {
-					return{};
-				}
-			};
-		}
-
-		struct toward_plus_infinity {
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float> br, Func&& f) const noexcept {
-				if (br.is_negative()) {
-					return f(detail::left_closed_directed{});
-				}
-				else {
-					return f(detail::right_closed_directed{});
-				}
-			}
-		};
-		struct toward_minus_infinity {
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float> br, Func&& f) const noexcept {
-				if (br.is_negative()) {
-					return f(detail::right_closed_directed{});
-				}
-				else {
-					return f(detail::left_closed_directed{});
-				}
-			}
-		};
-		struct toward_zero {
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
-				return f(detail::left_closed_directed{});
-			}
-		};
-		struct away_from_zero {
-			template <class Float, class Func>
-			auto delegate(ieee754_bits<Float>, Func&& f) const noexcept {
-				return f(detail::right_closed_directed{});
-			}
-		};
-	};
 
 	namespace detail {
 		////////////////////////////////////////////////////////////////////////////////////////
@@ -2084,25 +2305,18 @@ namespace jkj::dragonbox {
 
 			//// The main algorithm assumes the input is a normal/subnormal finite number
 
-			template <
-				bool return_sign,
-				trailing_zero_policy tzp,
-				cache_policy cp,
-				class IntervalTypeProvider,
-				correct_rounding::tag_t correct_rounding_tag
-			>
-			JKJ_SAFEBUFFERS static fp_t<Float, return_sign, tzp == trailing_zero_policy::report>
-				compute_nearest(ieee754_bits<Float> const br) noexcept
+			template <class ReturnType, class IntervalTypeProvider, class SignPolicy,
+				class TrailingZeroPolicy, class CorrectRoundingPolicy, class CachePolicy>
+			JKJ_SAFEBUFFERS static ReturnType compute_nearest(ieee754_bits<Float> const br) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
 				//////////////////////////////////////////////////////////////////////
 
-				fp_t<Float, return_sign, tzp == trailing_zero_policy::report> ret_value;
+				ReturnType ret_value;
 
-				if constexpr (return_sign) {
-					ret_value.is_negative = br.is_negative();
-				}
+				SignPolicy::handle_sign(br, ret_value);
+
 				auto significand = br.extract_significand_bits();
 				auto exponent = int(br.extract_exponent_bits());
 
@@ -2112,9 +2326,9 @@ namespace jkj::dragonbox {
 
 					// Closer boundary case; proceed like Schubfach
 					if (significand == 0) {
-						shorter_interval_case<tzp, cp, correct_rounding_tag>(
+						shorter_interval_case<TrailingZeroPolicy, CorrectRoundingPolicy, CachePolicy>(
 							ret_value, exponent,
-							IntervalTypeProvider{}(br, rounding_modes::detail::shorter_interval_case_tag{}));
+							IntervalTypeProvider::interval_type_shorter(br));
 						return ret_value;
 					}
 
@@ -2125,11 +2339,11 @@ namespace jkj::dragonbox {
 					exponent = min_exponent - significand_bits;
 				}
 
-				auto const interval_type = IntervalTypeProvider{}(br);
+				auto const interval_type = IntervalTypeProvider::interval_type_normal(br);
 
 				// Compute k and beta
 				int const minus_k = log::floor_log10_pow2(exponent) - kappa;
-				auto const cache = get_cache<Float, cp>(-minus_k);
+				auto const cache = CachePolicy::template get_cache<format>(-minus_k);
 				int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
 
 				// Compute zi and deltai
@@ -2161,8 +2375,8 @@ namespace jkj::dragonbox {
 					if (r == 0 && !interval_type.include_right_endpoint() &&
 						is_product_integer<integer_check_case_id::fc_pm_half>(two_fr, exponent, minus_k))
 					{
-						if constexpr (correct_rounding_tag ==
-							correct_rounding::do_not_care_tag)
+						if constexpr (CorrectRoundingPolicy::tag ==
+							policy_impl::correct_rounding::tag_t::do_not_care)
 						{
 							ret_value.significand *= 10;
 							ret_value.exponent = minus_k + kappa;
@@ -2190,14 +2404,7 @@ namespace jkj::dragonbox {
 				ret_value.exponent = minus_k + kappa + 1;
 
 				// We may need to remove trailing zeros
-				if constexpr (tzp == trailing_zero_policy::remove)
-				{
-					ret_value.exponent += remove_trailing_zeros(ret_value.significand);
-				}
-				else if constexpr (tzp == trailing_zero_policy::report)
-				{
-					ret_value.may_have_trailing_zeros = true;
-				}
+				TrailingZeroPolicy::on_trailing_zeros(ret_value);
 				return ret_value;
 
 
@@ -2206,17 +2413,14 @@ namespace jkj::dragonbox {
 				//////////////////////////////////////////////////////////////////////
 
 			small_divisor_case_label:
-				if constexpr (tzp == trailing_zero_policy::report)
-				{
-					ret_value.may_have_trailing_zeros = false;
-				}
+				TrailingZeroPolicy::no_trailing_zeros(ret_value);
 				ret_value.significand *= 10;
 				ret_value.exponent = minus_k + kappa;
 
 				constexpr auto mask = (std::uint32_t(1) << kappa) - 1;
 
-				if constexpr (correct_rounding_tag ==
-					correct_rounding::do_not_care_tag)
+				if constexpr (CorrectRoundingPolicy::tag ==
+					policy_impl::correct_rounding::tag_t::do_not_care)
 				{
 					// Normally, we want to compute
 					// ret_value.significand += r / small_divisor
@@ -2272,32 +2476,13 @@ namespace jkj::dragonbox {
 								// If z^(f) >= epsilon^(f), we might have a tie
 								// when z^(f) == epsilon^(f), or equivalently, when y is an integer
 								// For tie-to-up case, we can just choose the upper one
-								if constexpr (correct_rounding_tag !=
-									correct_rounding::tie_to_up_tag)
+								if constexpr (CorrectRoundingPolicy::tag !=
+									policy_impl::correct_rounding::tag_t::away_from_zero)
 								{
 									if (is_product_integer<integer_check_case_id::fc>(
 										two_fc, exponent, minus_k))
 									{
-										if constexpr (correct_rounding_tag ==
-											correct_rounding::tie_to_even_tag)
-										{
-											ret_value.significand =
-												ret_value.significand % 2 == 0 ?
-												ret_value.significand :
-												ret_value.significand - 1;
-										}
-										else if constexpr (correct_rounding_tag ==
-											correct_rounding::tie_to_odd_tag)
-										{
-											ret_value.significand =
-												ret_value.significand % 2 != 0 ?
-												ret_value.significand :
-												ret_value.significand - 1;
-										}
-										else {
-											// tie-to-down
-											--ret_value.significand;
-										}
+										CorrectRoundingPolicy::break_rounding_tie(ret_value);
 									}
 								}
 							}
@@ -2317,19 +2502,17 @@ namespace jkj::dragonbox {
 				return ret_value;
 			}
 
-			template <trailing_zero_policy tzp, cache_policy cp,
-				correct_rounding::tag_t correct_rounding_tag,
-				bool has_sign, class IntervalType>
+			template <class TrailingZeroPolicy, class CorrectRoundingPolicy,
+				class CachePolicy, class ReturnType, class IntervalType>
 			JKJ_FORCEINLINE JKJ_SAFEBUFFERS static void shorter_interval_case(
-				fp_t<Float, has_sign, tzp == trailing_zero_policy::report>& ret_value,
-				int const exponent, IntervalType const interval_type) noexcept
+				ReturnType& ret_value, int const exponent, IntervalType const interval_type) noexcept
 			{
 				// Compute k and beta
 				int const minus_k = log::floor_log10_pow2_minus_log10_4_over_3(exponent);
 				int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
 
 				// Compute xi and zi
-				auto const cache = get_cache<Float, cp>(-minus_k);
+				auto const cache = CachePolicy::template get_cache<format>(-minus_k);
 
 				auto xi = compute_left_endpoint_for_shorter_interval_case(cache, beta_minus_1);
 				auto zi = compute_right_endpoint_for_shorter_interval_case(cache, beta_minus_1);
@@ -2355,50 +2538,25 @@ namespace jkj::dragonbox {
 				// If succeed, remove trailing zeros if necessary and return
 				if (ret_value.significand * 10 >= xi) {
 					ret_value.exponent = minus_k + 1;
-					if constexpr (tzp == trailing_zero_policy::remove)
-					{
-						ret_value.exponent += remove_trailing_zeros(ret_value.significand);
-					}
-					else if constexpr (tzp == trailing_zero_policy::report)
-					{
-						ret_value.may_have_trailing_zeros = true;
-					}
+					TrailingZeroPolicy::on_trailing_zeros(ret_value);
 					return;
 				}
 
 				// Otherwise, compute the round-up of y
+				TrailingZeroPolicy::no_trailing_zeros(ret_value);
 				ret_value.significand = compute_round_up_for_shorter_interval_case(cache, beta_minus_1);
 				ret_value.exponent = minus_k;
 
 				// When tie occurs, choose one of them according to the rule
-				if constexpr (correct_rounding_tag !=
-					correct_rounding::do_not_care_tag &&
-					correct_rounding_tag !=
-					correct_rounding::tie_to_up_tag)
+				if constexpr (CorrectRoundingPolicy::tag !=
+					policy_impl::correct_rounding::tag_t::do_not_care &&
+					CorrectRoundingPolicy::tag !=
+					policy_impl::correct_rounding::tag_t::away_from_zero)
 				{
 					if (exponent >= shorter_interval_case_tie_lower_threshold &&
 						exponent <= shorter_interval_case_tie_upper_threshold)
 					{
-						if constexpr (correct_rounding_tag ==
-							correct_rounding::tie_to_even_tag)
-						{
-							ret_value.significand =
-								ret_value.significand % 2 == 0 ?
-								ret_value.significand :
-								ret_value.significand - 1;
-						}
-						else if constexpr (correct_rounding_tag ==
-							correct_rounding::tie_to_odd_tag)
-						{
-							ret_value.significand =
-								ret_value.significand % 2 != 0 ?
-								ret_value.significand :
-								ret_value.significand - 1;
-						}
-						else {
-							// tie-to-down
-							--ret_value.significand;
-						}
+						CorrectRoundingPolicy::break_rounding_tie(ret_value);
 					}
 					else if (ret_value.significand < xi) {
 						++ret_value.significand;
@@ -2410,30 +2568,20 @@ namespace jkj::dragonbox {
 						++ret_value.significand;
 					}
 				}
-
-				if constexpr (tzp == trailing_zero_policy::report)
-				{
-					ret_value.may_have_trailing_zeros = false;
-				}
 			}
 
-			template <
-				bool return_sign,
-				trailing_zero_policy tzp,
-				cache_policy cp
-			>
-			JKJ_SAFEBUFFERS static fp_t<Float, return_sign, tzp == trailing_zero_policy::report>
+			template <class ReturnType, class SignPolicy, class TrailingZeroPolicy, class CachePolicy>
+			JKJ_SAFEBUFFERS static ReturnType
 				compute_left_closed_directed(ieee754_bits<Float> const br) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
 				//////////////////////////////////////////////////////////////////////
 
-				fp_t<Float, return_sign, tzp == trailing_zero_policy::report> ret_value;
+				ReturnType ret_value;
 
-				if constexpr (return_sign) {
-					ret_value.is_negative = br.is_negative();
-				}
+				SignPolicy::handle_sign(br, ret_value);
+
 				auto significand = br.extract_significand_bits();
 				auto exponent = int(br.extract_exponent_bits());
 
@@ -2449,7 +2597,7 @@ namespace jkj::dragonbox {
 
 				// Compute k and beta
 				int const minus_k = log::floor_log10_pow2(exponent) - kappa;
-				auto const cache = get_cache<Float, cp>(-minus_k);
+				auto const cache = CachePolicy::template get_cache<format>(-minus_k);
 				int const beta = exponent + log::floor_log2_pow10(-minus_k) + 1;
 
 				// Compute xi and deltai
@@ -2494,14 +2642,7 @@ namespace jkj::dragonbox {
 
 				// The ceiling is inside, so we are done
 				ret_value.exponent = minus_k + kappa + 1;
-				if constexpr (tzp == trailing_zero_policy::remove)
-				{
-					ret_value.exponent += remove_trailing_zeros(ret_value.significand);
-				}
-				else if constexpr (tzp == trailing_zero_policy::report)
-				{
-					ret_value.may_have_trailing_zeros = true;
-				}
+				TrailingZeroPolicy::on_trailing_zeros(ret_value);
 				return ret_value;
 
 
@@ -2513,30 +2654,22 @@ namespace jkj::dragonbox {
 				ret_value.significand *= 10;
 				ret_value.significand -= div::small_division_by_pow10<kappa>(r);
 				ret_value.exponent = minus_k + kappa;
-				if constexpr (tzp == trailing_zero_policy::report)
-				{
-					ret_value.may_have_trailing_zeros = false;
-				}
+				TrailingZeroPolicy::no_trailing_zeros(ret_value);
 				return ret_value;
 			}
 
-			template <
-				bool return_sign,
-				trailing_zero_policy tzp,
-				cache_policy cp
-			>
-			JKJ_SAFEBUFFERS static fp_t<Float, return_sign, tzp == trailing_zero_policy::report>
+			template <class ReturnType, class SignPolicy, class TrailingZeroPolicy, class CachePolicy>
+			JKJ_SAFEBUFFERS static ReturnType
 				compute_right_closed_directed(ieee754_bits<Float> const br) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
 				//////////////////////////////////////////////////////////////////////
 
-				fp_t<Float, return_sign, tzp == trailing_zero_policy::report> ret_value;
+				ReturnType ret_value;
 
-				if constexpr (return_sign) {
-					ret_value.is_negative = br.is_negative();
-				}
+				SignPolicy::handle_sign(br, ret_value);
+
 				auto significand = br.extract_significand_bits();
 				auto exponent = int(br.extract_exponent_bits());
 
@@ -2556,7 +2689,7 @@ namespace jkj::dragonbox {
 
 				// Compute k and beta
 				int const minus_k = log::floor_log10_pow2(exponent - (closer_boundary ? 1 : 0)) - kappa;
-				auto const cache = get_cache<Float, cp>(-minus_k);
+				auto const cache = CachePolicy::template get_cache<format>(-minus_k);
 				int const beta = exponent + log::floor_log2_pow10(-minus_k) + 1;
 
 				// Compute zi and deltai
@@ -2601,13 +2734,7 @@ namespace jkj::dragonbox {
 
 				// The floor is inside, so we are done
 				ret_value.exponent = minus_k + kappa + 1;
-				if constexpr (tzp == trailing_zero_policy::remove) {
-					ret_value.exponent += remove_trailing_zeros(ret_value.significand);
-				}
-				else if constexpr (tzp == trailing_zero_policy::report)
-				{
-					ret_value.may_have_trailing_zeros = true;
-				}
+				TrailingZeroPolicy::on_trailing_zeros(ret_value);
 				return ret_value;
 
 
@@ -2619,10 +2746,7 @@ namespace jkj::dragonbox {
 				ret_value.significand *= 10;
 				ret_value.significand += div::small_division_by_pow10<kappa>(r);
 				ret_value.exponent = minus_k + kappa;
-				if constexpr (tzp == trailing_zero_policy::report)
-				{
-					ret_value.may_have_trailing_zeros = false;
-				}
+				TrailingZeroPolicy::no_trailing_zeros(ret_value);
 				return ret_value;
 			}
 
@@ -2894,58 +3018,220 @@ namespace jkj::dragonbox {
 				}
 			}
 		};
-	}
 
-	// What to do with non-finite inputs?
-	namespace case_handlers {
-		struct assert_finite {
-			template <class Float>
-			void operator()([[maybe_unused]] ieee754_bits<Float> br) const
-			{
-				assert(br.is_finite());
-			}
-		};
 
-		// This policy is mainly for debugging purpose
-		struct ignore_special_cases {
-			template <class Float>
-			void operator()(ieee754_bits<Float>) const
-			{
-			}
-		};
-	}
+		////////////////////////////////////////////////////////////////////////////////////////
+		// Policy holder
+		////////////////////////////////////////////////////////////////////////////////////////
 
-	template <bool return_sign = true,
-		trailing_zero_policy tzp = trailing_zero_policy::remove,
-		cache_policy cp = cache_policy::normal, class Float,
-		class RoundingMode = rounding_modes::nearest_to_even,
-		class CorrectRounding = correct_rounding::tie_to_even,
-		class CaseHandler = case_handlers::assert_finite
-	>
-	fp_t<Float, return_sign, tzp == trailing_zero_policy::report> to_decimal(Float x,
-		RoundingMode&& rounding_mode = {},
-		CorrectRounding&& = {},
-		CaseHandler&& case_handler = {})
-	{
-		auto br = ieee754_bits(x);
-		case_handler(br);
-		return std::forward<RoundingMode>(rounding_mode).delegate(br, 
-			[br](auto interval_type_provider) {
-				constexpr auto rounding_mode_tag = decltype(interval_type_provider)::tag;
+		namespace policy_impl {
+			// The library will specify a list of accepted kinds of policies and their defaults,
+			// and the user will pass a list of policies. The aim of helper classes/functions here
+			// is to do the following:
+			//   1. Check if the policy parameters given by the user are all valid; that means,
+			//      each of them should be of the kinds specified by the library.
+			//      If that's not the case, then the compilation fails.
+			//   2. Check if multiple policy parameters for the same kind is specified by the user.
+			//      If that's the case, then the compilation fails.
+			//   3. Build a class deriving from all policies the user have given, and also from
+			//      the default policies if the user did not specify one for some kinds.
+			// A policy belongs to a certain kind if it is deriving from a base class.
 
-				if constexpr (rounding_mode_tag == rounding_modes::to_nearest_tag) {
-					return detail::impl<Float>::template
-						compute_nearest<return_sign, tzp, cp,
-						decltype(interval_type_provider),
-						std::remove_cv_t<std::remove_reference_t<CorrectRounding>>::tag>(br);
+			// For a given kind, find a policy belonging to that kind.
+			// Check if there are more than one such policies.
+			enum class policy_found_info {
+				not_found, unique, repeated
+			};
+			template <class Policy, policy_found_info info>
+			struct found_policy_pair {
+				using policy = Policy;
+				static constexpr auto found_info = info;
+			};
+
+			template <class Base, class DefaultPolicy>
+			struct base_default_pair {
+				using base = Base;
+
+				template <class FoundPolicyInfo>
+				static constexpr FoundPolicyInfo get_policy_impl(FoundPolicyInfo) {
+					return{};
 				}
-				else if constexpr (rounding_mode_tag == rounding_modes::left_closed_directed_tag) {
+				template <class FoundPolicyInfo, class FirstPolicy, class... RemainingPolicies>
+				static constexpr auto get_policy_impl(FoundPolicyInfo, FirstPolicy, RemainingPolicies... remainings) {
+					if constexpr (std::is_base_of_v<Base, FirstPolicy>) {
+						if constexpr (FoundPolicyInfo::found_info == policy_found_info::not_found) {
+							return get_policy_impl(
+								found_policy_pair<FirstPolicy, policy_found_info::unique>{},
+								remainings...);
+						}
+						else {
+							return get_policy_impl(
+								found_policy_pair<FirstPolicy, policy_found_info::repeated>{},
+								remainings...);
+						}
+					}
+					else {
+						return get_policy_impl(FoundPolicyInfo{},
+							remainings...);
+					}
+				}
+
+				template <class... Policies>
+				static constexpr auto get_policy(Policies... policies) {
+					return get_policy_impl(
+						found_policy_pair<DefaultPolicy, policy_found_info::not_found>{},
+						policies...);
+				}
+			};
+			template <class... BaseDefaultPairs>
+			struct base_default_pair_list {};
+
+			// Check if a given policy belongs to one of the kinds specified by the library
+			template <class Policy>
+			constexpr bool check_policy_validity(Policy, base_default_pair_list<>)
+			{
+				return false;
+			}
+			template <class Policy, class FirstBaseDefaultPair, class... RemainingBaseDefaultPairs>
+			constexpr bool check_policy_validity(Policy,
+				base_default_pair_list<FirstBaseDefaultPair, RemainingBaseDefaultPairs...>)
+			{
+				return std::is_base_of_v<typename FirstBaseDefaultPair::base, Policy> ||
+					check_policy_validity(Policy{}, base_default_pair_list< RemainingBaseDefaultPairs...>{});
+			}
+
+			template <class BaseDefaultPairList>
+			constexpr bool check_policy_list_validity(BaseDefaultPairList) {
+				return true;
+			}
+
+			template <class BaseDefaultPairList, class FirstPolicy, class... RemainingPolicies>
+			constexpr bool check_policy_list_validity(BaseDefaultPairList,
+				FirstPolicy, RemainingPolicies... remaining_policies)
+			{
+				return check_policy_validity(FirstPolicy{}, BaseDefaultPairList{}) &&
+					check_policy_list_validity(BaseDefaultPairList{}, remaining_policies...);
+			}
+
+			// Build policy_holder
+			template <bool repeated_, class... FoundPolicyPairs>
+			struct found_policy_pair_list {
+				static constexpr bool repeated = repeated_;
+			};
+
+			template <class... Policies>
+			struct policy_holder : Policies... {};
+
+			template <bool repeated, class... FoundPolicyPairs, class... Policies>
+			constexpr auto make_policy_holder_impl(
+				base_default_pair_list<>,
+				found_policy_pair_list<repeated, FoundPolicyPairs...>,
+				Policies...)
+			{
+				return found_policy_pair_list<repeated, FoundPolicyPairs...>{};
+			}
+
+			template <class FirstBaseDefaultPair, class... RemainingBaseDefaultPairs,
+				bool repeated, class... FoundPolicyPairs, class... Policies>
+			constexpr auto make_policy_holder_impl(
+				base_default_pair_list<FirstBaseDefaultPair, RemainingBaseDefaultPairs...>,
+				found_policy_pair_list<repeated, FoundPolicyPairs...>,
+				Policies... policies)
+			{
+				using new_found_policy_pair = decltype(FirstBaseDefaultPair::get_policy(policies...));
+
+				return make_policy_holder_impl(
+					base_default_pair_list<RemainingBaseDefaultPairs...>{},
+					found_policy_pair_list<
+						repeated || new_found_policy_pair::found_info == policy_found_info::repeated,
+						new_found_policy_pair, FoundPolicyPairs...
+					>{}, policies...);
+			}
+
+			template <bool repeated, class... RawPolicies>
+			constexpr auto convert_to_policy_holder(found_policy_pair_list<repeated>, RawPolicies... policies) {
+				return policy_holder<RawPolicies...>{};
+			}
+
+			template <bool repeated, class FirstFoundPolicyPair, class... RemainingFoundPolicyPairs, class... RawPolicies>
+			constexpr auto convert_to_policy_holder(
+				found_policy_pair_list<repeated, FirstFoundPolicyPair, RemainingFoundPolicyPairs...>, RawPolicies... policies)
+			{
+				return convert_to_policy_holder(found_policy_pair_list<repeated, RemainingFoundPolicyPairs...>{},
+					typename FirstFoundPolicyPair::policy{}, policies...);
+			}
+
+			template <class BaseDefaultPairList, class... Policies>
+			constexpr auto make_policy_holder(BaseDefaultPairList, Policies... policies) {
+				static_assert(check_policy_list_validity(BaseDefaultPairList{}, Policies{}...),
+					"jkj::dragonbox: an invalid policy is specified");
+
+				using policy_pair_list = decltype(make_policy_holder_impl(BaseDefaultPairList{},
+					found_policy_pair_list<false>{}, policies...));
+
+				static_assert(!policy_pair_list::repeated,
+					"jkj::dragonbox: each policy should be specified at most once");
+
+				return convert_to_policy_holder(policy_pair_list{});
+			}
+		}
+	}
+
+
+	////////////////////////////////////////////////////////////////////////////////////////
+	// The interface function
+	////////////////////////////////////////////////////////////////////////////////////////
+
+	template <class Float, class... Policies>
+	auto to_decimal(Float x, Policies... policies)
+	{
+		// Build policy holder type
+		using namespace detail::policy_impl;
+		using policy_holder = decltype(make_policy_holder(
+				base_default_pair_list<
+					base_default_pair<sign::base, sign::return_sign>,
+					base_default_pair<trailing_zero::base, trailing_zero::remove>,
+					base_default_pair<rounding_mode::base, rounding_mode::nearest_to_even>,
+					base_default_pair<correct_rounding::base, correct_rounding::to_even>,
+					base_default_pair<cache::base, cache::normal>,
+					base_default_pair<input_validation::base, input_validation::assert_finite>
+				>{}, policies...));
+
+		using return_type = fp_t<Float,
+			policy_holder::return_has_sign,
+			policy_holder::report_trailing_zeros>;
+
+		auto br = ieee754_bits(x);
+		policy_holder::validate_input(br);
+
+		return policy_holder::delegate(br,
+			[br](auto interval_type_provider) {
+				constexpr auto tag = decltype(interval_type_provider)::tag;
+
+				if constexpr (tag == rounding_mode::tag_t::to_nearest) {
 					return detail::impl<Float>::template
-						compute_left_closed_directed<return_sign, tzp, cp>(br);
+						compute_nearest<return_type, decltype(interval_type_provider),
+							typename policy_holder::sign_policy,
+							typename policy_holder::trailing_zero_policy,
+							typename policy_holder::correct_rounding_policy,
+							typename policy_holder::cache_policy
+						>(br);
+				}
+				else if constexpr (tag == rounding_mode::tag_t::left_closed_directed_tag) {
+					return detail::impl<Float>::template
+						compute_left_closed_directed<return_type,
+							typename policy_holder::sign_policy,
+							typename policy_holder::trailing_zero_policy,
+							typename policy_holder::cache_policy
+						>(br);
 				}
 				else {
 					return detail::impl<Float>::template
-						compute_right_closed_directed<return_sign, tzp, cp>(br);
+						compute_right_closed_directed<return_type,
+							typename policy_holder::sign_policy,
+							typename policy_holder::trailing_zero_policy,
+							typename policy_holder::cache_policy
+						>(br);
 				}
 			});
 	}

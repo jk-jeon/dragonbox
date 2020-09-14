@@ -169,9 +169,10 @@ Float randomly_generate_float_with_given_digits(unsigned int digits, RandGen& rg
 
 			// Discard if a shorter representation exists
 			// We don't need to care about sign and correct rounding here
-			auto roundtrip = jkj::dragonbox::to_decimal<false>(result,
-				jkj::dragonbox::rounding_modes::nearest_to_even{},
-				jkj::dragonbox::correct_rounding::do_not_care{});
+			auto roundtrip = jkj::dragonbox::to_decimal(result,
+				jkj::dragonbox::policy::sign::ignore,
+				jkj::dragonbox::policy::rounding_mode::nearest_to_even,
+				jkj::dragonbox::policy::correct_rounding::do_not_care);
 			if (from != 0 && roundtrip.significand <= carrier_uint(from * 10)) {
 				continue;
 			}

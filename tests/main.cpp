@@ -30,11 +30,11 @@ extern void verify_cache_length();
 extern void generate_cache();
 
 // Generate the error table for the compressed cache
-#define GENERATE_COMPRESSED_CACHE_ERROR_TABLE
+//#define GENERATE_COMPRESSED_CACHE_ERROR_TABLE
 extern void generate_compressed_cache_error_table();
 
 // Check successful recovery of all cache entries from the compressed cache
-#define VERIFY_COMPRESSED_CACHE
+//#define VERIFY_COMPRESSED_CACHE
 extern void verify_compressed_cache();
 
 // Check if the fast divisibility check and division algorithms are correct

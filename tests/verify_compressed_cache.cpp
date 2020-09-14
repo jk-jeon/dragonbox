@@ -28,8 +28,11 @@ void verify_compressed_cache()
 	bool success = true;
 	for (int k = impl<double>::min_k; k <= impl<double>::max_k; ++k)
 	{
-		auto real_cache = get_cache<double>(k);
-		auto recovered_cache = get_cache<double, true>(k);
+		using jkj::dragonbox::policy::cache::normal;
+		using jkj::dragonbox::policy::cache::compressed;
+
+		auto real_cache = normal.get_cache<jkj::dragonbox::ieee754_format::binary64>(k);
+		auto recovered_cache = compressed.get_cache<jkj::dragonbox::ieee754_format::binary64>(k);
 
 		if (real_cache.high() != recovered_cache.high() ||
 			real_cache.low() != recovered_cache.low())

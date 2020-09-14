@@ -23,7 +23,6 @@ template <class Float>
 static void verify_fast_multiplication_xz()
 {
 	using impl = jkj::dragonbox::detail::impl<Float>;
-	using jkj::dragonbox::detail::get_cache;
 	using carrier_uint = typename impl::carrier_uint;
 
 	constexpr auto fl = (carrier_uint(1) << (impl::significand_bits + 2)) - 1;
@@ -43,7 +42,7 @@ static void verify_fast_multiplication_xz()
 		int const beta_minus_2 = beta_minus_1 - 1;
 
 		// Load cache
-		auto const cache = get_cache<Float>(-minus_k);
+		auto const cache = jkj::dragonbox::policy::cache::normal.get_cache<impl::format>(-minus_k);
 
 		// Compute the endpoints using the fast method
 		auto x_fast = impl::compute_left_endpoint_for_shorter_interval_case(cache, beta_minus_1);
@@ -81,12 +80,10 @@ template <class Float>
 static void verify_fast_multiplication_yru()
 {
 	using impl = jkj::dragonbox::detail::impl<Float>;
-	using jkj::dragonbox::detail::get_cache;
-
 	bool success = true;
 
 	for (int k = impl::min_k; k < 0; ++k) {
-		auto const cache = get_cache<Float>(k);
+		auto const cache = jkj::dragonbox::policy::cache::normal.get_cache<impl::format>(k);
 
 		// Since p + beta <= q, suffices to check that the lower half of the cache is not 0
 		auto const lower_half = [cache] {

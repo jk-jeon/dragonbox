@@ -36,13 +36,14 @@ void generate_compressed_cache_error_table()
 	int error_count = 0;
 	for (int k = impl<double>::min_k; k <= impl<double>::max_k; ++k)
 	{
-		auto real_cache = get_cache<double>(k);
+		using jkj::dragonbox::policy::cache::normal;
+		auto real_cache = normal.get_cache<jkj::dragonbox::ieee754_format::binary64>(k);
 
 		// Compute base index
 		int kb = ((k - impl<double>::min_k) / recov_size) * recov_size + impl<double>::min_k;
 
 		// Get base cache
-		auto base_cache = get_cache<double>(kb);
+		auto base_cache = normal.get_cache<jkj::dragonbox::ieee754_format::binary64>(kb);
 
 		// Get index offset
 		auto offset = k - kb;
