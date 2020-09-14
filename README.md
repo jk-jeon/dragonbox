@@ -73,7 +73,7 @@ double x = 1.234;   // Also works for float
 auto v = jkj::dragonbox::to_decimal(x);
 ```
 
-By default, `jkj::dragonbox::to_decimal` returns a struct with three members (`significand`, `exponent`, and `is_negative`). But the return type and the return value can change if you specify first two template paramters. See [below](https://github.com/jk-jeon/dragonbox#policies)
+By default, `jkj::dragonbox::to_decimal` returns a struct with three members (`significand`, `exponent`, and `is_negative`). But the return type and the return value can change if you specify policy paramters. See [below](https://github.com/jk-jeon/dragonbox#policies)
 
 # Policies
 Dragonbox provides several policies that the user can select. Most of the time the default policies will be sufficient, but for some situation this customizability might be useful. There are currently six different kinds of policies that you can specify: sign policy, trailing zero policy, rounding mode policy, correct rounding policy, cache policy, and input validation policy. Those policies are living in the namespace `jkj::dragonbox::policy`. You can provide the policies as additional parameters to `jkj::dragonbox::to_decimal` or `jkj::dragonbox::to_chars` or `jkj::dragonbox::to_chars_n`. Here is an example usage:
@@ -156,7 +156,7 @@ Determines what `jkj::dragonbox::to_decimal` will do when rounding tie occurs. T
 All of these policies can be specified also to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
 
 ## Cache policy
-Choose between the full cache table and the compressed one. Using the compressed cache will result in about 20% slower code, but it can significantly reduce amount of required static data. It currently has no effect for binary32 (`float`) inputs. For binary64 (`double`) inputs, `jkj::dragonbox::cache_policy::normal` will cause `jkj::dragonbox::to_decimal` to use `24*16 + 619*16 = 10288` bytes of static data table, while the corresponding amount for `jkj::dragonbox::cache_policy::compressed` is `24*16 + 23*16 + 27*8 + 39*4 = 1124` bytes.
+Choose between the full cache table and the compressed one. Using the compressed cache will result in about 20% slower code, but it can significantly reduce the amount of required static data. It currently has no effect for binary32 (`float`) inputs. For binary64 (`double`) inputs, `jkj::dragonbox::cache_policy::normal` will cause `jkj::dragonbox::to_decimal` to use `24*16 + 619*16 = 10288` bytes of static data table, while the corresponding amount for `jkj::dragonbox::cache_policy::compressed` is `24*16 + 23*16 + 27*8 + 39*4 = 1124` bytes.
 
 - `jkj::dragonbox::policy::cache::normal`: **This is the default policy.** Use the full table.
 
@@ -238,7 +238,7 @@ The result of tests and benchmarks will be written in the directories [`test_res
 There are also some MATLAB scripts in the directory [`benchmark_results`](benchmark_results) for plot generation. If you have MATLAB installed on your machine and want to generate plots, then download these script files also.
 
 # Notes
-Besides the uniformly random tests against Ryu, I also ran a joint test of Dragonbox with a binary-to-decimal floating-point conversion routine I developed, and confirmed correct roundtrip for all possible IEEE-754 binary32-encoded floating-point numbers (aka `float`) with the nearest-to-even rounding mode. Therefore, I am currently pretty confident about the correctness of both of the algorithms. I will make a separate repository for the reverse algorithm in a near future.
+Besides the uniformly random tests against Ryu, I also ran a joint test of Dragonbox with a binary-to-decimal floating-point conversion routine I developed, and confirmed correct roundtrip for all possible IEEE-754 binary32-encoded floating-point numbers (aka `float`) with the round-to-nearest, tie-to-even rounding mode. Therefore, I am currently pretty confident about the correctness of both of the algorithms. I will make a separate repository for the reverse algorithm in a near future.
 
 # License
 All code, except for those belong to third-party libraries (code in [`benchmark/ryu`](benchmark/ryu), [`benchmark/schubfach`](benchmark/schubfach), and [`benchmark_results/shaded_plots`](benchmark_results/shaded_plots)), is licensed under either of
