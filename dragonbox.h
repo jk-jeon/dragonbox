@@ -1603,7 +1603,7 @@ namespace jkj::dragonbox {
 
 					template <class Float, class Fp>
 					static constexpr void handle_sign(ieee754_bits<Float> br, Fp& fp) noexcept {
-						fp.is_negative = fp.is_negative();
+						fp.is_negative = br.is_negative();
 					}
 				};
 			}
@@ -2104,16 +2104,16 @@ namespace jkj::dragonbox {
 								// Try to recover the real cache
 								auto pow5 = compressed_cache_detail::pow5.table[offset];
 								auto recovered_cache = wuint::umul128(base_cache.high(), pow5);
-								auto [middle, low] = wuint::umul128(base_cache.low() - (kb < 0 ? 1 : 0), pow5);
+								auto middle_low = wuint::umul128(base_cache.low() - (kb < 0 ? 1 : 0), pow5);
 
-								recovered_cache += middle;
+								recovered_cache += middle_low.high();
 
 								auto high_to_middle = recovered_cache.high() << (64 - alpha);
 								auto middle_to_low = recovered_cache.low() << (64 - alpha);
 
 								recovered_cache = wuint::uint128{
 									(recovered_cache.low() >> alpha) | high_to_middle,
-									((low >> alpha) | middle_to_low)
+									((middle_low.low() >> alpha) | middle_to_low)
 								};
 
 								if (kb < 0) {
@@ -3217,7 +3217,7 @@ namespace jkj::dragonbox {
 							typename policy_holder::cache_policy
 						>(br);
 				}
-				else if constexpr (tag == rounding_mode::tag_t::left_closed_directed_tag) {
+				else if constexpr (tag == rounding_mode::tag_t::left_closed_directed) {
 					return detail::impl<Float>::template
 						compute_left_closed_directed<return_type,
 							typename policy_holder::sign_policy,
