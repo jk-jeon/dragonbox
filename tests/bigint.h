@@ -562,6 +562,11 @@ namespace jkj::dragonbox {
 
 			// Multiply a single element
 			bigint_impl& operator*=(element_type n) & {
+				if (n == 0) {
+					*this = 0;
+					return *this;
+				}
+
 				element_type carry = 0;
 				for (std::size_t idx = 0; idx <= leading_one_pos.element_pos; ++idx) {
 					auto mul = wuint::umul128(elements[idx], n);
@@ -586,6 +591,10 @@ namespace jkj::dragonbox {
 
 			// Multiplication
 			friend bigint_impl operator*(bigint_impl const& x, bigint_impl const& y) {
+				if (x == 0 || y == 0) {
+					return 0;
+				}
+
 				// Leaky overflow check
 				assert(x.leading_one_pos.element_pos + y.leading_one_pos.element_pos < array_size);
 				
