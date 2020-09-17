@@ -2237,7 +2237,7 @@ namespace jkj::dragonbox {
 		// the bit representation of a floating-point number
 		template <class Float>
 		struct impl : private ieee754_traits<Float>,
-			private ieee754_format_info< ieee754_traits<Float>::format>
+			private ieee754_format_info<ieee754_traits<Float>::format>
 		{
 			using carrier_uint = typename ieee754_traits<Float>::carrier_uint;
 
