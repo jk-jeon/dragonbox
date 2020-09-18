@@ -344,7 +344,7 @@ namespace jkj::dragonbox {
 				constexpr uint128(std::uint64_t high, std::uint64_t low) noexcept :
 					internal_{ ((unsigned __int128)low) | (((unsigned __int128)high) << 64) } {}
 
-				constexpr uint128(unsigned __int128 u) : internal_{ u } {}
+				constexpr uint128(unsigned __int128 u) noexcept : internal_{ u } {}
 
 				constexpr std::uint64_t high() const noexcept {
 					return std::uint64_t(internal_ >> 64);
