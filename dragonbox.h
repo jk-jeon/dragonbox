@@ -2324,7 +2324,7 @@ namespace jkj::dragonbox {
 				if (exponent != 0) {
 					exponent += exponent_bias - significand_bits;
 
-					// Closer boundary case; proceed like Schubfach
+					// Shorter interval case; proceed like Schubfach
 					if (significand == 0) {
 						shorter_interval_case<TrailingZeroPolicy, CorrectRoundingPolicy, CachePolicy>(
 							ret_value, exponent,
@@ -2392,11 +2392,13 @@ namespace jkj::dragonbox {
 				}
 				else {
 					// r == deltai; compare fractional parts
+					// Check conditions in the order different from the paper
+					// to take advantage of short-circuiting
 					auto const two_fl = two_fc - 1;
-					if (!compute_mul_parity(two_fl, cache, beta_minus_1) &&
-						(!interval_type.include_left_endpoint() ||
-							!is_product_integer<integer_check_case_id::fc_pm_half>(
-								two_fl, exponent, minus_k)))
+					if ((!interval_type.include_left_endpoint() ||
+						!is_product_integer<integer_check_case_id::fc_pm_half>(
+							two_fl, exponent, minus_k)) &&
+						!compute_mul_parity(two_fl, cache, beta_minus_1))
 					{
 						goto small_divisor_case_label;
 					}
