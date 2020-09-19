@@ -465,7 +465,7 @@ namespace jkj::dragonbox {
 		}
 
 		template <int k, class Int>
-		static constexpr Int compute_power(Int a) noexcept {
+		constexpr Int compute_power(Int a) noexcept {
 			static_assert(k >= 0);
 			Int p = 1;
 			for (int i = 0; i < k; ++i) {
@@ -475,7 +475,7 @@ namespace jkj::dragonbox {
 		}
 
 		template <int a, class UInt>
-		static constexpr int count_factors(UInt n) noexcept {
+		constexpr int count_factors(UInt n) noexcept {
 			static_assert(a > 1);
 			int c = 0;
 			while (n % a == 0) {
