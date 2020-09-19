@@ -2298,9 +2298,9 @@ namespace jkj::dragonbox {
 					count_factors<5>((carrier_uint(1) << (significand_bits + 1)) + 1) + 1
 				>(10) / 3);
 
-			static constexpr int shorter_interval_case_tie_lower_threshold =
+			static constexpr int shorter_interval_tie_lower_threshold =
 				-log::floor_log5_pow2_minus_log5_3(significand_bits + 4) - 2 - significand_bits;
-			static constexpr int shorter_interval_case_tie_upper_threshold =
+			static constexpr int shorter_interval_tie_upper_threshold =
 				-log::floor_log5_pow2(significand_bits + 2) - 2 - significand_bits;
 
 			//// The main algorithm assumes the input is a normal/subnormal finite number
@@ -2555,8 +2555,8 @@ namespace jkj::dragonbox {
 					CorrectRoundingPolicy::tag !=
 					policy_impl::correct_rounding::tag_t::away_from_zero)
 				{
-					if (exponent >= shorter_interval_case_tie_lower_threshold &&
-						exponent <= shorter_interval_case_tie_upper_threshold)
+					if (exponent >= shorter_interval_tie_lower_threshold &&
+						exponent <= shorter_interval_tie_upper_threshold)
 					{
 						CorrectRoundingPolicy::break_rounding_tie(ret_value);
 					}
@@ -2955,8 +2955,7 @@ namespace jkj::dragonbox {
 				cache_entry_type const& cache, int beta_minus_1) noexcept
 			{
 				if constexpr (format == ieee754_format::binary32) {
-					return carrier_uint(
-						((cache >> (cache_bits - significand_bits - 2 - beta_minus_1)) + 1)) / 2;
+					return (carrier_uint(cache >> (cache_bits - significand_bits - 2 - beta_minus_1)) + 1) / 2;
 				}
 				else {
 					return ((cache.high() >> (carrier_bits - significand_bits - 2 - beta_minus_1)) + 1) / 2;
