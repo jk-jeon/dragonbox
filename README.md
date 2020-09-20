@@ -73,7 +73,7 @@ double x = 1.234;   // Also works for float
 auto v = jkj::dragonbox::to_decimal(x);
 ```
 
-By default, `jkj::dragonbox::to_decimal` returns a struct with three members (`significand`, `exponent`, and `is_negative`). But the return type and the return value can change if you specify policy paramters. See [below](https://github.com/jk-jeon/dragonbox#policies)
+By default, `jkj::dragonbox::to_decimal` returns a struct with three members (`significand`, `exponent`, and `is_negative`). But the return type and the return value can change if you specify policy paramters. See [below](https://github.com/jk-jeon/dragonbox#policies).
 
 # Policies
 Dragonbox provides several policies that the user can select. Most of the time the default policies will be sufficient, but for some situation this customizability might be useful. There are currently six different kinds of policies that you can specify: sign policy, trailing zero policy, rounding mode policy, correct rounding policy, cache policy, and input validation policy. Those policies are living in the namespace `jkj::dragonbox::policy`. You can provide the policies as additional parameters to `jkj::dragonbox::to_decimal` or `jkj::dragonbox::to_chars` or `jkj::dragonbox::to_chars_n`. Here is an example usage:
@@ -85,7 +85,7 @@ auto v = jkj::dragonbox::to_decimal(x,
 ```
 In this example, the `ignore` sign policy and the `compressed` cache policy are specified. The return value will not include the member `is_negative`, and `jkj::dragonbox::to_decimal` will internally use compressed cache for the computation. There is no particular order for policy parameter; you can give them in any order. Default policies will be chosen if you do not explicitly specify any. In the above example, for instance, `nearest_to_even` rounding mode policy is chosen, which is the default rounding mode policy. If you provide two or more policies of the same kind, or if you provide an invalid policy parameter, then the compliation will fail.
 
-Policiy parameters (e.g., `jkj::dragonbox::policy::sign::ignore` in the above example) are of different type, so different combinations of policies generally result in separate template instantiation, which might cause binary bloat. (However, it is only the combination that does matter; giving the same parameter combination in a different order will not generate a separate binary.)
+Policy parameters (e.g., `jkj::dragonbox::policy::sign::ignore` in the above example) are of different types, so different combinations of policies generally result in separate template instantiation, which might cause binary bloat. (However, it is only the combination that does matter; giving the same parameter combination in a different order will usually not generate a separate binary.)
 
 ## Sign policy
 Determines whether or not if `jkj::dragonbox::to_decimal` will extract and return the sign of the input paramter.
