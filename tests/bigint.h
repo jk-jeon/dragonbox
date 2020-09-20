@@ -643,7 +643,7 @@ namespace jkj::dragonbox {
 						add_carry = first_carry | ((result.elements[i + j] < with_carry) ? 1 : 0);
 					}
 
-					assert(add_carry == 0);
+					assert(single_result_leading_one_pos == 0 || add_carry == 0);
 				}
 
 				result.leading_one_pos.element_pos = y.leading_one_pos.element_pos +
