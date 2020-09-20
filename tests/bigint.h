@@ -464,20 +464,25 @@ namespace jkj::dragonbox {
 				return *this;
 			}
 
-			constexpr bigint_impl& operator+=(element_type n) & {
+			constexpr bigint_impl& operator+=(element_type n)& {
 				elements[0] += n;
 				unsigned int carry = (elements[0] < n) ? 1 : 0;
 
-				for (std::size_t idx = 1; idx <= leading_one_pos.element_pos; ++idx) {
-					elements[idx] += carry;
-					carry = elements[idx] < carry ? 1 : 0;
-				}
-
 				if (carry != 0) {
-					assert(leading_one_pos.element_pos + 1 < array_size);
-					++leading_one_pos.element_pos;
-					leading_one_pos.bit_pos = 1;
-					elements[leading_one_pos.element_pos] = 1;
+					for (std::size_t idx = 1; idx <= leading_one_pos.element_pos; ++idx) {
+						elements[idx] += carry;
+						carry = elements[idx] < carry ? 1 : 0;
+					}
+
+					if (carry != 0) {
+						assert(leading_one_pos.element_pos + 1 < array_size);
+						++leading_one_pos.element_pos;
+						leading_one_pos.bit_pos = 1;
+						elements[leading_one_pos.element_pos] = 1;
+					}
+				}
+				else {
+					leading_one_pos.bit_pos = log2p1(elements[0]);
 				}
 
 				return *this;
