@@ -481,7 +481,7 @@ namespace jkj::dragonbox {
 						elements[leading_one_pos.element_pos] = 1;
 					}
 				}
-				else {
+				else if (leading_one_pos.element_pos == 0) {
 					leading_one_pos.bit_pos = log2p1(elements[0]);
 				}
 
