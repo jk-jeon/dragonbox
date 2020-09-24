@@ -657,12 +657,11 @@ namespace jkj::dragonbox {
 			// Perform long division
 			// *this becomes the remainder, returns the quotient
 			// Precondition: n != 0
-			bigint_impl long_division(bigint_impl const& n) & {
+			bigint_impl long_division(bigint_impl const& n) {
 				bigint_impl n_shifted;
 				bigint_impl quotient = 0;
 
 				std::size_t comparison_idx;
-				std::size_t operation_idx;
 
 				std::size_t base_idx;
 				std::size_t base_trailing_zeros;
@@ -672,6 +671,7 @@ namespace jkj::dragonbox {
 					unsigned int carry = elements[base_idx] < x.elements[base_idx] ? 1 : 0;
 					elements[base_idx] -= x.elements[base_idx];
 
+					std::size_t operation_idx;
 					for (operation_idx = base_idx + 1; operation_idx <= comparison_idx; ++operation_idx) {
 						auto with_carry = x.elements[operation_idx] + carry;
 						unsigned int first_carry = (with_carry < carry) ? 1 : 0;
@@ -680,14 +680,17 @@ namespace jkj::dragonbox {
 						elements[operation_idx] -= with_carry;
 					}
 					assert(carry == 0);
-					for (; operation_idx <= leading_one_pos.element_pos; ++operation_idx)
+					for (; operation_idx <= leading_one_pos.element_pos; ++operation_idx) {
 						elements[operation_idx] = 0;
+					}
 
 					while (elements[comparison_idx] == 0) {
-						if (comparison_idx == 0)
+						if (comparison_idx == 0) {
 							break;
-						else
+						}
+						else {
 							--comparison_idx;
+						}
 					}
 					leading_one_pos.element_pos = comparison_idx;
 					leading_one_pos.bit_pos = log2p1(elements[comparison_idx]);
@@ -720,8 +723,9 @@ namespace jkj::dragonbox {
 							}
 						}
 						// If n is larger, return
-						if (n.elements[0] > elements[0])
+						if (n.elements[0] > elements[0]) {
 							return quotient;
+						}
 						// Otherwise, we can subtract n from *this exactly once
 						else {
 							elements[0] -= n.elements[0];
@@ -762,11 +766,12 @@ namespace jkj::dragonbox {
 						base_trailing_zeros = element_number_of_bits +
 							leading_one_pos.bit_pos - n.leading_one_pos.bit_pos;
 					}
-					else
+					else {
 						base_trailing_zeros = 0;
+					}
 
 					total_shft_amount = base_idx * element_number_of_bits + base_trailing_zeros;
-					
+
 					// Element-wise shift
 					std::fill_n(std::begin(n_shifted.elements), base_idx, 0);
 					std::copy(std::begin(n.elements),
@@ -802,13 +807,12 @@ namespace jkj::dragonbox {
 									}
 								}
 
-								n_shifted.elements[base_idx - 1] =
-									(n_shifted.elements[base_idx] << (element_number_of_bits - 1));
 								base_trailing_zeros = element_number_of_bits - 1;
 								--base_idx;
 							}
-							else
+							else {
 								--base_trailing_zeros;
+							}
 
 							--total_shft_amount;
 
@@ -816,10 +820,11 @@ namespace jkj::dragonbox {
 								--n_shifted.leading_one_pos.element_pos;
 								n_shifted.leading_one_pos.bit_pos = element_number_of_bits;
 							}
-							else
+							else {
 								--n_shifted.leading_one_pos.bit_pos;
+							}
 
-							for (operation_idx = base_idx;
+							for (std::size_t operation_idx = base_idx;
 								operation_idx < leading_one_pos.element_pos; ++operation_idx)
 							{
 								n_shifted.elements[operation_idx] >>= 1;
@@ -832,8 +837,9 @@ namespace jkj::dragonbox {
 							break;
 						}
 
-						else if (n_shifted.elements[comparison_idx] < elements[comparison_idx])
+						else if (n_shifted.elements[comparison_idx] < elements[comparison_idx]) {
 							break;
+						}
 					}
 
 					if constexpr (decltype(is_before_iteration)::value) {
@@ -859,9 +865,10 @@ namespace jkj::dragonbox {
 					return true;
 				};
 
-				if (!compare_and_subtract(std::bool_constant<true>{}))
+				if (!compare_and_subtract(std::bool_constant<true>{})) {
 					return quotient;
-				
+				}
+
 				do {
 					// Right-shift n_shifted to re-align leading ones
 					auto element_shft_amount = n_shifted.leading_one_pos.element_pos - leading_one_pos.element_pos;
@@ -874,8 +881,9 @@ namespace jkj::dragonbox {
 						bit_shft_amount = element_number_of_bits +
 							n_shifted.leading_one_pos.bit_pos - leading_one_pos.bit_pos;
 					}
-					else
+					else {
 						bit_shft_amount = 0;
+					}
 
 					auto necessary_shft_amount = element_shft_amount * element_number_of_bits + bit_shft_amount;
 
@@ -905,7 +913,7 @@ namespace jkj::dragonbox {
 
 					// Leading bits of n_shifted and *this are now aligned
 					n_shifted.leading_one_pos = leading_one_pos;
-				} while(compare_and_subtract(std::bool_constant<false>{}));
+				} while (compare_and_subtract(std::bool_constant<false>{}));
 
 				return quotient;
 			}
