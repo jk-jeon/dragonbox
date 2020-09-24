@@ -107,7 +107,7 @@
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/experimental:newLambdaProcessor %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\benchmark\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\benchmark\;$(SolutionDir)..\include\;$(SolutionDir)..\test\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
@@ -129,7 +129,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <AdditionalOptions>/experimental:newLambdaProcessor %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\benchmark\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\benchmark\;$(SolutionDir)..\include\;$(SolutionDir)..\test\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
     <Link>
@@ -152,7 +152,7 @@
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\benchmark\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\benchmark\;$(SolutionDir)..\include\;$(SolutionDir)..\test\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
@@ -167,7 +167,7 @@
     <ClCompile>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/experimental:newLambdaProcessor %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\benchmark\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\benchmark\;$(SolutionDir)..\include\;$(SolutionDir)..\test\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -179,7 +179,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <AdditionalOptions>/experimental:newLambdaProcessor %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\benchmark\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\benchmark\;$(SolutionDir)..\include\;$(SolutionDir)..\test\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseClang|Win32'">
@@ -190,7 +190,7 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\benchmark\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\benchmark\;$(SolutionDir)..\include\;$(SolutionDir)..\test\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -207,10 +207,10 @@
     <ClInclude Include="..\benchmark\ryu\ryu.h" />
     <ClInclude Include="..\benchmark\schubfach\schubfach_32.h" />
     <ClInclude Include="..\benchmark\schubfach\schubfach_64.h" />
-    <ClInclude Include="..\dragonbox.h" />
-    <ClInclude Include="..\dragonbox_to_chars.h" />
-    <ClInclude Include="..\tests\bigint.h" />
-    <ClInclude Include="..\tests\random_float.h" />
+    <ClInclude Include="..\include\dragonbox\dragonbox.h" />
+    <ClInclude Include="..\include\dragonbox\dragonbox_to_chars.h" />
+    <ClInclude Include="..\test\include\bigint.h" />
+    <ClInclude Include="..\test\include\random_float.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\benchmark\benchmark.cpp" />
@@ -223,20 +223,20 @@
     <ClCompile Include="..\benchmark\schubfach.cpp" />
     <ClCompile Include="..\benchmark\schubfach\schubfach_32.cc" />
     <ClCompile Include="..\benchmark\schubfach\schubfach_64.cc" />
-    <ClCompile Include="..\dragonbox_to_chars\dragonbox_to_chars.cpp" />
-    <ClCompile Include="..\tests\generate_cache.cpp" />
-    <ClCompile Include="..\tests\generate_compressed_cache_error_table.cpp" />
-    <ClCompile Include="..\tests\live_test.cpp" />
-    <ClCompile Include="..\tests\main.cpp" />
-    <ClCompile Include="..\tests\misc_test.cpp" />
-    <ClCompile Include="..\tests\perf_test.cpp" />
-    <ClCompile Include="..\tests\test_all_shorter_interval_cases.cpp" />
-    <ClCompile Include="..\tests\uniform_random_test.cpp" />
-    <ClCompile Include="..\tests\verify_cache_length.cpp" />
-    <ClCompile Include="..\tests\verify_compressed_cache.cpp" />
-    <ClCompile Include="..\tests\verify_magic_division.cpp" />
-    <ClCompile Include="..\tests\verify_fast_multiplication.cpp" />
-    <ClCompile Include="..\tests\verify_log_computation.cpp" />
+    <ClCompile Include="..\source\dragonbox_to_chars.cpp" />
+    <ClCompile Include="..\test\source\generate_cache.cpp" />
+    <ClCompile Include="..\test\source\generate_compressed_cache_error_table.cpp" />
+    <ClCompile Include="..\test\source\live_test.cpp" />
+    <ClCompile Include="..\test\source\main.cpp" />
+    <ClCompile Include="..\test\source\misc_test.cpp" />
+    <ClCompile Include="..\test\source\perf_test.cpp" />
+    <ClCompile Include="..\test\source\test_all_shorter_interval_cases.cpp" />
+    <ClCompile Include="..\test\source\uniform_random_test.cpp" />
+    <ClCompile Include="..\test\source\verify_cache_length.cpp" />
+    <ClCompile Include="..\test\source\verify_compressed_cache.cpp" />
+    <ClCompile Include="..\test\source\verify_fast_multiplication.cpp" />
+    <ClCompile Include="..\test\source\verify_log_computation.cpp" />
+    <ClCompile Include="..\test\source\verify_magic_division.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

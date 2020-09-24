@@ -18,7 +18,7 @@
 #ifndef JKJ_GRISU_EXACT_BENCHMARK
 #define JKJ_GRISU_EXACT_BENCHMARK
 
-#include "../tests/random_float.h"
+#include "random_float.h"
 #include <array>
 #include <chrono>
 #include <iostream>

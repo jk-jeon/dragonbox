@@ -15,7 +15,7 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
 
-#include "../dragonbox_to_chars.h"
+#include "dragonbox/dragonbox_to_chars.h"
 
 #include <iostream>
 #include <iomanip>

@@ -15,8 +15,8 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
 
-#include "../dragonbox_to_chars.h"
-#include "../benchmark/ryu/ryu.h"
+#include "dragonbox/dragonbox_to_chars.h"
+#include "ryu/ryu.h"
 
 #include <iostream>
 #include <iomanip>

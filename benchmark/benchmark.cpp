@@ -16,7 +16,7 @@
 // KIND, either express or implied.
 
 #include "benchmark.h"
-#include "../dragonbox_to_chars.h"
+#include "dragonbox/dragonbox_to_chars.h"
 #include <cstring>
 #include <fstream>
 #include <iomanip>

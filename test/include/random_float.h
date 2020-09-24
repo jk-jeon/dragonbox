@@ -18,7 +18,7 @@
 #ifndef JKJ_DRAGONBOX_RANDOM_FLOAT
 #define JKJ_DRAGONBOX_RANDOM_FLOAT
 
-#include "../dragonbox.h"
+#include "dragonbox/dragonbox.h"
 #include <cstring>
 #include <random>
 #include <stdexcept>
