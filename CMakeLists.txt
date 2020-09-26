@@ -78,7 +78,7 @@ set(dragonbox_install_cmakedir "${CMAKE_INSTALL_LIBDIR}/cmake/${dragonbox_direct
 
 configure_package_config_file(
         cmake/dragonboxConfig.cmake.in
-        "${CMAKE_CURRENT_BINARY_DIR}/dragonboxConfig.cmake"
+        "${PROJECT_BINARY_DIR}/dragonboxConfig.cmake"
         INSTALL_DESTINATION "${dragonbox_install_cmakedir}")
 
 write_basic_package_version_file(
