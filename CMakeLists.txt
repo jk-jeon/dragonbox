@@ -79,12 +79,15 @@ set(dragonbox_install_cmakedir "${CMAKE_INSTALL_LIBDIR}/cmake/${dragonbox_direct
 configure_package_config_file(
         cmake/dragonboxConfig.cmake.in
         "${PROJECT_BINARY_DIR}/dragonboxConfig.cmake"
-        INSTALL_DESTINATION "${dragonbox_install_cmakedir}")
+        INSTALL_DESTINATION "${dragonbox_install_cmakedir}"
+        NO_SET_AND_CHECK_MACRO
+        NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
 write_basic_package_version_file(
         dragonboxConfigVersion.cmake
         VERSION ${PROJECT_VERSION}
-        COMPATIBILITY SameMajorVersion)
+        COMPATIBILITY SameMajorVersion
+        ARCH_INDEPENDENT)
 
 install(EXPORT dragonboxTargets
         NAMESPACE dragonbox::
