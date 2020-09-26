@@ -46,7 +46,9 @@ set(dragonbox_to_chars_headers
 
 set(dragonbox_to_chars_sources source/dragonbox_to_chars.cpp)
 
-add_library(dragonbox_to_chars ${dragonbox_to_chars_headers} ${dragonbox_to_chars_sources})
+add_library(dragonbox_to_chars STATIC
+        ${dragonbox_to_chars_headers}
+        ${dragonbox_to_chars_sources})
 add_library(dragonbox::dragonbox_to_chars ALIAS dragonbox_to_chars)
 
 target_include_directories(dragonbox_to_chars
@@ -56,10 +58,6 @@ target_include_directories(dragonbox_to_chars
         "$<INSTALL_INTERFACE:${dragonbox_include_directory}>")
 
 target_compile_features(dragonbox_to_chars PUBLIC cxx_std_17)
-
-set_target_properties(dragonbox_to_chars PROPERTIES
-        SOVERSION ${PROJECT_VERSION_MAJOR}
-        VERSION ${PROJECT_VERSION})
 
 # ---- Install ----
 
