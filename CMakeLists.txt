@@ -10,11 +10,6 @@ project(dragonbox
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
-# ---- Install directories ----
-
-set(dragonbox_directory "dragonbox-${PROJECT_VERSION}")
-set(dragonbox_include_directory "${CMAKE_INSTALL_INCLUDEDIR}/${dragonbox_directory}")
-
 # ---- Warning guard ----
 
 # Protect dependents from this project's warnings if the guard isn't disabled
@@ -58,6 +53,9 @@ target_include_directories(dragonbox_to_chars
 target_compile_features(dragonbox_to_chars PUBLIC cxx_std_17)
 
 # ---- Install ----
+
+set(dragonbox_directory "dragonbox-${PROJECT_VERSION}")
+set(dragonbox_include_directory "${CMAKE_INSTALL_INCLUDEDIR}/${dragonbox_directory}")
 
 install(TARGETS dragonbox dragonbox_to_chars
         EXPORT dragonboxTargets
