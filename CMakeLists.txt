@@ -61,13 +61,6 @@ target_compile_features(dragonbox_to_chars PUBLIC cxx_std_17)
 
 install(TARGETS dragonbox dragonbox_to_chars
         EXPORT dragonboxTargets
-        RUNTIME #
-        DESTINATION "${CMAKE_INSTALL_BINDIR}"
-        COMPONENT dragonbox_Runtime
-        LIBRARY #
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-        COMPONENT dragonbox_Runtime
-        NAMELINK_COMPONENT dragonbox_Development
         ARCHIVE #
         DESTINATION "${CMAKE_INSTALL_LIBDIR}"
         COMPONENT dragonbox_Development
