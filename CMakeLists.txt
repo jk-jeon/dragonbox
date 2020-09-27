@@ -33,8 +33,7 @@ set(dragonbox_headers include/dragonbox/dragonbox.h)
 target_include_directories(dragonbox
         ${dragonbox_warning_guard}
         INTERFACE
-        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
-        "$<INSTALL_INTERFACE:${dragonbox_include_directory}>")
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>")
 
 target_compile_features(dragonbox INTERFACE cxx_std_17)
 
@@ -54,8 +53,7 @@ add_library(dragonbox::dragonbox_to_chars ALIAS dragonbox_to_chars)
 target_include_directories(dragonbox_to_chars
         ${dragonbox_warning_guard}
         PUBLIC
-        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
-        "$<INSTALL_INTERFACE:${dragonbox_include_directory}>")
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>")
 
 target_compile_features(dragonbox_to_chars PUBLIC cxx_std_17)
 
@@ -72,7 +70,9 @@ install(TARGETS dragonbox dragonbox_to_chars
         NAMELINK_COMPONENT dragonbox_Development
         ARCHIVE #
         DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-        COMPONENT dragonbox_Development)
+        COMPONENT dragonbox_Development
+        INCLUDES #
+        DESTINATION "${dragonbox_include_directory}")
 
 set(dragonbox_install_cmakedir "${CMAKE_INSTALL_LIBDIR}/cmake/${dragonbox_directory}")
 
