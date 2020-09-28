@@ -186,63 +186,63 @@ The red line at the bottom is the performance of Dragonbox with the full cache t
 There is also a benchmark done by myself (top: benchmark for ````float```` data, bottom: benchmark for ````double```` data; solid lines are the averages, dashed lines are the medians, and the shaded regions show 30%, 50%, and 70% percentiles):
 
 (Clang)
-![digits_benchmark_binary32](subprojects/benchmark/results/digits_benchmark_binary32_clang.png)
-![digits_benchmark_binary64](subprojects/benchmark/results/digits_benchmark_binary64_clang.png)
+![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_binary32_clang.png)
+![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_binary64_clang.png)
 
 (MSVC)
-![digits_benchmark_binary32](subprojects/benchmark/results/digits_benchmark_binary32_msvc.png)
-![digits_benchmark_binary64](subprojects/benchmark/results/digits_benchmark_binary64_msvc.png)
+![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_binary32_msvc.png)
+![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_binary64_msvc.png)
 
 Here is another performance plot with uniformly randomly generated ````float````(top) or ````double````(bottom) data:
 
 (Clang)
-![uniform_benchmark_binary32](subprojects/benchmark/results/uniform_benchmark_binary32_clang.png)
-![uniform_benchmark_binary64](subprojects/benchmark/results/uniform_benchmark_binary64_clang.png)
+![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_binary32_clang.png)
+![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_binary64_clang.png)
 
 (MSVC)
-![uniform_benchmark_binary32](subprojects/benchmark/results/uniform_benchmark_binary32_msvc.png)
-![uniform_benchmark_binary64](subprojects/benchmark/results/uniform_benchmark_binary64_msvc.png)
+![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_binary32_msvc.png)
+![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_binary64_msvc.png)
 
 Dragonbox seems to be also faster than Schubfach, but since the implementation of Schubfach I benchmarked against does not remove trailing decimal zeros, the version that does not care about trailing decimal zeros is used for the benchmarks below:
 
 Digits benchmark (top: `float`, bottom: `double`):
 
 (Clang)
-![digits_benchmark_binary32](subprojects/benchmark/results/digits_benchmark_binary32_notzr_clang.png)
-![digits_benchmark_binary64](subprojects/benchmark/results/digits_benchmark_binary64_notzr_clang.png)
+![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_binary32_notzr_clang.png)
+![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_binary64_notzr_clang.png)
 
 (MSVC)
-![digits_benchmark_binary32](subprojects/benchmark/results/digits_benchmark_binary32_notzr_msvc.png)
-![digits_benchmark_binary64](subprojects/benchmark/results/digits_benchmark_binary64_notzr_msvc.png)
+![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_binary32_notzr_msvc.png)
+![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_binary64_notzr_msvc.png)
 
 Uniform benchmark (top: `float`, bottom: `double`):
 
 (Clang)
-![uniform_benchmark_binary32](subprojects/benchmark/results/uniform_benchmark_binary32_notzr_clang.png)
-![uniform_benchmark_binary64](subprojects/benchmark/results/uniform_benchmark_binary64_notzr_clang.png)
+![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_binary32_notzr_clang.png)
+![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_binary64_notzr_clang.png)
 
 (MSVC)
-![uniform_benchmark_binary32](subprojects/benchmark/results/uniform_benchmark_binary32_notzr_msvc.png)
-![uniform_benchmark_binary64](subprojects/benchmark/results/uniform_benchmark_binary64_notzr_msvc.png)
+![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_binary32_notzr_msvc.png)
+![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_binary64_notzr_msvc.png)
 
 # Comprehensive Explanation of the Algorithm
 Please see [this](other_files/Dragonbox.pdf) paper.
 
 # How to Run Tests
 (Currently the project is undergoing transition into CMake. This section will be updated after finishing that.)
-~~In order to run tests and benchmarks, you need `.cpp/.h` files in the directories [`subprojects`](subprojects), in addition to [`dragonbox.h`](include/dragonbox/dragonbox.h), [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h), and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp). There is no third party dependencies other than those included in this repository, so this should be enough.~~
+~~In order to run tests and benchmarks, you need `.cpp/.h` files in the directories [`subproject`](subproject), in addition to [`dragonbox.h`](include/dragonbox/dragonbox.h), [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h), and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp). There is no third party dependencies other than those included in this repository, so this should be enough.~~
 
 ~~In [`main.cpp`](main.cpp) (which is in [`tests`](tests) directory), there are bunch of `#define`'s. Uncomment whatever you want to test or benchmark, compile and link every `.cpp` files mentioned.~~
 
 ~~The result of tests and benchmarks will be written in the directories [`test_results`](test_results) and [`becnhmark_results`](benchmark_results) respectively, and as `std::ofstream` cannot create a new directory, those directories should exist before running the test.~~
 
-~~There are also some MATLAB scripts in the directory [`subprojects/benchmark/matlab`](subprojects/benchmark/matlab) for plot generation. If you have MATLAB installed on your machine and want to generate plots, then download these script files also.~~
+~~There are also some MATLAB scripts in the directory [`subproject/benchmark/matlab`](subproject/benchmark/matlab) for plot generation. If you have MATLAB installed on your machine and want to generate plots, then download these script files also.~~
 
 # Notes
 Besides the uniformly random tests against Ryu, I also ran a joint test of Dragonbox with a binary-to-decimal floating-point conversion routine I developed, and confirmed correct roundtrip for all possible IEEE-754 binary32-encoded floating-point numbers (aka `float`) with the round-to-nearest, tie-to-even rounding mode. Therefore, I am currently pretty confident about the correctness of both of the algorithms. I will make a separate repository for the reverse algorithm in a near future.
 
 # License
-All code, except for those belong to third-party libraries (code in [`subprojects/3rdparty`](subprojects/3rdparty)), is licensed under either of
+All code, except for those belong to third-party libraries (code in [`subproject/common/3rdparty`](subproject/common/3rdparty)), is licensed under either of
 
  * Apache License Version 2.0 with LLVM Exceptions ([LICENSE-Apache2-LLVM](LICENSE-Apache2-LLVM) or https://llvm.org/foundation/relicensing/LICENSE.txt) or
  * Boost Software License Version 1.0 ([LICENSE-Boost](LICENSE-Boost) or https://www.boost.org/LICENSE_1_0.txt).
