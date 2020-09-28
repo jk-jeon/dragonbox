@@ -9,13 +9,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3rdparty", "3rdparty", "{CF
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "subprojects", "subprojects", "{5C435CEA-7B58-4C75-933B-E1D02BAD13E4}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "grisu_exact", "subprojects\3rdparty\grisu_exact\grisu_exact.vcxproj", "{A05D12B7-ED44-418C-AF03-176438B96F81}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "grisu_exact", "subproject\3rdparty\grisu_exact\grisu_exact.vcxproj", "{A05D12B7-ED44-418C-AF03-176438B96F81}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ryu", "subprojects\3rdparty\ryu\ryu.vcxproj", "{F95528D7-852A-48D0-9573-008B96E653A3}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ryu", "subproject\3rdparty\ryu\ryu.vcxproj", "{F95528D7-852A-48D0-9573-008B96E653A3}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "schubfach", "subprojects\3rdparty\schubfach\schubfach.vcxproj", "{F6DE4EDF-2238-4447-BD43-6D43248F4D81}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "schubfach", "subproject\3rdparty\schubfach\schubfach.vcxproj", "{F6DE4EDF-2238-4447-BD43-6D43248F4D81}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "benchmark", "subprojects\benchmark\benchmark.vcxproj", "{E160949F-C637-4E0D-BAAE-1AE7AEC78C4E}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "benchmark", "subproject\benchmark\benchmark.vcxproj", "{E160949F-C637-4E0D-BAAE-1AE7AEC78C4E}"
 	ProjectSection(ProjectDependencies) = postProject
 		{A05D12B7-ED44-418C-AF03-176438B96F81} = {A05D12B7-ED44-418C-AF03-176438B96F81}
 		{F95528D7-852A-48D0-9573-008B96E653A3} = {F95528D7-852A-48D0-9573-008B96E653A3}
@@ -89,8 +89,8 @@ Global
 		{E160949F-C637-4E0D-BAAE-1AE7AEC78C4E}.Release|Win32.Build.0 = Release|Win32
 		{E160949F-C637-4E0D-BAAE-1AE7AEC78C4E}.Release|x64.ActiveCfg = Release|x64
 		{E160949F-C637-4E0D-BAAE-1AE7AEC78C4E}.Release|x64.Build.0 = Release|x64
-		{E160949F-C637-4E0D-BAAE-1AE7AEC78C4E}.ReleaseClang|Win32.ActiveCfg = Release|Win32
-		{E160949F-C637-4E0D-BAAE-1AE7AEC78C4E}.ReleaseClang|Win32.Build.0 = Release|Win32
+		{E160949F-C637-4E0D-BAAE-1AE7AEC78C4E}.ReleaseClang|Win32.ActiveCfg = ReleaseClang|Win32
+		{E160949F-C637-4E0D-BAAE-1AE7AEC78C4E}.ReleaseClang|Win32.Build.0 = ReleaseClang|Win32
 		{E160949F-C637-4E0D-BAAE-1AE7AEC78C4E}.ReleaseClang|x64.ActiveCfg = ReleaseClang|x64
 		{E160949F-C637-4E0D-BAAE-1AE7AEC78C4E}.ReleaseClang|x64.Build.0 = ReleaseClang|x64
 	EndGlobalSection
@@ -102,7 +102,6 @@ Global
 		{A05D12B7-ED44-418C-AF03-176438B96F81} = {CFA04521-588D-4DD0-81BF-A880D87922A6}
 		{F95528D7-852A-48D0-9573-008B96E653A3} = {CFA04521-588D-4DD0-81BF-A880D87922A6}
 		{F6DE4EDF-2238-4447-BD43-6D43248F4D81} = {CFA04521-588D-4DD0-81BF-A880D87922A6}
-		{E160949F-C637-4E0D-BAAE-1AE7AEC78C4E} = {5C435CEA-7B58-4C75-933B-E1D02BAD13E4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8056C5D0-5B9A-4164-9656-185F705442CA}

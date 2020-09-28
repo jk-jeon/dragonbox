@@ -27,20 +27,20 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\subprojects\3rdparty\ryu\common.h" />
-    <ClInclude Include="..\..\..\..\subprojects\3rdparty\ryu\d2fixed_full_table.h" />
-    <ClInclude Include="..\..\..\..\subprojects\3rdparty\ryu\d2s_full_table.h" />
-    <ClInclude Include="..\..\..\..\subprojects\3rdparty\ryu\d2s_intrinsics.h" />
-    <ClInclude Include="..\..\..\..\subprojects\3rdparty\ryu\d2s_small_table.h" />
-    <ClInclude Include="..\..\..\..\subprojects\3rdparty\ryu\digit_table.h" />
-    <ClInclude Include="..\..\..\..\subprojects\3rdparty\ryu\f2s_full_table.h" />
-    <ClInclude Include="..\..\..\..\subprojects\3rdparty\ryu\f2s_intrinsics.h" />
-    <ClInclude Include="..\..\..\..\subprojects\3rdparty\ryu\ryu.h" />
+    <ClInclude Include="..\..\..\..\subproject\common\3rdparty\ryu\common.h" />
+    <ClInclude Include="..\..\..\..\subproject\common\3rdparty\ryu\d2fixed_full_table.h" />
+    <ClInclude Include="..\..\..\..\subproject\common\3rdparty\ryu\d2s_full_table.h" />
+    <ClInclude Include="..\..\..\..\subproject\common\3rdparty\ryu\d2s_intrinsics.h" />
+    <ClInclude Include="..\..\..\..\subproject\common\3rdparty\ryu\d2s_small_table.h" />
+    <ClInclude Include="..\..\..\..\subproject\common\3rdparty\ryu\digit_table.h" />
+    <ClInclude Include="..\..\..\..\subproject\common\3rdparty\ryu\f2s_full_table.h" />
+    <ClInclude Include="..\..\..\..\subproject\common\3rdparty\ryu\f2s_intrinsics.h" />
+    <ClInclude Include="..\..\..\..\subproject\common\3rdparty\ryu\ryu.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\subprojects\3rdparty\ryu\d2fixed.c" />
-    <ClCompile Include="..\..\..\..\subprojects\3rdparty\ryu\d2s.c" />
-    <ClCompile Include="..\..\..\..\subprojects\3rdparty\ryu\f2s.c" />
+    <ClCompile Include="..\..\..\..\subproject\common\3rdparty\ryu\d2fixed.c" />
+    <ClCompile Include="..\..\..\..\subproject\common\3rdparty\ryu\d2s.c" />
+    <ClCompile Include="..\..\..\..\subproject\common\3rdparty\ryu\f2s.c" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -151,7 +151,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\subprojects\3rdparty\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\subproject\common\3rdparty\</AdditionalIncludeDirectories>
       <OmitFramePointers />
     </ClCompile>
     <Link>
@@ -170,7 +170,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\subprojects\3rdparty\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\subproject\common\3rdparty\</AdditionalIncludeDirectories>
       <OmitFramePointers />
     </ClCompile>
     <Link>
@@ -191,7 +191,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\subprojects\3rdparty\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\subproject\common\3rdparty\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -207,7 +207,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\subprojects\3rdparty\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\subproject\common\3rdparty\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -225,7 +225,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\subprojects\3rdparty\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\subproject\common\3rdparty\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -245,7 +245,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\subprojects\3rdparty\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\subproject\common\3rdparty\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

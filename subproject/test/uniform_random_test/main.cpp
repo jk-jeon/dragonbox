@@ -71,13 +71,13 @@ int main()
 	if constexpr (run_float) {
 		std::cout << "[Testing uniformly randomly generated float inputs...]\n";
 		success &= uniform_random_test<float>(number_of_uniform_random_tests_float, "float");
+		std::cout << "Done.\n\n\n";
 	}
 	if constexpr (run_double) {
 		std::cout << "[Testing uniformly randomly generated double inputs...]\n";
 		success &= uniform_random_test<double>(number_of_uniform_random_tests_double, "double");
+		std::cout << "Done.\n\n\n";
 	}
-
-	std::cout << "Done.\n\n\n";
 
 	if (!success) {
 		return -1;

@@ -173,7 +173,7 @@ static void benchmark_test(std::string_view float_name,
 	std::cout << "Benchmarking done.\n" << "Now writing to files...\n";
 
 	// Write uniform benchmark results
-	auto filename = std::string("benchmark_results/uniform_benchmark_");
+	auto filename = std::string("benchmark/results/uniform_benchmark_");
 	filename += float_name;
 	filename += ".csv";
 	std::ofstream out_file{ filename };
@@ -198,7 +198,7 @@ static void benchmark_test(std::string_view float_name,
 	out_file.close();
 
 	// Write digits benchmark results
-	filename = std::string("benchmark_results/digits_benchmark_");
+	filename = std::string("benchmark/results/digits_benchmark_");
 	filename += float_name;
 	filename += ".csv";
 	out_file.open(filename);
@@ -239,6 +239,7 @@ int main() {
 			number_of_uniform_benchmark_samples_float,
 			number_of_digits_benchmark_samples_per_digits_float,
 			number_of_benchmark_iterations_float);
+		std::cout << "Done.\n\n\n";
 	}
 	if constexpr (benchmark_double) {
 		std::cout << "[Running benchmark for binary64...]\n";
@@ -246,6 +247,6 @@ int main() {
 			number_of_uniform_benchmark_samples_double,
 			number_of_digits_benchmark_samples_per_digits_double,
 			number_of_benchmark_iterations_double);
+		std::cout << "Done.\n\n\n";
 	}
-	std::cout << "Done.\n\n\n";
 }

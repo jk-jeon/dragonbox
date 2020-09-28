@@ -26,49 +26,56 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\subproject\common\3rdparty\grisu_exact\fp_to_chars.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\subproject\common\3rdparty\grisu_exact\fp_to_chars.h" />
+    <ClInclude Include="..\..\..\..\subproject\common\3rdparty\grisu_exact\grisu_exact.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{e160949f-c637-4e0d-baae-1ae7aec78c4e}</ProjectGuid>
-    <RootNamespace>benchmark</RootNamespace>
+    <ProjectGuid>{a05d12b7-ed44-418c-af03-176438b96f81}</ProjectGuid>
+    <RootNamespace>grisuexact</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseClang|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>ClangCL</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseClang|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>ClangCL</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -100,32 +107,32 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>$(SolutionDir)exe\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)lib\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)exe\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)lib\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseClang|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)exe\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)lib\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>$(SolutionDir)exe\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)lib\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)exe\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)lib\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseClang|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)exe\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)lib\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -135,14 +142,12 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\include;$(SolutionDir)..\subprojects\include;$(SolutionDir)..\subprojects\3rdparty</AdditionalIncludeDirectories>
-      <AdditionalOptions>/experimental:newLambdaProcessor %(AdditionalOptions)</AdditionalOptions>
+      <OmitFramePointers />
+      <AdditionalIncludeDirectories>$(SolutionDir)..\subproject\common\3rdparty\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)lib\$(Platform)\$(Configuration)\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>dragonbox.lib;grisu_exact.lib;ryu.lib;schubfach.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -154,19 +159,16 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\include;$(SolutionDir)..\subprojects\include;$(SolutionDir)..\subprojects\3rdparty</AdditionalIncludeDirectories>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers />
-      <AdditionalOptions>/experimental:newLambdaProcessor %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\subproject\common\3rdparty\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)lib\$(Platform)\$(Configuration)\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>dragonbox.lib;grisu_exact.lib;ryu.lib;schubfach.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseClang|Win32'">
@@ -178,19 +180,17 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\include;$(SolutionDir)..\subprojects\include;$(SolutionDir)..\subprojects\3rdparty</AdditionalIncludeDirectories>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>
       </OmitFramePointers>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\subproject\common\3rdparty\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)lib\$(Platform)\$(Configuration)\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>dragonbox.lib;grisu_exact.lib;ryu.lib;schubfach.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -200,14 +200,11 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\include;$(SolutionDir)..\subprojects\include;$(SolutionDir)..\subprojects\3rdparty</AdditionalIncludeDirectories>
-      <AdditionalOptions>/experimental:newLambdaProcessor %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\subproject\common\3rdparty\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)lib\$(Platform)\$(Configuration)\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>dragonbox.lib;grisu_exact.lib;ryu.lib;schubfach.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -219,18 +216,15 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\include;$(SolutionDir)..\subprojects\include;$(SolutionDir)..\subprojects\3rdparty</AdditionalIncludeDirectories>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalOptions>/experimental:newLambdaProcessor %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\subproject\common\3rdparty\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)lib\$(Platform)\$(Configuration)\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>dragonbox.lib;grisu_exact.lib;ryu.lib;schubfach.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseClang|x64'">
@@ -242,29 +236,17 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\include;$(SolutionDir)..\subprojects\include;$(SolutionDir)..\subprojects\3rdparty</AdditionalIncludeDirectories>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\subproject\common\3rdparty\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)lib\$(Platform)\$(Configuration)\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>dragonbox.lib;grisu_exact.lib;ryu.lib;schubfach.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\..\subprojects\benchmark\benchmark.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\..\subprojects\benchmark\dragonbox.cpp" />
-    <ClCompile Include="..\..\..\subprojects\benchmark\grisu_exact.cpp" />
-    <ClCompile Include="..\..\..\subprojects\benchmark\main.cpp" />
-    <ClCompile Include="..\..\..\subprojects\benchmark\ryu.cpp" />
-    <ClCompile Include="..\..\..\subprojects\benchmark\schubfach.cpp" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
