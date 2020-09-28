@@ -523,14 +523,19 @@ namespace jkj::dragonbox {
 
 			static constexpr std::uint64_t log10_2_fractional_digits{ 0x4d10'4d42'7de7'fbcc };
 			static constexpr std::uint64_t log10_4_over_3_fractional_digits{ 0x1ffb'fc2b'bc78'0375 };
-			constexpr std::size_t floor_log10_pow2_shift_amount = 22;
+			static constexpr std::size_t floor_log10_pow2_shift_amount = 22;
+			static constexpr int floor_log10_pow2_input_limit = 1700;
+			static constexpr int floor_log10_pow2_minus_log10_4_over_3_input_limit = 1700;
 
 			static constexpr std::uint64_t log2_10_fractional_digits{ 0x5269'e12f'346e'2bf9 };
-			constexpr std::size_t floor_log2_pow10_shift_amount = 19;
+			static constexpr std::size_t floor_log2_pow10_shift_amount = 19;
+			static constexpr int floor_log2_pow10_input_limit = 1233;
 
 			static constexpr std::uint64_t log5_2_fractional_digits{ 0x6e40'd1a4'143d'cb94 };
 			static constexpr std::uint64_t log5_3_fractional_digits{ 0xaebf'4791'5d44'3b24 };
-			constexpr std::size_t floor_log5_pow2_shift_amount = 20;
+			static constexpr std::size_t floor_log5_pow2_shift_amount = 20;
+			static constexpr int floor_log5_pow2_input_limit = 1492;
+			static constexpr int floor_log5_pow2_minus_log5_3_input_limit = 2427;
 
 			// For constexpr computation
 			// Returns -1 when n = 0
@@ -548,28 +553,32 @@ namespace jkj::dragonbox {
 				using namespace log;
 				return compute<
 					0, log10_2_fractional_digits,
-					floor_log10_pow2_shift_amount, 1700>(e);
+					floor_log10_pow2_shift_amount,
+					floor_log10_pow2_input_limit>(e);
 			}
 
 			constexpr int floor_log2_pow10(int e) noexcept {
 				using namespace log;
 				return compute<
 					3, log2_10_fractional_digits,
-					floor_log2_pow10_shift_amount, 1233>(e);
+					floor_log2_pow10_shift_amount,
+					floor_log2_pow10_input_limit>(e);
 			}
 
 			constexpr int floor_log5_pow2(int e) noexcept {
 				using namespace log;
 				return compute<
 					0, log5_2_fractional_digits,
-					floor_log5_pow2_shift_amount, 1492>(e);
+					floor_log5_pow2_shift_amount,
+					floor_log5_pow2_input_limit>(e);
 			}
 
 			constexpr int floor_log5_pow2_minus_log5_3(int e) noexcept {
 				using namespace log;
 				return compute<
 					0, log5_2_fractional_digits,
-					floor_log5_pow2_shift_amount, 2427,
+					floor_log5_pow2_shift_amount,
+					floor_log5_pow2_minus_log5_3_input_limit,
 					0, log5_3_fractional_digits>(e);
 			}
 
@@ -577,7 +586,8 @@ namespace jkj::dragonbox {
 				using namespace log;
 				return compute<
 					0, log10_2_fractional_digits,
-					floor_log10_pow2_shift_amount, 1700,
+					floor_log10_pow2_shift_amount,
+					floor_log10_pow2_minus_log10_4_over_3_input_limit,
 					0, log10_4_over_3_fractional_digits>(e);
 			}
 		}
