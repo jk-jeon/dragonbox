@@ -204,7 +204,7 @@ template <
 	std::uint64_t s_fractional_digits,
 	std::size_t shift_amount
 >
-static void verify(std::string_view name,
+static int verify(std::string_view name,
 	std::function<int(int)> precise_calculator = nullptr)
 {
 	// Compute the constants
@@ -236,7 +236,7 @@ static void verify(std::string_view name,
 	// To extract the lower bits
 	constexpr auto lower_bits_mask = std::uint32_t((std::uint32_t(1) << shift_amount) - 1);
 
-	std::int32_t max_exponent = std::int32_t(max_exponent_upper_bound);
+	auto max_exponent = int(max_exponent_upper_bound);
 	for (std::uint32_t e = 0; e <= max_exponent_upper_bound; ++e) {
 		// Detect overflow
 		auto frac_part = std::uint32_t(((frac_bits * e) >> ceil_log2_max_exponent_upper_bound) + 1);
@@ -269,7 +269,7 @@ static void verify(std::string_view name,
 				}
 
 				if (actual_error) {
-					max_exponent = std::int32_t(e) - 1;
+					max_exponent = int(e) - 1;
 					break;
 				}
 				else {
@@ -277,13 +277,14 @@ static void verify(std::string_view name,
 				}				
 			}
 			else {
-				max_exponent = std::int32_t(e) - 1;
+				max_exponent = int(e) - 1;
 				break;
 			}
 		}
 	}
 
 	std::cout << name << " is correct up to |e| <= " << max_exponent << std::endl;
+	return max_exponent;
 }
 
 void verify_log_computation()
