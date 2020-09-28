@@ -287,39 +287,51 @@ static int verify(std::string_view name,
 	return max_exponent;
 }
 
-void verify_log_computation()
+int main()
 {
 	using namespace jkj::dragonbox::detail::log;
 
+	bool success = true;
 	std::cout << "[Verifying log computation...]\n";
 
-	verify<
+	success &= (verify<
 		0, log10_2_fractional_digits,
 		0, 0,
 		floor_log10_pow2_shift_amount
-	>("floor_log10_pow2", floor_log10_pow2_precise);
+	>("floor_log10_pow2", floor_log10_pow2_precise)
+		== floor_log10_pow2_input_limit);
 
-	verify<
+	success &= (verify<
 		0, log10_2_fractional_digits,
 		0, log10_4_over_3_fractional_digits,
 		floor_log10_pow2_shift_amount
-	>("floor_log10_pow2_minus_log10_4_over_3", floor_log10_pow2_minus_log10_4_over_3_precise);
+	>("floor_log10_pow2_minus_log10_4_over_3", floor_log10_pow2_minus_log10_4_over_3_precise)
+		== floor_log10_pow2_minus_log10_4_over_3_input_limit);
 
-	verify<
+	success &= (verify<
 		3, log2_10_fractional_digits,
 		0, 0,
 		floor_log2_pow10_shift_amount
-	>("floor_log2_pow10", floor_log2_pow10_precise);
+	>("floor_log2_pow10", floor_log2_pow10_precise)
+		== floor_log2_pow10_input_limit);
 
-	verify<
+	success &= (verify<
 		0, log5_2_fractional_digits,
 		0, 0,
 		floor_log5_pow2_shift_amount
-	>("floor_log5_pow2", floor_log5_pow2_precise);
+	>("floor_log5_pow2", floor_log5_pow2_precise)
+		== floor_log5_pow2_input_limit);
 
-	verify<
+	success &= (verify<
 		0, log5_2_fractional_digits,
 		0, log5_3_fractional_digits,
 		floor_log5_pow2_shift_amount
-	>("floor_log5_pow2_minus_log5_3", floor_log5_pow2_minus_log5_3_precise);
+	>("floor_log5_pow2_minus_log5_3", floor_log5_pow2_minus_log5_3_precise)
+		== floor_log5_pow2_minus_log5_3_input_limit);
+
+	std::cout << "Done.\n\n\n";
+
+	if (!success) {
+		return -1;
+	}
 }
