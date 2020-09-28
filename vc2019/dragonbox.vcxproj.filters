@@ -1,159 +1,24 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="benchmark">
-      <UniqueIdentifier>{c6b258eb-3d23-4551-b050-4bddb549a80a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="benchmark\ryu">
-      <UniqueIdentifier>{f975d73d-6869-49ce-89fd-797bb92b72b7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="benchmark\grisu_exact">
-      <UniqueIdentifier>{f028d166-db8a-48b3-9e35-71fa6314a4ac}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="benchmark\schubfach">
-      <UniqueIdentifier>{a106ff15-d18c-4520-8c43-48b323d3766b}</UniqueIdentifier>
-    </Filter>
     <Filter Include="include">
       <UniqueIdentifier>{915a7b1d-d4ad-4a88-a0ff-4d43c5b350eb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="test">
-      <UniqueIdentifier>{8161187a-3e27-4c59-a706-d4339b978dbb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="test\include">
-      <UniqueIdentifier>{22ddd2f6-53de-4cf9-8dee-36f6e9296118}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="test\source">
-      <UniqueIdentifier>{a63d252d-ccdc-42ae-b332-a72a50a20bc3}</UniqueIdentifier>
     </Filter>
     <Filter Include="source">
       <UniqueIdentifier>{557e7d83-4299-442f-802c-2b22b52b119b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\benchmark\ryu\d2s.c">
-      <Filter>benchmark\ryu</Filter>
-    </ClCompile>
-    <ClCompile Include="..\benchmark\ryu\f2s.c">
-      <Filter>benchmark\ryu</Filter>
-    </ClCompile>
-    <ClCompile Include="..\benchmark\benchmark.cpp">
-      <Filter>benchmark</Filter>
-    </ClCompile>
-    <ClCompile Include="..\benchmark\ryu.cpp">
-      <Filter>benchmark</Filter>
-    </ClCompile>
-    <ClCompile Include="..\benchmark\dragonbox.cpp">
-      <Filter>benchmark</Filter>
-    </ClCompile>
-    <ClCompile Include="..\benchmark\grisu_exact.cpp">
-      <Filter>benchmark</Filter>
-    </ClCompile>
-    <ClCompile Include="..\benchmark\schubfach\schubfach_32.cc">
-      <Filter>benchmark\schubfach</Filter>
-    </ClCompile>
-    <ClCompile Include="..\benchmark\schubfach\schubfach_64.cc">
-      <Filter>benchmark\schubfach</Filter>
-    </ClCompile>
-    <ClCompile Include="..\benchmark\schubfach.cpp">
-      <Filter>benchmark</Filter>
-    </ClCompile>
-    <ClCompile Include="..\benchmark\grisu_exact\fp_to_chars.cpp">
-      <Filter>benchmark\grisu_exact</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\generate_cache.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\generate_compressed_cache_error_table.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\live_test.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\main.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\misc_test.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\perf_test.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\test_all_shorter_interval_cases.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\uniform_random_test.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\verify_cache_length.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\verify_compressed_cache.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\verify_fast_multiplication.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\verify_log_computation.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\test\source\verify_magic_division.cpp">
-      <Filter>test\source</Filter>
-    </ClCompile>
     <ClCompile Include="..\source\dragonbox_to_chars.cpp">
       <Filter>source</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\benchmark\ryu\common.h">
-      <Filter>benchmark\ryu</Filter>
-    </ClInclude>
-    <ClInclude Include="..\benchmark\ryu\d2s.h">
-      <Filter>benchmark\ryu</Filter>
-    </ClInclude>
-    <ClInclude Include="..\benchmark\ryu\d2s_full_table.h">
-      <Filter>benchmark\ryu</Filter>
-    </ClInclude>
-    <ClInclude Include="..\benchmark\ryu\d2s_intrinsics.h">
-      <Filter>benchmark\ryu</Filter>
-    </ClInclude>
-    <ClInclude Include="..\benchmark\ryu\digit_table.h">
-      <Filter>benchmark\ryu</Filter>
-    </ClInclude>
-    <ClInclude Include="..\benchmark\ryu\f2s_full_table.h">
-      <Filter>benchmark\ryu</Filter>
-    </ClInclude>
-    <ClInclude Include="..\benchmark\ryu\f2s_intrinsics.h">
-      <Filter>benchmark\ryu</Filter>
-    </ClInclude>
-    <ClInclude Include="..\benchmark\ryu\ryu.h">
-      <Filter>benchmark\ryu</Filter>
-    </ClInclude>
-    <ClInclude Include="..\benchmark\benchmark.h">
-      <Filter>benchmark</Filter>
-    </ClInclude>
-    <ClInclude Include="..\benchmark\grisu_exact\fp_to_chars.h">
-      <Filter>benchmark\grisu_exact</Filter>
-    </ClInclude>
-    <ClInclude Include="..\benchmark\grisu_exact\grisu_exact.h">
-      <Filter>benchmark\grisu_exact</Filter>
-    </ClInclude>
-    <ClInclude Include="..\benchmark\schubfach\schubfach_32.h">
-      <Filter>benchmark\schubfach</Filter>
-    </ClInclude>
-    <ClInclude Include="..\benchmark\schubfach\schubfach_64.h">
-      <Filter>benchmark\schubfach</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\dragonbox\dragonbox.h">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="..\include\dragonbox\dragonbox_to_chars.h">
       <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\test\include\bigint.h">
-      <Filter>test\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\test\include\random_float.h">
-      <Filter>test\include</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

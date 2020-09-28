@@ -15,28 +15,8 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
 
-#include "benchmark.h"
-#include "schubfach/schubfach_32.h"
-#include "schubfach/schubfach_64.h"
+#include "dragonbox/dragonbox.h"
 
-namespace {
-	void schubfach_32(float x, char* buf) {
-		schubfach::Ftoa(buf, x);
-	}
-	void schubfach_64(double x, char* buf) {
-		schubfach::Dtoa(buf, x);
-	}
-
-	auto dummy = []() -> register_function_for_benchmark {
-		if constexpr (benchmark_kind == benchmark_no_trailing_zero) {
-			return {};
-		}
-		else {
-			static_assert(benchmark_kind == benchmark_no_trailing_zero);
-			return { "Schubfach",
-				schubfach_32,
-				schubfach_64
-			};
-		}
-	}();
+int main()
+{
 }
