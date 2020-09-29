@@ -299,7 +299,9 @@ namespace jkj::dragonbox {
 #if defined(_M_X64)
 					return int(_tzcnt_u64(n));
 #else
-					return ((unsigned int)(n) == 0) ? (32 + (_tzcnt_u32((unsigned int)(n >> 32)))) : (_tzcnt_u32((unsigned int)n));
+					return ((unsigned int)(n) == 0) ?
+						(32 + (_tzcnt_u32((unsigned int)(n >> 32)))) :
+						(_tzcnt_u32((unsigned int)n));
 #endif
 				}
 				else {
@@ -397,7 +399,7 @@ namespace jkj::dragonbox {
 #if defined(_MSC_VER)
 				return __emulu(x, y);
 #else
-				return x * (std::uint64_t)y;
+				return x * std::uint64_t(y);
 #endif
 			}
 
@@ -410,15 +412,15 @@ namespace jkj::dragonbox {
 				result.low_ = _umul128(x, y, &result.high_);
 				return result;
 #else
-				std::uint32_t a = x >> 32;
-				std::uint32_t b = (std::uint32_t)x;
-				std::uint32_t c = y >> 32;
-				std::uint32_t d = (std::uint32_t)y;
+				auto a = std::uint32_t(x >> 32);
+				auto b = std::uint32_t(x);
+				auto c = std::uint32_t(y >> 32);
+				auto d = std::uint32_t(y);
 
-				std::uint64_t ac = umul64(a, c);
-				std::uint64_t bc = umul64(b, c);
-				std::uint64_t ad = umul64(a, d);
-				std::uint64_t bd = umul64(b, d);
+				auto ac = umul64(a, c);
+				auto bc = umul64(b, c);
+				auto ad = umul64(a, d);
+				auto bd = umul64(b, d);
 
 				auto intermediate = (bd >> 32) + std::uint32_t(ad) + std::uint32_t(bc);
 
@@ -434,15 +436,15 @@ namespace jkj::dragonbox {
 #elif defined(_MSC_VER) && defined(_M_X64)
 				return __umulh(x, y);
 #else
-				std::uint32_t a = x >> 32;
-				std::uint32_t b = (std::uint32_t)x;
-				std::uint32_t c = y >> 32;
-				std::uint32_t d = (std::uint32_t)y;
+				auto a = std::uint32_t(x >> 32);
+				auto b = std::uint32_t(x);
+				auto c = std::uint32_t(y >> 32);
+				auto d = std::uint32_t(y);
 
-				std::uint64_t ac = umul64(a, c);
-				std::uint64_t bc = umul64(b, c);
-				std::uint64_t ad = umul64(a, d);
-				std::uint64_t bd = umul64(b, d);
+				auto ac = umul64(a, c);
+				auto bc = umul64(b, c);
+				auto ad = umul64(a, d);
+				auto bd = umul64(b, d);
 
 				auto intermediate = (bd >> 32) + std::uint32_t(ad) + std::uint32_t(bc);
 
@@ -463,16 +465,16 @@ namespace jkj::dragonbox {
 				return std::uint32_t(umul128_upper64(x, y));
 #else
 				//std::uint32_t a = 0;
-				std::uint32_t b = x;
-				std::uint32_t c = y >> 32;
-				std::uint32_t d = (std::uint32_t)y;
+				auto b = x;
+				auto c = std::uint32_t(y >> 32);
+				auto d = std::uint32_t(y);
 
 				//std::uint64_t ac = 0;
-				std::uint64_t bc = umul64(b, c);
+				auto bc = umul64(b, c);
 				//std::uint64_t ad = 0;
-				std::uint64_t bd = umul64(b, d);
+				auto bd = umul64(b, d);
 
-				std::uint64_t intermediate = (bd >> 32) + bc;
+				auto intermediate = (bd >> 32) + bc;
 				return std::uint32_t(intermediate >> 32);
 #endif
 			}
@@ -688,7 +690,7 @@ namespace jkj::dragonbox {
 				if (exp >= int(value_bits<UInt>)) {
 					return false;
 				}
-				UInt mask = (UInt(1) << exp) - 1;
+				auto mask = UInt((UInt(1) << exp) - 1);
 				return (x & mask) == 0;
 #endif
 			}
