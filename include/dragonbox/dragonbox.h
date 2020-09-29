@@ -308,11 +308,14 @@ namespace jkj::dragonbox {
 
 				auto n32 = std::uint32_t(n);
 				if constexpr (value_bits<UInt> > 32) {
-					if (n32 == 0) {
-						n32 = std::uint32_t(n >> 32);
+					if (n32 != 0) {
+						count = 31;
 					}
-					else if (n == n32) {
-						count -= (value_bits<UInt> -32);
+					else {
+						n32 = std::uint32_t(n >> 32);
+						if (n32 != 0) {
+							count -= 1;
+						}
 					}
 				}
 				if constexpr (value_bits<UInt> > 16) {

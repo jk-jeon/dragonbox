@@ -71,7 +71,7 @@ int main()
 	constexpr enum {
 		test_float,
 		test_double
-	} test = test_float;
+	} test = test_double;
 
 	if constexpr (test == test_float) {
 		std::cout << "[Start live test for float's]\n";
