@@ -1,5 +1,5 @@
 # Dragonbox
-This library is a reference implementation of Dragonbox in C++.
+This library is a reference implementation of [Dragonbox](other_files/Dragonbox.pdf) in C++.
 
 Dragonbox is a float-to-string conversion algorithm based on a beautiful algorithm [Schubfach](https://drive.google.com/open?id=1luHhyQF9zKlM8yJ1nebU0OgVYhfC6CBN), developed by Raffaello Giulietti in 2017-2018. Dragonbox is further inspired by [Grisu](https://www.cs.tufts.edu/~nr/cs257/archive/florian-loitsch/printf.pdf) and [Grisu-Exact](https://github.com/jk-jeon/Grisu-Exact).
 
