@@ -41,7 +41,7 @@
 
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
 #include <immintrin.h>
-#elif defined(_MSC_VER) && defined(_M_X64)
+#elif defined(_MSC_VER)
 #include <intrin.h>	// this includes immintrin.h as well
 #endif
 
@@ -293,10 +293,16 @@ namespace jkj::dragonbox {
 					static_assert(sizeof(UInt) <= sizeof(unsigned int));
 					return __builtin_ctz((unsigned int)n);
 				}
-#elif defined(_MSC_VER) && defined(_M_X64)
+#elif defined(_MSC_VER)
 #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 1
 				if constexpr (std::is_same_v<UInt, unsigned __int64>) {
+#if defined(_M_X64)
 					return int(_tzcnt_u64(n));
+#else
+					return ((unsigned int)(n) == 0) ?
+						(32 + (_tzcnt_u32((unsigned int)(n >> 32)))) :
+						(_tzcnt_u32((unsigned int)n));
+#endif
 				}
 				else {
 					static_assert(sizeof(UInt) <= sizeof(unsigned int));
@@ -308,11 +314,14 @@ namespace jkj::dragonbox {
 
 				auto n32 = std::uint32_t(n);
 				if constexpr (value_bits<UInt> > 32) {
-					if (n32 == 0) {
-						n32 = std::uint32_t(n >> 32);
+					if (n32 != 0) {
+						count = 31;
 					}
-					else if (n == n32) {
-						count -= (value_bits<UInt> -32);
+					else {
+						n32 = std::uint32_t(n >> 32);
+						if (n32 != 0) {
+							count -= 1;
+						}
 					}
 				}
 				if constexpr (value_bits<UInt> > 16) {
@@ -386,6 +395,14 @@ namespace jkj::dragonbox {
 #endif
 			};
 
+			static inline std::uint64_t umul64(std::uint32_t x, std::uint32_t y) noexcept {
+#if defined(_MSC_VER)
+				return __emulu(x, y);
+#else
+				return x * std::uint64_t(y);
+#endif
+			}
+
 			// Get 128-bit result of multiplication of two 64-bit unsigned integers
 			JKJ_SAFEBUFFERS inline uint128 umul128(std::uint64_t x, std::uint64_t y) noexcept {
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__SIZEOF_INT128__) && defined(__x86_64__)
@@ -395,22 +412,20 @@ namespace jkj::dragonbox {
 				result.low_ = _umul128(x, y, &result.high_);
 				return result;
 #else
-				constexpr auto mask = (std::uint64_t(1) << 32) - std::uint64_t(1);
+				auto a = std::uint32_t(x >> 32);
+				auto b = std::uint32_t(x);
+				auto c = std::uint32_t(y >> 32);
+				auto d = std::uint32_t(y);
 
-				auto a = x >> 32;
-				auto b = x & mask;
-				auto c = y >> 32;
-				auto d = y & mask;
+				auto ac = umul64(a, c);
+				auto bc = umul64(b, c);
+				auto ad = umul64(a, d);
+				auto bd = umul64(b, d);
 
-				auto ac = a * c;
-				auto bc = b * c;
-				auto ad = a * d;
-				auto bd = b * d;
-
-				auto intermediate = (bd >> 32) + (ad & mask) + (bc & mask);
+				auto intermediate = (bd >> 32) + std::uint32_t(ad) + std::uint32_t(bc);
 
 				return{ ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32),
-					(intermediate << 32) + (bd & mask) };
+					(intermediate << 32) + std::uint32_t(bd) };
 #endif
 			}
 
@@ -421,19 +436,17 @@ namespace jkj::dragonbox {
 #elif defined(_MSC_VER) && defined(_M_X64)
 				return __umulh(x, y);
 #else
-				constexpr auto mask = (std::uint64_t(1) << 32) - std::uint64_t(1);
+				auto a = std::uint32_t(x >> 32);
+				auto b = std::uint32_t(x);
+				auto c = std::uint32_t(y >> 32);
+				auto d = std::uint32_t(y);
 
-				auto a = x >> 32;
-				auto b = x & mask;
-				auto c = y >> 32;
-				auto d = y & mask;
+				auto ac = umul64(a, c);
+				auto bc = umul64(b, c);
+				auto ad = umul64(a, d);
+				auto bd = umul64(b, d);
 
-				auto ac = a * c;
-				auto bc = b * c;
-				auto ad = a * d;
-				auto bd = b * d;
-
-				auto intermediate = (bd >> 32) + (ad & mask) + (bc & mask);
+				auto intermediate = (bd >> 32) + std::uint32_t(ad) + std::uint32_t(bc);
 
 				return ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32);
 #endif
@@ -448,7 +461,22 @@ namespace jkj::dragonbox {
 
 			// Get upper 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit unsigned integer
 			inline std::uint32_t umul96_upper32(std::uint32_t x, std::uint64_t y) noexcept {
+#if defined(__x86_64__) || defined(_M_X64)
 				return std::uint32_t(umul128_upper64(x, y));
+#else
+				//std::uint32_t a = 0;
+				auto b = x;
+				auto c = std::uint32_t(y >> 32);
+				auto d = std::uint32_t(y);
+
+				//std::uint64_t ac = 0;
+				auto bc = umul64(b, c);
+				//std::uint64_t ad = 0;
+				auto bd = umul64(b, d);
+
+				auto intermediate = (bd >> 32) + bc;
+				return std::uint32_t(intermediate >> 32);
+#endif
 			}
 
 			// Get middle 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit unsigned integer
@@ -523,14 +551,19 @@ namespace jkj::dragonbox {
 
 			static constexpr std::uint64_t log10_2_fractional_digits{ 0x4d10'4d42'7de7'fbcc };
 			static constexpr std::uint64_t log10_4_over_3_fractional_digits{ 0x1ffb'fc2b'bc78'0375 };
-			constexpr std::size_t floor_log10_pow2_shift_amount = 22;
+			static constexpr std::size_t floor_log10_pow2_shift_amount = 22;
+			static constexpr int floor_log10_pow2_input_limit = 1700;
+			static constexpr int floor_log10_pow2_minus_log10_4_over_3_input_limit = 1700;
 
 			static constexpr std::uint64_t log2_10_fractional_digits{ 0x5269'e12f'346e'2bf9 };
-			constexpr std::size_t floor_log2_pow10_shift_amount = 19;
+			static constexpr std::size_t floor_log2_pow10_shift_amount = 19;
+			static constexpr int floor_log2_pow10_input_limit = 1233;
 
 			static constexpr std::uint64_t log5_2_fractional_digits{ 0x6e40'd1a4'143d'cb94 };
 			static constexpr std::uint64_t log5_3_fractional_digits{ 0xaebf'4791'5d44'3b24 };
-			constexpr std::size_t floor_log5_pow2_shift_amount = 20;
+			static constexpr std::size_t floor_log5_pow2_shift_amount = 20;
+			static constexpr int floor_log5_pow2_input_limit = 1492;
+			static constexpr int floor_log5_pow2_minus_log5_3_input_limit = 2427;
 
 			// For constexpr computation
 			// Returns -1 when n = 0
@@ -548,28 +581,32 @@ namespace jkj::dragonbox {
 				using namespace log;
 				return compute<
 					0, log10_2_fractional_digits,
-					floor_log10_pow2_shift_amount, 1700>(e);
+					floor_log10_pow2_shift_amount,
+					floor_log10_pow2_input_limit>(e);
 			}
 
 			constexpr int floor_log2_pow10(int e) noexcept {
 				using namespace log;
 				return compute<
 					3, log2_10_fractional_digits,
-					floor_log2_pow10_shift_amount, 1233>(e);
+					floor_log2_pow10_shift_amount,
+					floor_log2_pow10_input_limit>(e);
 			}
 
 			constexpr int floor_log5_pow2(int e) noexcept {
 				using namespace log;
 				return compute<
 					0, log5_2_fractional_digits,
-					floor_log5_pow2_shift_amount, 1492>(e);
+					floor_log5_pow2_shift_amount,
+					floor_log5_pow2_input_limit>(e);
 			}
 
 			constexpr int floor_log5_pow2_minus_log5_3(int e) noexcept {
 				using namespace log;
 				return compute<
 					0, log5_2_fractional_digits,
-					floor_log5_pow2_shift_amount, 2427,
+					floor_log5_pow2_shift_amount,
+					floor_log5_pow2_minus_log5_3_input_limit,
 					0, log5_3_fractional_digits>(e);
 			}
 
@@ -577,7 +614,8 @@ namespace jkj::dragonbox {
 				using namespace log;
 				return compute<
 					0, log10_2_fractional_digits,
-					floor_log10_pow2_shift_amount, 1700,
+					floor_log10_pow2_shift_amount,
+					floor_log10_pow2_minus_log10_4_over_3_input_limit,
 					0, log10_4_over_3_fractional_digits>(e);
 			}
 		}
@@ -652,7 +690,8 @@ namespace jkj::dragonbox {
 				if (exp >= int(value_bits<UInt>)) {
 					return false;
 				}
-				return x == ((x >> exp) << exp);
+				auto mask = UInt((UInt(1) << exp) - 1);
+				return (x & mask) == 0;
 #endif
 			}
 

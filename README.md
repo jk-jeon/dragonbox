@@ -1,5 +1,5 @@
 # Dragonbox
-This library is a reference implementation of Dragonbox in C++.
+This library is a reference implementation of [Dragonbox](other_files/Dragonbox.pdf) in C++.
 
 Dragonbox is a float-to-string conversion algorithm based on a beautiful algorithm [Schubfach](https://drive.google.com/open?id=1luHhyQF9zKlM8yJ1nebU0OgVYhfC6CBN), developed by Raffaello Giulietti in 2017-2018. Dragonbox is further inspired by [Grisu](https://www.cs.tufts.edu/~nr/cs257/archive/florian-loitsch/printf.pdf) and [Grisu-Exact](https://github.com/jk-jeon/Grisu-Exact).
 
@@ -18,21 +18,21 @@ The algorithm guarantees three things:
 The core idea of Schubfach, which Dragonbox is based on, is a continuous analogue of discrete [pigeonhole principle](https://en.wikipedia.org/wiki/Pigeonhole_principle). The name *Schubfach* is coming from the German name of the pigeonhole principle, *Schubfachprinzip*, meaning "drawer principle". Since another name of the pigeonhole principle is *Dirichlet's box principle*, I decided to call my algorithm "Dragonbox" to honor its origins: Schubfach (box) and Grisu (dragon).
 
 # How to Use
-Although Drgonbox is intended for float-to-string conversion routines, the actual string generation is not officially a part of the algorithm. Dragonbox just outputs two integers (the decimal significand/exponent) that can be consumed by a string generation procedure. The header file [`dragonbox.h`](dragonbox.h) includes everything needed for this. It is header-only; you just need these two steps for using it:
+Although Drgonbox is intended for float-to-string conversion routines, the actual string generation is not officially a part of the algorithm. Dragonbox just outputs two integers (the decimal significand/exponent) that can be consumed by a string generation procedure. The header file [`dragonbox.h`](include/dragonbox/dragonbox.h) includes everything needed for this. It is header-only; you just need these two steps for using it:
 
-1) Drop [`dragonbox.h`](dragonbox.h) in your include directory, and
+1) Drop [`dragonbox.h`](include/dragonbox/dragonbox.h) in your include directory, and
 2) `#include` it. That's it.
 
-Nevertheless, a string generation procedure is included in the library. There are two additional files needed for that: [`dragonbox_to_chars.h`](dragonbox_to_chars.h) and [`dragonbox_to_chars.cpp`](dragonbox_to_chars/dragonbox_to_chars.cpp) (the `.cpp` file is in the directory [`dragonbox_to_chars`](dragonbox_to_chars)). If you want to use them too, then:
+Nevertheless, a string generation procedure is included in the library. There are two additional files needed for that: [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp) (the `.cpp` file is in the directory [`source`](source)). If you want to use them too, then:
 
-1) In addition to [`dragonbox.h`](dragonbox.h), drop [`dragonbox_to_chars.h`](dragonbox_to_chars.h) in your include directory,
-2) `#include` [`dragonbox_to_chars.h`](dragonbox_to_chars.h) instead of [`dragonbox.h`](dragonbox.h),
-3) Build [`dragonbox_to_chars.cpp`](dragonbox_to_chars/dragonbox_to_chars.cpp) as a library, and then
+1) In addition to [`dragonbox.h`](include/dragonbox/dragonbox.h), drop [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) in your include directory,
+2) `#include` [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) instead of [`dragonbox.h`](include/dragonbox/dragonbox.h),
+3) Build [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp) as a library, and then
 4) Link against it.
 
-(Please be aware that [`dragonbox_to_chars.cpp`](dragonbox_to_chars/dragonbox_to_chars.cpp) is expecting to have [`dragonbox_to_chars.h`](dragonbox_to_chars.h) in the parent directory of itself.)
+(Please be aware that [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp) is expecting to have [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) in the parent directory of itself.)
 
-However, note that features provided in [`dragonbox_to_chars.h`](dragonbox_to_chars.h)/[`.cpp`](dragonbox_to_chars/dragonbox_to_chars.cpp) are quite limited and subject to change. Currently, there is no way to indicate any formatting options. Every float/double input is just printed as something like `-3.34E3`. No option for putting plus sign (+) in front of positive significands or positive exponents, no way to use `e` instead of `E`, no option for printing in a fixed-point form (like `-3340`), etc.. Also there is no way to precompute the minimum required size of buffer. I don't like this rigidity, and hope to add more customization features later. Yet, you can rather use `dragonbox.h` directly to implement your own string generation routine.
+However, note that features provided in [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h)/[`.cpp`](source/dragonbox_to_chars.cpp) are quite limited and subject to change. Currently, there is no way to indicate any formatting options. Every float/double input is just printed as something like `-3.34E3`. No option for putting plus sign (+) in front of positive significands or positive exponents, no way to use `e` instead of `E`, no option for printing in a fixed-point form (like `-3340`), etc.. Also there is no way to precompute the minimum required size of buffer. I don't like this rigidity, and hope to add more customization features later. Yet, you can rather use `dragonbox.h` directly to implement your own string generation routine.
 
 Besides these three, any other files are unncessary for real use.
 
@@ -44,7 +44,7 @@ The library is targetting C++17 and actively using its features (e.g., `if const
 # Usage Examples
 (Simple string generation from `float/double`)
 ```cpp
-#include "dragonbox_to_chars.h"
+#include "dragonbox/dragonbox_to_chars.h"
 double x = 1.234;  // Also works for float
 char buffer[31];   // Should be long enough
 
@@ -61,7 +61,7 @@ end_ptr = jkj::dragonbox::to_chars_n(x, buffer);
 
 (Direct use of `jkj::dragonbox::to_decimal`)
 ```cpp
-#include "dragonbox.h"
+#include "dragonbox/dragonbox.h"
 double x = 1.234;   // Also works for float
 
 // Here, x should be a nonzero finite number!
@@ -78,7 +78,7 @@ By default, `jkj::dragonbox::to_decimal` returns a struct with three members (`s
 # Policies
 Dragonbox provides several policies that the user can select. Most of the time the default policies will be sufficient, but for some situation this customizability might be useful. There are currently six different kinds of policies that you can specify: sign policy, trailing zero policy, rounding mode policy, correct rounding policy, cache policy, and input validation policy. Those policies are living in the namespace `jkj::dragonbox::policy`. You can provide the policies as additional parameters to `jkj::dragonbox::to_decimal` or `jkj::dragonbox::to_chars` or `jkj::dragonbox::to_chars_n`. Here is an example usage:
 ```cpp
-#include "dragonbox.h"
+#include "dragonbox/dragonbox.h"
 auto v = jkj::dragonbox::to_decimal(x,
     jkj::dragonbox::policy::sign::ignore,
     jkj::dragonbox::policy::cache::compressed);
@@ -186,67 +186,68 @@ The red line at the bottom is the performance of Dragonbox with the full cache t
 There is also a benchmark done by myself (top: benchmark for ````float```` data, bottom: benchmark for ````double```` data; solid lines are the averages, dashed lines are the medians, and the shaded regions show 30%, 50%, and 70% percentiles):
 
 (Clang)
-![digits_benchmark_binary32](benchmark_results/digits_benchmark_binary32_clang.png)
-![digits_benchmark_binary64](benchmark_results/digits_benchmark_binary64_clang.png)
+![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_binary32_clang.png)
+![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_binary64_clang.png)
 
 (MSVC)
-![digits_benchmark_binary32](benchmark_results/digits_benchmark_binary32_msvc.png)
-![digits_benchmark_binary64](benchmark_results/digits_benchmark_binary64_msvc.png)
+![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_binary32_msvc.png)
+![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_binary64_msvc.png)
 
 Here is another performance plot with uniformly randomly generated ````float````(top) or ````double````(bottom) data:
 
 (Clang)
-![uniform_benchmark_binary32](benchmark_results/uniform_benchmark_binary32_clang.png)
-![uniform_benchmark_binary64](benchmark_results/uniform_benchmark_binary64_clang.png)
+![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_binary32_clang.png)
+![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_binary64_clang.png)
 
 (MSVC)
-![uniform_benchmark_binary32](benchmark_results/uniform_benchmark_binary32_msvc.png)
-![uniform_benchmark_binary64](benchmark_results/uniform_benchmark_binary64_msvc.png)
+![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_binary32_msvc.png)
+![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_binary64_msvc.png)
 
 Dragonbox seems to be also faster than Schubfach, but since the implementation of Schubfach I benchmarked against does not remove trailing decimal zeros, the version that does not care about trailing decimal zeros is used for the benchmarks below:
 
 Digits benchmark (top: `float`, bottom: `double`):
 
 (Clang)
-![digits_benchmark_binary32](benchmark_results/digits_benchmark_binary32_notzr_clang.png)
-![digits_benchmark_binary64](benchmark_results/digits_benchmark_binary64_notzr_clang.png)
+![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_binary32_notzr_clang.png)
+![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_binary64_notzr_clang.png)
 
 (MSVC)
-![digits_benchmark_binary32](benchmark_results/digits_benchmark_binary32_notzr_msvc.png)
-![digits_benchmark_binary64](benchmark_results/digits_benchmark_binary64_notzr_msvc.png)
+![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_binary32_notzr_msvc.png)
+![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_binary64_notzr_msvc.png)
 
 Uniform benchmark (top: `float`, bottom: `double`):
 
 (Clang)
-![uniform_benchmark_binary32](benchmark_results/uniform_benchmark_binary32_notzr_clang.png)
-![uniform_benchmark_binary64](benchmark_results/uniform_benchmark_binary64_notzr_clang.png)
+![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_binary32_notzr_clang.png)
+![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_binary64_notzr_clang.png)
 
 (MSVC)
-![uniform_benchmark_binary32](benchmark_results/uniform_benchmark_binary32_notzr_msvc.png)
-![uniform_benchmark_binary64](benchmark_results/uniform_benchmark_binary64_notzr_msvc.png)
+![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_binary32_notzr_msvc.png)
+![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_binary64_notzr_msvc.png)
 
 # Comprehensive Explanation of the Algorithm
 Please see [this](other_files/Dragonbox.pdf) paper.
 
 # How to Run Tests
-In order to run tests and benchmarks, you need `.cpp/.h` files in the directories [`tests`](tests) and [`benchmarks`](benchmarks), in addition to [`dragonbox.h`](dragonbox.h), [`dragonbox_to_chars.h`](dragonbox_to_chars.h), and [`dragonbox_to_chars.cpp`](dragonbox_to_chars/dragonbox_to_chars.cpp). There is no third party dependencies other than those included in this repository, so this should be enough.
+(Currently the project is undergoing transition into CMake. This section will be updated after finishing that.)
+~~In order to run tests and benchmarks, you need `.cpp/.h` files in the directories [`subproject`](subproject), in addition to [`dragonbox.h`](include/dragonbox/dragonbox.h), [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h), and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp). There is no third party dependencies other than those included in this repository, so this should be enough.~~
 
-In [`main.cpp`](main.cpp) (which is in [`tests`](tests) directory), there are bunch of `#define`'s. Uncomment whatever you want to test or benchmark, compile and link every `.cpp` files mentioned.
+~~In [`main.cpp`](main.cpp) (which is in [`tests`](tests) directory), there are bunch of `#define`'s. Uncomment whatever you want to test or benchmark, compile and link every `.cpp` files mentioned.~~
 
-The result of tests and benchmarks will be written in the directories [`test_results`](test_results) and [`becnhmark_results`](benchmark_results) respectively, and as `std::ofstream` cannot create a new directory, those directories should exist before running the test.
+~~The result of tests and benchmarks will be written in the directories [`test_results`](test_results) and [`becnhmark_results`](benchmark_results) respectively, and as `std::ofstream` cannot create a new directory, those directories should exist before running the test.~~
 
-There are also some MATLAB scripts in the directory [`benchmark_results`](benchmark_results) for plot generation. If you have MATLAB installed on your machine and want to generate plots, then download these script files also.
+~~There are also some MATLAB scripts in the directory [`subproject/benchmark/matlab`](subproject/benchmark/matlab) for plot generation. If you have MATLAB installed on your machine and want to generate plots, then download these script files also.~~
 
 # Notes
 Besides the uniformly random tests against Ryu, I also ran a joint test of Dragonbox with a binary-to-decimal floating-point conversion routine I developed, and confirmed correct roundtrip for all possible IEEE-754 binary32-encoded floating-point numbers (aka `float`) with the round-to-nearest, tie-to-even rounding mode. Therefore, I am currently pretty confident about the correctness of both of the algorithms. I will make a separate repository for the reverse algorithm in a near future.
 
 # License
-All code, except for those belong to third-party libraries (code in [`benchmark/ryu`](benchmark/ryu), [`benchmark/schubfach`](benchmark/schubfach), and [`benchmark_results/shaded_plots`](benchmark_results/shaded_plots)), is licensed under either of
+All code, except for those belong to third-party libraries (code in [`subproject/common/3rdparty`](subproject/common/3rdparty)), is licensed under either of
 
  * Apache License Version 2.0 with LLVM Exceptions ([LICENSE-Apache2-LLVM](LICENSE-Apache2-LLVM) or https://llvm.org/foundation/relicensing/LICENSE.txt) or
  * Boost Software License Version 1.0 ([LICENSE-Boost](LICENSE-Boost) or https://www.boost.org/LICENSE_1_0.txt).
 
-except for the file [`dragonbox_to_chars.cpp`](dragonbox_to_chars/dragonbox_to_chars.cpp), which is licensed under either of
+except for the file [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp), which is licensed under either of
 
  * Apache License Version 2.0 ([LICENSE-Apache2](fp_to_chars/LICENSE-Apache2) or http://www.apache.org/licenses/LICENSE-2.0) or
  * Boost Software License Version 1.0 ([LICENSE-Boost](fp_to_chars/LICENSE-Boost) or https://www.boost.org/LICENSE_1_0.txt).
