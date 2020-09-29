@@ -688,7 +688,8 @@ namespace jkj::dragonbox {
 				if (exp >= int(value_bits<UInt>)) {
 					return false;
 				}
-				return x == ((x >> exp) << exp);
+				UInt mask = (UInt(1) << exp) - 1;
+				return (x & mask) == 0;
 #endif
 			}
 
