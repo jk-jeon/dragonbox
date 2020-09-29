@@ -41,7 +41,7 @@
 
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
 #include <immintrin.h>
-#elif defined(_MSC_VER) && defined(_M_X64)
+#elif defined(_MSC_VER)
 #include <intrin.h>	// this includes immintrin.h as well
 #endif
 
@@ -293,10 +293,14 @@ namespace jkj::dragonbox {
 					static_assert(sizeof(UInt) <= sizeof(unsigned int));
 					return __builtin_ctz((unsigned int)n);
 				}
-#elif defined(_MSC_VER) && defined(_M_X64)
+#elif defined(_MSC_VER)
 #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 1
 				if constexpr (std::is_same_v<UInt, unsigned __int64>) {
+#if defined(_M_X64)
 					return int(_tzcnt_u64(n));
+#else
+					return ((unsigned int)(n) == 0) ? (32 + (_tzcnt_u32((unsigned int)(n >> 32)))) : (_tzcnt_u32((unsigned int)n));
+#endif
 				}
 				else {
 					static_assert(sizeof(UInt) <= sizeof(unsigned int));
@@ -389,6 +393,14 @@ namespace jkj::dragonbox {
 #endif
 			};
 
+			static inline std::uint64_t umul64(std::uint32_t x, std::uint32_t y) noexcept {
+#if defined(_MSC_VER)
+				return __emulu(x, y);
+#else
+				return x * (std::uint64_t)y;
+#endif
+			}
+
 			// Get 128-bit result of multiplication of two 64-bit unsigned integers
 			JKJ_SAFEBUFFERS inline uint128 umul128(std::uint64_t x, std::uint64_t y) noexcept {
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__SIZEOF_INT128__) && defined(__x86_64__)
@@ -398,22 +410,20 @@ namespace jkj::dragonbox {
 				result.low_ = _umul128(x, y, &result.high_);
 				return result;
 #else
-				constexpr auto mask = (std::uint64_t(1) << 32) - std::uint64_t(1);
+				std::uint32_t a = x >> 32;
+				std::uint32_t b = (std::uint32_t)x;
+				std::uint32_t c = y >> 32;
+				std::uint32_t d = (std::uint32_t)y;
 
-				auto a = x >> 32;
-				auto b = x & mask;
-				auto c = y >> 32;
-				auto d = y & mask;
+				std::uint64_t ac = umul64(a, c);
+				std::uint64_t bc = umul64(b, c);
+				std::uint64_t ad = umul64(a, d);
+				std::uint64_t bd = umul64(b, d);
 
-				auto ac = a * c;
-				auto bc = b * c;
-				auto ad = a * d;
-				auto bd = b * d;
-
-				auto intermediate = (bd >> 32) + (ad & mask) + (bc & mask);
+				auto intermediate = (bd >> 32) + std::uint32_t(ad) + std::uint32_t(bc);
 
 				return{ ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32),
-					(intermediate << 32) + (bd & mask) };
+					(intermediate << 32) + std::uint32_t(bd) };
 #endif
 			}
 
@@ -424,19 +434,17 @@ namespace jkj::dragonbox {
 #elif defined(_MSC_VER) && defined(_M_X64)
 				return __umulh(x, y);
 #else
-				constexpr auto mask = (std::uint64_t(1) << 32) - std::uint64_t(1);
+				std::uint32_t a = x >> 32;
+				std::uint32_t b = (std::uint32_t)x;
+				std::uint32_t c = y >> 32;
+				std::uint32_t d = (std::uint32_t)y;
 
-				auto a = x >> 32;
-				auto b = x & mask;
-				auto c = y >> 32;
-				auto d = y & mask;
+				std::uint64_t ac = umul64(a, c);
+				std::uint64_t bc = umul64(b, c);
+				std::uint64_t ad = umul64(a, d);
+				std::uint64_t bd = umul64(b, d);
 
-				auto ac = a * c;
-				auto bc = b * c;
-				auto ad = a * d;
-				auto bd = b * d;
-
-				auto intermediate = (bd >> 32) + (ad & mask) + (bc & mask);
+				auto intermediate = (bd >> 32) + std::uint32_t(ad) + std::uint32_t(bc);
 
 				return ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32);
 #endif
@@ -451,7 +459,22 @@ namespace jkj::dragonbox {
 
 			// Get upper 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit unsigned integer
 			inline std::uint32_t umul96_upper32(std::uint32_t x, std::uint64_t y) noexcept {
+#if defined(__x86_64__) || defined(_M_X64)
 				return std::uint32_t(umul128_upper64(x, y));
+#else
+				//std::uint32_t a = 0;
+				std::uint32_t b = x;
+				std::uint32_t c = y >> 32;
+				std::uint32_t d = (std::uint32_t)y;
+
+				//std::uint64_t ac = 0;
+				std::uint64_t bc = umul64(b, c);
+				//std::uint64_t ad = 0;
+				std::uint64_t bd = umul64(b, d);
+
+				std::uint64_t intermediate = (bd >> 32) + bc;
+				return std::uint32_t(intermediate >> 32);
+#endif
 			}
 
 			// Get middle 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit unsigned integer
