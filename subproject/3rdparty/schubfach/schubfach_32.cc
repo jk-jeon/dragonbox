@@ -631,3 +631,4 @@ char* schubfach::Ftoa(char* buffer, float value)
 {
     return ToChars(buffer, value);
 }
+

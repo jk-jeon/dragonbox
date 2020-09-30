@@ -1250,3 +1250,4 @@ char* schubfach::Dtoa(char* buffer, double value)
 {
     return ToChars(buffer, value);
 }
+

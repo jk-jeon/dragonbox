@@ -29,3 +29,4 @@ constexpr int FtoaMinBufferLength = 32;
 char* Ftoa(char* buffer, float value);
 
 } // namespace schubfach
+
