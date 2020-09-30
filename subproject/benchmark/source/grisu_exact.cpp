@@ -16,7 +16,7 @@
 // KIND, either express or implied.
 
 #include "benchmark.h"
-#include "grisu_exact/fp_to_chars.h"
+#include "fp_to_chars.h"
 
 namespace {
 	void grisu_exact_float_to_chars(float x, char* buffer)
