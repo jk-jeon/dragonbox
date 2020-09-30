@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 # TODO: specify version
 project(dragonbox
@@ -9,11 +9,6 @@ project(dragonbox
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
-
-# ---- Install directories ----
-
-set(dragonbox_directory "dragonbox-${PROJECT_VERSION}")
-set(dragonbox_include_directory "${CMAKE_INSTALL_INCLUDEDIR}/${dragonbox_directory}")
 
 # ---- Warning guard ----
 
@@ -33,8 +28,7 @@ set(dragonbox_headers include/dragonbox/dragonbox.h)
 target_include_directories(dragonbox
         ${dragonbox_warning_guard}
         INTERFACE
-        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
-        "$<INSTALL_INTERFACE:${dragonbox_include_directory}>")
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>")
 
 target_compile_features(dragonbox INTERFACE cxx_std_17)
 
@@ -46,54 +40,45 @@ set(dragonbox_to_chars_headers
 
 set(dragonbox_to_chars_sources source/dragonbox_to_chars.cpp)
 
-add_library(dragonbox_to_chars ${dragonbox_to_chars_headers} ${dragonbox_to_chars_sources})
+add_library(dragonbox_to_chars STATIC
+        ${dragonbox_to_chars_headers}
+        ${dragonbox_to_chars_sources})
 add_library(dragonbox::dragonbox_to_chars ALIAS dragonbox_to_chars)
 
 target_include_directories(dragonbox_to_chars
         ${dragonbox_warning_guard}
         PUBLIC
-        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
-        "$<INSTALL_INTERFACE:${dragonbox_include_directory}>")
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>")
 
 target_compile_features(dragonbox_to_chars PUBLIC cxx_std_17)
 
-set_target_properties(dragonbox_to_chars PROPERTIES
-        SOVERSION ${PROJECT_VERSION_MAJOR}
-        VERSION ${PROJECT_VERSION})
-
 # ---- Install ----
+
+set(dragonbox_directory "dragonbox-${PROJECT_VERSION}")
+set(dragonbox_include_directory "${CMAKE_INSTALL_INCLUDEDIR}/${dragonbox_directory}")
 
 install(TARGETS dragonbox dragonbox_to_chars
         EXPORT dragonboxTargets
-        RUNTIME #
-        DESTINATION "${CMAKE_INSTALL_BINDIR}"
-        COMPONENT dragonbox_Runtime
-        LIBRARY #
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-        COMPONENT dragonbox_Runtime
-        NAMELINK_COMPONENT dragonbox_Development
         ARCHIVE #
         DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-        COMPONENT dragonbox_Development)
+        COMPONENT dragonbox_Development
+        INCLUDES #
+        DESTINATION "${dragonbox_include_directory}")
 
 set(dragonbox_install_cmakedir "${CMAKE_INSTALL_LIBDIR}/cmake/${dragonbox_directory}")
-
-configure_package_config_file(
-        cmake/dragonboxConfig.cmake.in
-        "${CMAKE_CURRENT_BINARY_DIR}/dragonboxConfig.cmake"
-        INSTALL_DESTINATION "${dragonbox_install_cmakedir}")
 
 write_basic_package_version_file(
         dragonboxConfigVersion.cmake
         VERSION ${PROJECT_VERSION}
-        COMPATIBILITY SameMajorVersion)
+        COMPATIBILITY SameMajorVersion
+        ARCH_INDEPENDENT)
 
 install(EXPORT dragonboxTargets
         NAMESPACE dragonbox::
         DESTINATION "${dragonbox_install_cmakedir}")
 
 install(FILES
-        "${PROJECT_BINARY_DIR}/dragonboxConfig.cmake"
+        "${PROJECT_SOURCE_DIR}/cmake/dragonboxConfig.cmake"
         "${PROJECT_BINARY_DIR}/dragonboxConfigVersion.cmake"
         DESTINATION "${dragonbox_install_cmakedir}")
 
