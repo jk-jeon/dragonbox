@@ -4,10 +4,11 @@ project(benchmark LANGUAGES CXX)
 
 include(FetchContent)
 FetchContent_Declare(dragonbox SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../..")
+FetchContent_Declare(dragonbox_common SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../common")
 FetchContent_Declare(ryu SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../3rdparty/ryu")
 FetchContent_Declare(schubfach SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../3rdparty/schubfach")
 FetchContent_Declare(grisu_exact SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../3rdparty/grisu_exact")
-FetchContent_MakeAvailable(dragonbox ryu schubfach grisu_exact)
+FetchContent_MakeAvailable(dragonbox dragonbox_common ryu schubfach grisu_exact)
 
 set(benchmark_headers include/benchmark.h)
 
@@ -29,6 +30,7 @@ target_include_directories(benchmark
 target_link_libraries(benchmark
         PRIVATE
         ryu::ryu
+        dragonbox::common
         dragonbox::dragonbox_to_chars
         grisu_exact::grisu_exact
         schubfach::schubfach_32

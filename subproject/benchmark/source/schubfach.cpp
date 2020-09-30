@@ -16,8 +16,8 @@
 // KIND, either express or implied.
 
 #include "benchmark.h"
-#include "schubfach/schubfach_32.h"
-#include "schubfach/schubfach_64.h"
+#include "schubfach_32.h"
+#include "schubfach_64.h"
 
 namespace {
 	void schubfach_32(float x, char* buf) {
