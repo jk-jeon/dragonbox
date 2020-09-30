@@ -19,6 +19,7 @@
 #define JKJ_DRAGONBOX_RANDOM_FLOAT
 
 #include "dragonbox/dragonbox.h"
+#include <algorithm>
 #include <cstring>
 #include <random>
 #include <stdexcept>
@@ -128,10 +129,10 @@ Float randomly_generate_float_with_given_digits(unsigned int digits, RandGen& rg
 
 	assert(digits >= 1);
 	assert(digits <= jkj::dragonbox::ieee754_format_info<ieee754_traits::format>::decimal_digits);
-	
+
 	// Generate sign uniformly randomly
 	signed_int_t sign = std::uniform_int_distribution<signed_int_t>{ 0, 1 }(rg) == 0 ? 1 : -1;
-	
+
 
 	// Try to generate significand uniformly randomly
 	Float result;
