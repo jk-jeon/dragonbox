@@ -1,12 +1,4 @@
 ﻿# TODO: clean
-/.vs
-/vc2019/.vs
-
-/vc2019/x64
-/vc2019/debug.log
-
-
-/vc2019/Win32
 
 # VS generated CMake settings
 CMakeSettings.json
