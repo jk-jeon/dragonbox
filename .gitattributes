@@ -2,15 +2,12 @@
 
 CMakeLists.txt eol=lf
 *.h eol=lf
+*.hpp eol=lf
+*.cc eol=lf
 *.cpp eol=lf
 *.cmake eol=lf
-*.cmake.in eol=lf
+*.m eol=lf
 
 *.png binary
 *.pdf binary
 *.csv binary
-
-benchmark_results/shaded_plots/* linguist-vendored
-benchmark/ryu/* linguist-vendored
-benchmark/grisu_exact/* linguist-vendored
-benchmark/schubfach/* linguist-vendored
