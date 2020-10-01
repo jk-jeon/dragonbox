@@ -30,7 +30,6 @@ namespace {
 
 		static std::uint64_t convert(std::bitset<64> const& bs) noexcept
 		{
-			static_assert(std::is_same_v<unsigned long long, std::uint64_t>);
 			return static_cast<std::uint64_t>(bs.to_ullong());
 		}
 	};
