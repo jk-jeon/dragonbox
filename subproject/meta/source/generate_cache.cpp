@@ -31,7 +31,7 @@ namespace {
 		static std::uint64_t convert(std::bitset<64> const& bs) noexcept
 		{
 			static_assert(std::is_same_v<unsigned long long, std::uint64_t>);
-			return bs.to_ullong();
+			return static_cast<std::uint64_t>(bs.to_ullong());
 		}
 	};
 
@@ -41,16 +41,17 @@ namespace {
 
 		static jkj::dragonbox::detail::wuint::uint128 convert(std::bitset<128> const& bs) noexcept
 		{
-			static_assert(std::is_same_v<unsigned long long, std::uint64_t>);
-			std::bitset<64> temp;
+			std::uint64_t low = 0;
+			for (std::size_t i = 0; i < 64; ++i) {
+				low <<= 1;
+				low |= std::uint64_t(bs[63 - i]);
+			}
 
-			for (std::size_t i = 0; i < 64; ++i)
-				temp[i] = bs[i];
-			auto low = temp.to_ullong();
-
-			for (std::size_t i = 0; i < 64; ++i)
-				temp[i] = bs[i + 64];
-			auto high = temp.to_ullong();
+			std::uint64_t high = 0;
+			for (std::size_t i = 0; i < 64; ++i) {
+				high <<= 1;
+				high |= std::uint64_t(bs[127 - i]);
+			}
 
 			return{ high, low };
 		}
