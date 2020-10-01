@@ -53,10 +53,19 @@ target_compile_features(dragonbox_to_chars PUBLIC cxx_std_17)
 
 # ---- Install ----
 
+option(DRAGONBOX_INSTALL_TO_CHARS
+        "When invoked with --install, dragonbox_to_chars.h/.cpp are installed along with dragonbox.h"
+        On)
+
 set(dragonbox_directory "dragonbox-${PROJECT_VERSION}")
 set(dragonbox_include_directory "${CMAKE_INSTALL_INCLUDEDIR}/${dragonbox_directory}")
+set(dragonbox_install_targets "dragonbox")
 
-install(TARGETS dragonbox dragonbox_to_chars
+if (DRAGONBOX_INSTALL_TO_CHARS)
+  set(dragonbox_install_targets ${dragonbox_install_targets} dragonbox_to_chars)
+endif()
+
+install(TARGETS ${dragonbox_install_targets}
         EXPORT dragonboxTargets
         ARCHIVE #
         DESTINATION "${CMAKE_INSTALL_LIBDIR}"
@@ -81,8 +90,13 @@ install(FILES
         "${PROJECT_BINARY_DIR}/dragonboxConfigVersion.cmake"
         DESTINATION "${dragonbox_install_cmakedir}")
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/"
-        DESTINATION "${dragonbox_include_directory}")
+if (DRAGONBOX_INSTALL_TO_CHARS)
+  install(FILES ${dragonbox_to_chars_headers}
+          DESTINATION "${dragonbox_include_directory}/dragonbox")
+else()
+  install(FILES ${dragonbox_headers}
+          DESTINATION "${dragonbox_include_directory}/dragonbox")
+endif()
 
 # ---- Subproject ----
 
