@@ -86,9 +86,9 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/"
 
 # ---- Subproject ----
 
-option(DRAGONBOX_SUBPROJECT "Build subproject as well" OFF)
+option(DRAGONBOX_ENABLE_SUBPROJECT "Build subproject as well" OFF)
 
-if (DRAGONBOX_SUBPROJECT)
+if (DRAGONBOX_ENABLE_SUBPROJECT)
     add_subdirectory("subproject/benchmark")
     add_subdirectory("subproject/meta")
     add_subdirectory("subproject/test")
