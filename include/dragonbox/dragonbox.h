@@ -39,10 +39,10 @@
 #define JKJ_FORCEINLINE inline
 #endif
 
-#if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
-#include <immintrin.h>
-#elif defined(_MSC_VER)
+#if defined(_MSC_VER)
 #include <intrin.h>	// this includes immintrin.h as well
+#elif (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
+#include <immintrin.h>
 #endif
 
 namespace jkj::dragonbox {
@@ -396,7 +396,7 @@ namespace jkj::dragonbox {
 			};
 
 			static inline std::uint64_t umul64(std::uint32_t x, std::uint32_t y) noexcept {
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(_M_X64)
 				return __emulu(x, y);
 #else
 				return x * std::uint64_t(y);

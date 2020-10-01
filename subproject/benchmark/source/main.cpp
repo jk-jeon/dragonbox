@@ -153,7 +153,7 @@ register_function_for_benchmark::register_function_for_benchmark(
 void run_matlab() {
 	struct launcher {
 		~launcher() {
-			std::system("matlab -nosplash -r \"cd('benchmark/matlab'); plot_benchmarks\"");
+			std::system("matlab -nosplash -r \"cd('matlab'); plot_benchmarks\"");
 		}
 	};
 	static launcher l;
@@ -173,7 +173,7 @@ static void benchmark_test(std::string_view float_name,
 	std::cout << "Benchmarking done.\n" << "Now writing to files...\n";
 
 	// Write uniform benchmark results
-	auto filename = std::string("benchmark/results/uniform_benchmark_");
+	auto filename = std::string("results/uniform_benchmark_");
 	filename += float_name;
 	filename += ".csv";
 	std::ofstream out_file{ filename };
@@ -198,7 +198,7 @@ static void benchmark_test(std::string_view float_name,
 	out_file.close();
 
 	// Write digits benchmark results
-	filename = std::string("benchmark/results/digits_benchmark_");
+	filename = std::string("results/digits_benchmark_");
 	filename += float_name;
 	filename += ".csv";
 	out_file.open(filename);

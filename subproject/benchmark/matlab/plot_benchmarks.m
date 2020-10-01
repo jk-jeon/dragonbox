@@ -15,7 +15,7 @@
 % is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 % KIND, either express or implied.
 
-addpath('../../common/3rdparty/shaded_plots');
+addpath('../../3rdparty/shaded_plots');
 plot_uniform_benchmark('../results/uniform_benchmark_binary32.csv', 32);
 plot_uniform_benchmark('../results/uniform_benchmark_binary64.csv', 64);
 avg32 = plot_digit_benchmark('../results/digits_benchmark_binary32.csv');

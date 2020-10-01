@@ -84,3 +84,24 @@ install(FILES
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/"
         DESTINATION "${dragonbox_include_directory}")
+
+# ---- Subproject ----
+
+option(dragonbox_SUBPROJECT "Build subproject as well" OFF)
+
+if (dragonbox_SUBPROJECT)
+    add_subdirectory("subproject/benchmark")
+    add_subdirectory("subproject/meta")
+    add_subdirectory("subproject/test")
+endif()
+
+# ---- MSVC Specifics ----
+if (MSVC)
+    # No need to not generate PDB
+    # /permissive- should be the default
+    # The compilation will fail without /experimental:newLambdaProcessor
+    target_compile_options(dragonbox INTERFACE
+              /Zi /permissive- $<$<NOT:$<CXX_COMPILER_ID:Clang>>:/experimental:newLambdaProcessor>)
+    target_compile_options(dragonbox_to_chars PUBLIC
+              /Zi /permissive- $<$<NOT:$<CXX_COMPILER_ID:Clang>>:/experimental:newLambdaProcessor>)
+endif()

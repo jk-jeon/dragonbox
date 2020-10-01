@@ -3,12 +3,26 @@ cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 project(benchmark LANGUAGES CXX)
 
 include(FetchContent)
-FetchContent_Declare(dragonbox SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../..")
-FetchContent_Declare(dragonbox_common SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../common")
-FetchContent_Declare(ryu SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../3rdparty/ryu")
-FetchContent_Declare(schubfach SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../3rdparty/schubfach")
-FetchContent_Declare(grisu_exact SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../3rdparty/grisu_exact")
-FetchContent_MakeAvailable(dragonbox dragonbox_common ryu schubfach grisu_exact)
+if (NOT TARGET dragonbox)
+    FetchContent_Declare(dragonbox SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../..")
+    FetchContent_MakeAvailable(dragonbox)
+endif()
+if (NOT TARGET common)
+    FetchContent_Declare(common SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../common")
+    FetchContent_MakeAvailable(common)
+endif()
+if (NOT TARGET ryu)
+    FetchContent_Declare(ryu SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../3rdparty/ryu")
+    FetchContent_MakeAvailable(ryu)
+endif()
+if (NOT TARGET schubfach)
+    FetchContent_Declare(schubfach SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../3rdparty/schubfach")
+    FetchContent_MakeAvailable(schubfach)
+endif()
+if (NOT TARGET grisu_exact)
+    FetchContent_Declare(grisu_exact SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../3rdparty/grisu_exact")
+    FetchContent_MakeAvailable(grisu_exact)
+endif()
 
 set(benchmark_headers include/benchmark.h)
 
@@ -33,5 +47,17 @@ target_link_libraries(benchmark
         dragonbox::common
         dragonbox::dragonbox_to_chars
         grisu_exact::grisu_exact
-        schubfach::schubfach_32
-        schubfach::schubfach_64)
+        schubfach::schubfach)
+
+# ---- MSVC Specifics ----
+if (MSVC)
+    # No need to not generate PDB
+    # /permissive- should be the default
+    # The compilation will fail without /experimental:newLambdaProcessor
+    # See also https://gitlab.kitware.com/cmake/cmake/-/issues/16478
+    target_compile_options(benchmark INTERFACE
+              /Zi /permissive- $<$<NOT:$<CXX_COMPILER_ID:Clang>>:/experimental:newLambdaProcessor>)
+    target_link_options(benchmark PUBLIC /DEBUG:FASTLINK)
+    set_target_properties(benchmark PROPERTIES 
+            VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
+endif()
