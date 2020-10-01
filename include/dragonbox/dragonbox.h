@@ -396,7 +396,7 @@ namespace jkj::dragonbox {
 			};
 
 			static inline std::uint64_t umul64(std::uint32_t x, std::uint32_t y) noexcept {
-#if defined(_MSC_VER) && !defined(_M_X64)
+#if defined(_MSC_VER) && defined(_M_IX86)
 				return __emulu(x, y);
 #else
 				return x * std::uint64_t(y);
