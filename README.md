@@ -30,7 +30,7 @@ cd build
 cmake ..
 cmake --install .
 ```
-Of course you can specify things like `--config` or `--prefix` for configuring/installing if you wish. You can also specify the option `-DDRAGONBOX_INSTALL_TO_CHARS=OFF` if you only want `dragonbox.h` but not `dragonbox_to_chars.h/.cpp`:
+Of course you can specify things like `--config` or `--prefix` for configuring/installing if you wish. You can also specify the option `-DDRAGONBOX_INSTALL_TO_CHARS=OFF` if you only want [`dragonbox.h`](include/dragonbox/dragonbox.h) but not [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h)/[`.cpp`](source/dragonbox_to_chars.cpp):
 ```
 git clone https://github.com/jk-jeon/dragonbox
 cd dragonbox
@@ -268,10 +268,10 @@ Please see [this](other_files/Dragonbox.pdf) paper.
 
 # How to Run Tests, Benchmark, and Others
 There are four subprojects contained in this repository:
-1. `common`: The subproject that other subprojects depend on.
-2. `benchmark`: Runs benchmark.
-3. `meta`: Generates static data that the main library uses.
-4. `test`: Runs tests.
+1. [`common`](subproject/common): The subproject that other subprojects depend on.
+2. [`benchmark`](subproject/benchmark): Runs benchmark.
+3. [`test`](subproject/test): Runs tests.
+4. [`meta`](subproject/meta): Generates static data that the main library uses.
 
 ## Build each subproject independently
 All subprojects including tests and benchmark are standalone, which means that you can build and run each of them independently. For example, you can do the following to run tests:
@@ -298,7 +298,7 @@ cmake --build .
 ```
 
 ## Notes on working directory
-Some executable files require correct working directory to be set. For example, the executable for `benchmark` runs some MATLAB scripts provided in [`subproject/benchmark/matlab`](subproject/benchmark/matlab) directory, which will be failed to be executed if the working directory is not set to `subproject/benchmark`. If you use the provided `CMakeLists.txt` files to generate Visual Studio solution, the debugger's working directory is automatically set to the corresponding source directory. For example, the working directory is set to [`subproject/benchmark`](subproject/benchmark) for the benchmark subproject. However, other generators of cmake is not able to set debugger's working directory, so in that case you need to manually set the correct working directory when running the executables in order to make them work correctly.
+Some executable files require correct working directory to be set. For example, the executable for [`benchmark`](subproject/benchmark) runs some MATLAB scripts provided in [`subproject/benchmark/matlab`](subproject/benchmark/matlab) directory, which will be failed to be executed if the working directory is not set to [`subproject/benchmark`](subproject/benchmark). If you use the provided `CMakeLists.txt` files to generate Visual Studio solution, the debugger's working directory is automatically set to the corresponding source directory. For example, the working directory is set to [`subproject/benchmark`](subproject/benchmark) for the benchmark subproject. However, other generators of cmake is not able to set debugger's working directory, so in that case you need to manually set the correct working directory when running the executables in order to make them work correctly.
 
 
 # Notes
