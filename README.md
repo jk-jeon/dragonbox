@@ -18,25 +18,63 @@ The algorithm guarantees three things:
 The core idea of Schubfach, which Dragonbox is based on, is a continuous analogue of discrete [pigeonhole principle](https://en.wikipedia.org/wiki/Pigeonhole_principle). The name *Schubfach* is coming from the German name of the pigeonhole principle, *Schubfachprinzip*, meaning "drawer principle". Since another name of the pigeonhole principle is *Dirichlet's box principle*, I decided to call my algorithm "Dragonbox" to honor its origins: Schubfach (box) and Grisu (dragon).
 
 # How to Use
-Although Drgonbox is intended for float-to-string conversion routines, the actual string generation is not officially a part of the algorithm. Dragonbox just outputs two integers (the decimal significand/exponent) that can be consumed by a string generation procedure. The header file [`dragonbox.h`](include/dragonbox/dragonbox.h) includes everything needed for this. It is header-only; you just need these two steps for using it:
+Although Drgonbox is intended for float-to-string conversion routines, the actual string generation is not officially a part of the algorithm. Dragonbox just outputs two integers (the decimal significand/exponent) that can be consumed by a string generation procedure. The header file [`dragonbox.h`](include/dragonbox/dragonbox.h) includes everything needed for this (it is header-only). Nevertheless, a string generation procedure is included in the library. There are two additional files needed for that: [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp) (the `.cpp` file is in the directory [`source`](source)).
 
+## Installing Dragonbox
+The following will install Dragonbox into your system:
+```
+git clone https://github.com/jk-jeon/dragonbox
+cd dragonbox
+mkdir build
+cd build
+cmake ..
+cmake --install .
+```
+Of course you can specify things like `--config` or `--prefix` for configuring/installing if you wish. You can also specify the option `-DDRAGONBOX_INSTALL_TO_CHARS=OFF` if you only want `dragonbox.h` but not `dragonbox_to_chars.h/.cpp`:
+```
+git clone https://github.com/jk-jeon/dragonbox
+cd dragonbox
+mkdir build
+cd build
+cmake .. -DDRAGONBOX_INSTALL_TO_CHARS=OFF
+cmake --install .
+```
+
+## Including Dragonbox into CMake project
+The easiest way to include Dragonbox in a CMake project is to do the following:
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+        dragonbox
+        GIT_REPOSITORY https://github.com/jk-jeon/dragonbox
+)
+FetchContent_MakeAvailable(dragonbox)
+```
+Or, if you already have installed Dragonbox in your system, you can include it with:
+```cmake
+find_package(dragonbox)
+```
+and then
+```
+target_link_libraries(my_target dragonbox::dragonbox)
+```
+or
+```
+target_link_libraries(my_target dragonbox::dragonbox_to_chars)
+```
+
+## Manually including Dragonbox without using CMake
+There are only three files ([`dragonbox.h`](include/dragonbox/dragonbox.h), [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h), and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp)) in this library, so it is also possible to use this library without using CMake, if you want.
+
+If you only need [`dragonbox.h`](include/dragonbox/dragonbox.h), then:
 1) Drop [`dragonbox.h`](include/dragonbox/dragonbox.h) in your include directory, and
 2) `#include` it. That's it.
 
-Nevertheless, a string generation procedure is included in the library. There are two additional files needed for that: [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp) (the `.cpp` file is in the directory [`source`](source)). If you want to use them too, then:
-
+If you want to use [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp) as well, then:
 1) In addition to [`dragonbox.h`](include/dragonbox/dragonbox.h), drop [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) in your include directory,
 2) `#include` [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) instead of [`dragonbox.h`](include/dragonbox/dragonbox.h),
 3) Build [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp) as a library, and then
 4) Link against it.
-
-(Please be aware that [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp) is expecting to have [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) in the parent directory of itself.)
-
-However, note that features provided in [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h)/[`.cpp`](source/dragonbox_to_chars.cpp) are quite limited and subject to change. Currently, there is no way to indicate any formatting options. Every float/double input is just printed as something like `-3.34E3`. No option for putting plus sign (+) in front of positive significands or positive exponents, no way to use `e` instead of `E`, no option for printing in a fixed-point form (like `-3340`), etc.. Also there is no way to precompute the minimum required size of buffer. I don't like this rigidity, and hope to add more customization features later. Yet, you can rather use `dragonbox.h` directly to implement your own string generation routine.
-
-Besides these three, any other files are unncessary for real use.
-
-A comprehensive reference for this library is in preparation.
 
 # Language Standard
 The library is targetting C++17 and actively using its features (e.g., `if constexpr`).
@@ -228,21 +266,46 @@ Uniform benchmark (top: `float`, bottom: `double`):
 # Comprehensive Explanation of the Algorithm
 Please see [this](other_files/Dragonbox.pdf) paper.
 
-# How to Run Tests
-(Currently the project is undergoing transition into CMake. This section will be updated after finishing that.)
-~~In order to run tests and benchmarks, you need `.cpp/.h` files in the directories [`subproject`](subproject), in addition to [`dragonbox.h`](include/dragonbox/dragonbox.h), [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h), and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp). There is no third party dependencies other than those included in this repository, so this should be enough.~~
+# How to Run Tests, Benchmark, and Others
+There are four subprojects contained in this repository:
+1. `common`: The subproject that other subprojects depend on.
+2. `benchmark`: Runs benchmark.
+3. `meta`: Generates static data that the main library uses.
+4. `test`: Runs tests.
 
-~~In [`main.cpp`](main.cpp) (which is in [`tests`](tests) directory), there are bunch of `#define`'s. Uncomment whatever you want to test or benchmark, compile and link every `.cpp` files mentioned.~~
+## Build each subproject independently
+All subprojects including tests and benchmark are standalone, which means that you can build and run each of them independently. For example, you can do the following to run tests:
+```
+git clone https://github.com/jk-jeon/dragonbox
+cd dragonbox
+mkdir -p build/subproject/test
+cd build/subproject/test
+cmake ../../../subproject/test
+cmake --build .
+ctest .
+```
+(You might need to pass the configuration option to `cmake` and `ctest` if you use multi-configuration generators like Visual Studio.)
 
-~~The result of tests and benchmarks will be written in the directories [`test_results`](test_results) and [`becnhmark_results`](benchmark_results) respectively, and as `std::ofstream` cannot create a new directory, those directories should exist before running the test.~~
+## Build all subprojects from the root directory
+It is also possible to build all subprojects from the root directory by passing the option `-DDRAGONBOX_ENABLE_SUBPROJECT=On` to `cmake`:
+```
+git clone https://github.com/jk-jeon/dragonbox
+cd dragonbox
+mkdir build
+cd build
+cmake .. -DDRAGONBOX_ENABLE_SUBPROJECT=On
+cmake --build .
+```
 
-~~There are also some MATLAB scripts in the directory [`subproject/benchmark/matlab`](subproject/benchmark/matlab) for plot generation. If you have MATLAB installed on your machine and want to generate plots, then download these script files also.~~
+## Notes on working directory
+Some executable files require correct working directory to be set. For example, the executable for `benchmark` runs some MATLAB scripts provided in [`subproject/benchmark/matlab`](subproject/benchmark/matlab) directory, which will be failed to be executed if the working directory is not set to `subproject/benchmark`. If you use the provided `CMakeLists.txt` files to generate Visual Studio solution, the debugger's working directory is automatically set to the corresponding source directory. For example, the working directory is set to [`subproject/benchmark`](subproject/benchmark) for the benchmark subproject. However, other generators of cmake is not able to set debugger's working directory, so in that case you need to manually set the correct working directory when running the executables in order to make them work correctly.
+
 
 # Notes
 Besides the uniformly random tests against Ryu, I also ran a joint test of Dragonbox with a binary-to-decimal floating-point conversion routine I developed, and confirmed correct roundtrip for all possible IEEE-754 binary32-encoded floating-point numbers (aka `float`) with the round-to-nearest, tie-to-even rounding mode. Therefore, I am currently pretty confident about the correctness of both of the algorithms. I will make a separate repository for the reverse algorithm in a near future.
 
 # License
-All code, except for those belong to third-party libraries (code in [`subproject/common/3rdparty`](subproject/common/3rdparty)), is licensed under either of
+All code, except for those belong to third-party libraries (code in [`subproject/3rdparty`](subproject/3rdparty)), is licensed under either of
 
  * Apache License Version 2.0 with LLVM Exceptions ([LICENSE-Apache2-LLVM](LICENSE-Apache2-LLVM) or https://llvm.org/foundation/relicensing/LICENSE.txt) or
  * Boost Software License Version 1.0 ([LICENSE-Boost](LICENSE-Boost) or https://www.boost.org/LICENSE_1_0.txt).
