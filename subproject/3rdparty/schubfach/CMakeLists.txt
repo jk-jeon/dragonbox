@@ -11,3 +11,12 @@ target_compile_features(schubfach PUBLIC cxx_std_17)
 target_include_directories(schubfach
         PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
+
+# ---- MSVC Specifics ----
+if (MSVC)
+    # No need to not generate PDB
+    # /permissive- should be the default
+    target_compile_options(schubfach PUBLIC
+              /Zi /permissive-
+              $<$<CONFIG:Release>:/GL>)
+endif()

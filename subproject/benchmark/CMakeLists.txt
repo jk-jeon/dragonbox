@@ -55,9 +55,11 @@ if (MSVC)
     # /permissive- should be the default
     # The compilation will fail without /experimental:newLambdaProcessor
     # See also https://gitlab.kitware.com/cmake/cmake/-/issues/16478
-    target_compile_options(benchmark INTERFACE
-              /Zi /permissive- $<$<NOT:$<CXX_COMPILER_ID:Clang>>:/experimental:newLambdaProcessor>)
-    target_link_options(benchmark PUBLIC /DEBUG:FASTLINK)
+    target_compile_options(benchmark PUBLIC
+              /Zi /permissive-
+              $<$<NOT:$<CXX_COMPILER_ID:Clang>>:/experimental:newLambdaProcessor>
+              $<$<CONFIG:Release>:/GL>)
+    target_link_options(benchmark PUBLIC /LTCG /DEBUG:FASTLINK)
     set_target_properties(benchmark PROPERTIES 
             VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
 endif()

@@ -26,8 +26,10 @@ function(meta_exe NAME)
       # The compilation will fail without /experimental:newLambdaProcessor
       # See also https://gitlab.kitware.com/cmake/cmake/-/issues/16478
       target_compile_options(${NAME} PUBLIC
-              /Zi /permissive- $<$<NOT:$<CXX_COMPILER_ID:Clang>>:/experimental:newLambdaProcessor>)
-      target_link_options(${NAME} PUBLIC /DEBUG:FASTLINK)
+              /Zi /permissive-
+              $<$<NOT:$<CXX_COMPILER_ID:Clang>>:/experimental:newLambdaProcessor>
+              $<$<CONFIG:Release>:/GL>)
+      target_link_options(${NAME} PUBLIC /LTCG /DEBUG:FASTLINK)
       set_target_properties(${NAME} PROPERTIES 
             VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
   endif()

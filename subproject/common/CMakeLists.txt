@@ -25,5 +25,6 @@ if (MSVC)
     # /permissive- should be the default
     # The compilation will fail without /experimental:newLambdaProcessor
     target_compile_options(dragonbox_common INTERFACE
-              /Zi /permissive- $<$<NOT:$<CXX_COMPILER_ID:Clang>>:/experimental:newLambdaProcessor>)
+              /Zi /permissive-
+              $<$<NOT:$<CXX_COMPILER_ID:Clang>>:/experimental:newLambdaProcessor>)
 endif()
