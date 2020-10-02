@@ -18,7 +18,7 @@ The algorithm guarantees three things:
 The core idea of Schubfach, which Dragonbox is based on, is a continuous analogue of discrete [pigeonhole principle](https://en.wikipedia.org/wiki/Pigeonhole_principle). The name *Schubfach* is coming from the German name of the pigeonhole principle, *Schubfachprinzip*, meaning "drawer principle". Since another name of the pigeonhole principle is *Dirichlet's box principle*, I decided to call my algorithm "Dragonbox" to honor its origins: Schubfach (box) and Grisu (dragon).
 
 # How to Use
-Although Drgonbox is intended for float-to-string conversion routines, the actual string generation is not officially a part of the algorithm. Dragonbox just outputs two integers (the decimal significand/exponent) that can be consumed by a string generation procedure. The header file [`dragonbox.h`](include/dragonbox/dragonbox.h) includes everything needed for this (it is header-only). Nevertheless, a string generation procedure is included in the library. There are two additional files needed for that: [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp) (the `.cpp` file is in the directory [`source`](source)).
+Although Drgonbox is intended for float-to-string conversion routines, the actual string generation is not officially a part of the algorithm. Dragonbox just outputs two integers (the decimal significand/exponent) that can be consumed by a string generation procedure. The header file [`dragonbox.h`](include/dragonbox/dragonbox.h) includes everything needed for this (it is header-only). Nevertheless, a string generation procedure is included in the library. There are two additional files needed for that: [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp) (the `.cpp` file is in the directory [`source`](source)). Since there are only three files, it should be not difficult to set up this library manually if you want, but you can also use it via CMake as explained below.
 
 ## Installing Dragonbox
 The following will install Dragonbox into your system:
@@ -30,15 +30,7 @@ cd build
 cmake ..
 cmake --install .
 ```
-Of course you can specify things like `--config` or `--prefix` for configuring/installing if you wish. You can also specify the option `-DDRAGONBOX_INSTALL_TO_CHARS=OFF` if you only want [`dragonbox.h`](include/dragonbox/dragonbox.h) but not [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h)/[`.cpp`](source/dragonbox_to_chars.cpp):
-```
-git clone https://github.com/jk-jeon/dragonbox
-cd dragonbox
-mkdir build
-cd build
-cmake .. -DDRAGONBOX_INSTALL_TO_CHARS=OFF
-cmake --install .
-```
+Of course you can specify things like `--config` or `--prefix` for configuring/installing if you wish. You can also specify the option `-DDRAGONBOX_INSTALL_TO_CHARS=OFF` if you only want [`dragonbox.h`](include/dragonbox/dragonbox.h) but not [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h)/[`.cpp`](source/dragonbox_to_chars.cpp).
 
 ## Including Dragonbox into CMake project
 The easiest way to include Dragonbox in a CMake project is to do the following:
@@ -49,32 +41,13 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/jk-jeon/dragonbox
 )
 FetchContent_MakeAvailable(dragonbox)
+target_link_libraries(my_target dragonbox::dragonbox) # or dragonbox::dragonbox_to_chars
 ```
 Or, if you already have installed Dragonbox in your system, you can include it with:
 ```cmake
 find_package(dragonbox)
+target_link_libraries(my_target dragonbox::dragonbox) # or dragonbox::dragonbox_to_chars
 ```
-and then
-```
-target_link_libraries(my_target dragonbox::dragonbox)
-```
-or
-```
-target_link_libraries(my_target dragonbox::dragonbox_to_chars)
-```
-
-## Manually including Dragonbox without using CMake
-There are only three files ([`dragonbox.h`](include/dragonbox/dragonbox.h), [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h), and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp)) in this library, so it is also possible to use this library without using CMake, if you want.
-
-If you only need [`dragonbox.h`](include/dragonbox/dragonbox.h), then:
-1) Drop [`dragonbox.h`](include/dragonbox/dragonbox.h) in your include directory, and
-2) `#include` it. That's it.
-
-If you want to use [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) and [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp) as well, then:
-1) In addition to [`dragonbox.h`](include/dragonbox/dragonbox.h), drop [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) in your include directory,
-2) `#include` [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) instead of [`dragonbox.h`](include/dragonbox/dragonbox.h),
-3) Build [`dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp) as a library, and then
-4) Link against it.
 
 # Language Standard
 The library is targetting C++17 and actively using its features (e.g., `if constexpr`).
