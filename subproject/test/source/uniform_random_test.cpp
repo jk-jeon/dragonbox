@@ -52,7 +52,7 @@ static bool uniform_random_test(std::size_t number_of_tests, TypenameString&& ty
 
 	if (success) {
 		std::cout << "Uniform random test for " << type_name_string
-			<< " with " << number_of_tests << " examples success.\n";
+			<< " with " << number_of_tests << " examples succeeded.\n";
 	}
 
 	return success;

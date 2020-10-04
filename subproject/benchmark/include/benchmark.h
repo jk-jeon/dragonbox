@@ -15,8 +15,8 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
 
-#ifndef JKJ_GRISU_EXACT_BENCHMARK
-#define JKJ_GRISU_EXACT_BENCHMARK
+#ifndef JKJ_BENCHMARK
+#define JKJ_BENCHMARK
 
 #include <string_view>
 

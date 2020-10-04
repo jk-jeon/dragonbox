@@ -15,8 +15,8 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
 
-#ifndef JKJ_DRAGONBOX_FP_TO_CHARS
-#define JKJ_DRAGONBOX_FP_TO_CHARS
+#ifndef JKJ_DRAGONBOX_TO_CHARS
+#define JKJ_DRAGONBOX_TO_CHARS
 
 #include "dragonbox/dragonbox.h"
 
