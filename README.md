@@ -219,22 +219,22 @@ Dragonbox seems to be also faster than Schubfach, but since the implementation o
 Digits benchmark (top: `float`, bottom: `double`):
 
 (Clang)
-![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_binary32_notzr_clang.png)
-![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_binary64_notzr_clang.png)
+![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_ntzr_binary32_clang.png)
+![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_ntzr_binary64_clang.png)
 
 (MSVC)
-![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_binary32_notzr_msvc.png)
-![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_binary64_notzr_msvc.png)
+![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_ntzr_binary32_msvc.png)
+![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_ntzr_binary64_msvc.png)
 
 Uniform benchmark (top: `float`, bottom: `double`):
 
 (Clang)
-![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_binary32_notzr_clang.png)
-![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_binary64_notzr_clang.png)
+![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_ntzr_binary32_clang.png)
+![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_ntzr_binary64_clang.png)
 
 (MSVC)
-![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_binary32_notzr_msvc.png)
-![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_binary64_notzr_msvc.png)
+![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_ntzr_binary32_msvc.png)
+![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_ntzr_binary64_msvc.png)
 
 # Comprehensive Explanation of the Algorithm
 Please see [this](other_files/Dragonbox.pdf) paper.
