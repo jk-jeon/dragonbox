@@ -27,7 +27,7 @@ namespace {
 			};
 		}
 		else {
-			static_assert(benchmark_kind == benchmark_no_trailing_zero);
+			static_assert(benchmark_kind == benchmark_allow_trailing_zero);
 			return {};
 		}
 	}();
