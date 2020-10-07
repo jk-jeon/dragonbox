@@ -55,7 +55,6 @@ namespace {
 			};
 		}
 		else {
-			static_assert(benchmark_kind == benchmark_allow_trailing_zero);
 			return { "Dragonbox (w/o trailing zero removal)",
 				dragonbox_wo_tzremoval_float_to_chars,
 				dragonbox_wo_tzremoval_double_to_chars
