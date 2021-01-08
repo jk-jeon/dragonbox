@@ -281,7 +281,7 @@ namespace jkj::dragonbox {
 			template <class UInt>
 			inline int countr_zero(UInt n) noexcept {
 				static_assert(std::is_unsigned_v<UInt> && value_bits<UInt> <= 64);
-#if 0/*(defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
+#if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
 #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 1
 				if constexpr (std::is_same_v<UInt, unsigned long>) {
 					return __builtin_ctzl(n);
@@ -307,7 +307,7 @@ namespace jkj::dragonbox {
 				else {
 					static_assert(sizeof(UInt) <= sizeof(unsigned int));
 					return int(_tzcnt_u32((unsigned int)n));
-				}*/
+				}
 #else
 #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 0
 				int count;
