@@ -203,8 +203,10 @@ namespace jkj::dragonbox {
 		carrier_uint u;
 
 		ieee754_bits() = default;
-		constexpr explicit ieee754_bits(carrier_uint u_) noexcept : u{ u_ } {}
-		constexpr explicit ieee754_bits(T x) noexcept : u{ ieee754_traits<T>::float_to_carrier(x) } {}
+		constexpr explicit ieee754_bits(carrier_uint bit_pattern) noexcept :
+			u{ bit_pattern } {}
+		constexpr explicit ieee754_bits(T float_value) noexcept :
+			u{ ieee754_traits<T>::float_to_carrier(float_value) } {}
 
 		constexpr T to_float() const noexcept {
 			return ieee754_traits<T>::carrier_to_float(u);
@@ -649,15 +651,15 @@ namespace jkj::dragonbox {
 
 		namespace div {
 			template <class UInt, UInt a>
-			constexpr UInt modular_inverse(int bit_width = int(value_bits<UInt>)) noexcept {
+			constexpr UInt modular_inverse(unsigned int bit_width = unsigned(value_bits<UInt>)) noexcept {
 				// By Euler's theorem, a^phi(2^n) == 1 (mod 2^n),
 				// where phi(2^n) = 2^(n-1), so the modular inverse of a is
 				// a^(2^(n-1) - 1) = a^(1 + 2 + 2^2 + ... + 2^(n-2))
 				std::common_type_t<UInt, unsigned int> mod_inverse = 1;
-				for (int i = 1; i < bit_width; ++i) {
+				for (unsigned int i = 1; i < bit_width; ++i) {
 					mod_inverse = mod_inverse * mod_inverse * a;
 				}
-				if (unsigned(bit_width) < value_bits<UInt>) {
+				if (bit_width < value_bits<UInt>) {
 					auto mask = UInt((UInt(1) << bit_width) - 1);
 					return UInt(mod_inverse & mask);
 				}
@@ -666,25 +668,25 @@ namespace jkj::dragonbox {
 				}
 			}
 
-			template <class UInt, UInt a, int N>
+			template <class UInt, UInt a, std::size_t N>
 			struct table_t {
 				static_assert(std::is_unsigned_v<UInt>);
 				static_assert(a % 2 != 0);
 				static_assert(N > 0);
 
-				static constexpr int size = N;
+				static constexpr std::size_t size = N;
 				UInt mod_inv[N];
 				UInt max_quotients[N];
 			};
 
-			template <class UInt, UInt a, int N>
+			template <class UInt, UInt a, std::size_t N>
 			struct table_holder {
 				static constexpr table_t<UInt, a, N> table = [] {
 					constexpr auto mod_inverse = modular_inverse<UInt, a>();
 					table_t<UInt, a, N> table{};
 					std::common_type_t<UInt, unsigned int> pow_of_mod_inverse = 1;
 					UInt pow_of_a = 1;
-					for (int i = 0; i < N; ++i) {
+					for (std::size_t i = 0; i < N; ++i) {
 						table.mod_inv[i] = UInt(pow_of_mod_inverse);
 						table.max_quotients[i] = UInt(std::numeric_limits<UInt>::max() / pow_of_a);
 
@@ -696,10 +698,10 @@ namespace jkj::dragonbox {
 				}();
 			};
 
-			template <int table_size, class UInt>
+			template <std::size_t table_size, class UInt>
 			constexpr bool divisible_by_power_of_5(UInt x, unsigned int exp) noexcept {
 				auto const& table = table_holder<UInt, 5, table_size>::table;
-				assert(exp < (unsigned int)(table.size));
+				assert(exp < table.size);
 				return (x * table.mod_inv[exp]) <= table.max_quotients[exp];
 			}
 
