@@ -712,7 +712,7 @@ namespace jkj::dragonbox {
 #if JKJ_HAS_COUNTR_ZERO_INTRINSIC
 				return bits::countr_zero(x) >= int(exp);
 #else
-				if (exp >= int(value_bits<UInt>)) {
+				if (exp >= value_bits<UInt>) {
 					return false;
 				}
 				auto mask = UInt((UInt(1) << exp) - 1);
