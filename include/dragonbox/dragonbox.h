@@ -203,7 +203,7 @@ namespace jkj::dragonbox {
 		carrier_uint u;
 
 		ieee754_bits() = default;
-		constexpr explicit ieee754_bits(carrier_uint u) noexcept : u{ u } {}
+		constexpr explicit ieee754_bits(carrier_uint u_) noexcept : u{ u_ } {}
 		constexpr explicit ieee754_bits(T x) noexcept : u{ ieee754_traits<T>::float_to_carrier(x) } {}
 
 		constexpr T to_float() const noexcept {
@@ -657,7 +657,7 @@ namespace jkj::dragonbox {
 				for (int i = 1; i < bit_width; ++i) {
 					mod_inverse = mod_inverse * mod_inverse * a;
 				}
-				if (bit_width < value_bits<UInt>) {
+				if (unsigned(bit_width) < value_bits<UInt>) {
 					auto mask = UInt((UInt(1) << bit_width) - 1);
 					return UInt(mod_inverse & mask);
 				}
@@ -696,7 +696,7 @@ namespace jkj::dragonbox {
 				}();
 			};
 
-			template <std::size_t table_size, class UInt>
+			template <int table_size, class UInt>
 			constexpr bool divisible_by_power_of_5(UInt x, unsigned int exp) noexcept {
 				auto const& table = table_holder<UInt, 5, table_size>::table;
 				assert(exp < (unsigned int)(table.size));
@@ -2110,7 +2110,7 @@ namespace jkj::dragonbox {
 					static constexpr auto tag = tag_t::away_from_zero;
 
 					template <class Fp>
-					static constexpr void break_rounding_tie(Fp& fp) noexcept {}
+					static constexpr void break_rounding_tie(Fp& /*fp*/) noexcept {}
 				};
 
 				struct toward_zero : base {
