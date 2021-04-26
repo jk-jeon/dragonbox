@@ -281,7 +281,7 @@ namespace jkj::dragonbox {
 			template <class UInt>
 			inline int countr_zero(UInt n) noexcept {
 				static_assert(std::is_unsigned_v<UInt> && value_bits<UInt> <= 64);
-#if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
+#if defined(__GNUC__) || defined(__clang__)
 #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 1
 				if constexpr (std::is_same_v<UInt, unsigned long>) {
 					return __builtin_ctzl(n);
@@ -370,7 +370,7 @@ namespace jkj::dragonbox {
 			struct uint128 {
 				uint128() = default;
 
-#if (defined(__GNUC__) || defined(__clang__)) && defined(__SIZEOF_INT128__) && defined(__x86_64__)
+#if defined(__SIZEOF_INT128__)
 				unsigned __int128	internal_;
 
 				constexpr uint128(std::uint64_t high, std::uint64_t low) noexcept :
@@ -428,7 +428,7 @@ namespace jkj::dragonbox {
 
 			// Get 128-bit result of multiplication of two 64-bit unsigned integers
 			JKJ_SAFEBUFFERS inline uint128 umul128(std::uint64_t x, std::uint64_t y) noexcept {
-#if (defined(__GNUC__) || defined(__clang__)) && defined(__SIZEOF_INT128__) && defined(__x86_64__)
+#if defined(__SIZEOF_INT128__)
 				return (unsigned __int128)(x) * (unsigned __int128)(y);
 #elif defined(_MSC_VER) && defined(_M_X64)
 				uint128 result;
@@ -453,7 +453,7 @@ namespace jkj::dragonbox {
 			}
 
 			JKJ_SAFEBUFFERS inline std::uint64_t umul128_upper64(std::uint64_t x, std::uint64_t y) noexcept {
-#if (defined(__GNUC__) || defined(__clang__)) && defined(__SIZEOF_INT128__) && defined(__x86_64__)
+#if defined(__SIZEOF_INT128__)
 				auto p = (unsigned __int128)(x) * (unsigned __int128)(y);
 				return std::uint64_t(p >> 64);
 #elif defined(_MSC_VER) && defined(_M_X64)
@@ -484,7 +484,7 @@ namespace jkj::dragonbox {
 
 			// Get upper 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit unsigned integer
 			inline std::uint32_t umul96_upper32(std::uint32_t x, std::uint64_t y) noexcept {
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
 				return std::uint32_t(umul128_upper64(x, y));
 #else
 				//std::uint32_t a = 0;
