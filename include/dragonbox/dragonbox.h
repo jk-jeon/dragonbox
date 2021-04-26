@@ -40,9 +40,7 @@
 #endif
 
 #if defined(_MSC_VER)
-#include <intrin.h>	// this includes immintrin.h as well
-#elif (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
-#include <immintrin.h>
+#include <intrin.h>
 #endif
 
 namespace jkj::dragonbox {
