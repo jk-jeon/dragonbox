@@ -28,6 +28,7 @@ cd dragonbox
 mkdir build
 cd build
 cmake ..
+make
 cmake --install .
 ```
 Of course you can specify things like `--config` or `--prefix` for configuring/installing if you wish. You can also specify the option `-DDRAGONBOX_INSTALL_TO_CHARS=OFF` if you only want [`dragonbox.h`](include/dragonbox/dragonbox.h) but not [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h)/[`.cpp`](source/dragonbox_to_chars.cpp).
