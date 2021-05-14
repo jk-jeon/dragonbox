@@ -371,7 +371,7 @@ namespace jkj::dragonbox {
 				uint128() = default;
 
 #if defined(__SIZEOF_INT128__)
-				// To silence "error: ISO C++ does not support ¡®__int128¡¯ for ¡®type name¡¯ [-Wpedantic]"
+				// To silence "error: ISO C++ does not support '__int128' for 'type name' [-Wpedantic]"
 #if defined(__GNUC__)
 				__extension__
 #endif
