@@ -29,4 +29,3 @@ constexpr int DtoaMinBufferLength = 64;
 char* Dtoa(char* buffer, double value);
 
 } // namespace schubfach
-
