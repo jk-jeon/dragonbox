@@ -200,7 +200,7 @@ The following benchmark result is obtained using Milo's dtoa benchmark framework
 
 ![corei7_7700hq@2.80_win64_vc2019_randomdigit_time](other_files/milo_benchmark.png)
 
-The red line at the bottom is the performance of Dragonbox with the full cache table, and the deep blue line above the purple line is the performance of Dragonbox with the compressed cache table.
+`dragonbox` is the performance of Dragonbox with the full cache table, and `dragonbox_comp` is the performance of Dragonbox with the compact cache table.
 
 There is also a benchmark done by myself (top: benchmark for ````float```` data, bottom: benchmark for ````double```` data; solid lines are the averages, dashed lines are the medians, and the shaded regions show 30%, 50%, and 70% percentiles):
 
@@ -222,27 +222,7 @@ Here is another performance plot with uniformly randomly generated ````float````
 ![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_binary32_msvc.png)
 ![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_binary64_msvc.png)
 
-Dragonbox seems to be also faster than Schubfach, but since the implementation of Schubfach I benchmarked against does not remove trailing decimal zeros, the version that does not care about trailing decimal zeros is used for the benchmarks below:
-
-Digits benchmark (top: `float`, bottom: `double`):
-
-(Clang)
-![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_ntzr_binary32_clang.png)
-![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_ntzr_binary64_clang.png)
-
-(MSVC)
-![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_ntzr_binary32_msvc.png)
-![digits_benchmark_binary64](subproject/benchmark/results/digits_benchmark_ntzr_binary64_msvc.png)
-
-Uniform benchmark (top: `float`, bottom: `double`):
-
-(Clang)
-![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_ntzr_binary32_clang.png)
-![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_ntzr_binary64_clang.png)
-
-(MSVC)
-![uniform_benchmark_binary32](subproject/benchmark/results/uniform_benchmark_ntzr_binary32_msvc.png)
-![uniform_benchmark_binary64](subproject/benchmark/results/uniform_benchmark_ntzr_binary64_msvc.png)
+(Note: the comparison with Schubfach is not completely fair, since the implementation I benchmarked against uses a digit generation procedure with more relaxed constraints. More fair comparison is available in [this repository](https://github.com/abolz/Drachennest).)
 
 # Comprehensive Explanation of the Algorithm
 Please see [this](other_files/Dragonbox.pdf) paper.
