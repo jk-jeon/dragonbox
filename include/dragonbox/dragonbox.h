@@ -371,12 +371,18 @@ namespace jkj::dragonbox {
 				uint128() = default;
 
 #if defined(__SIZEOF_INT128__)
-				unsigned __int128	internal_;
+				// To silence "error: ISO C++ does not support ¡®__int128¡¯ for ¡®type name¡¯ [-Wpedantic]"
+#if defined(__GNUC__)
+				__extension__
+#endif
+				using uint128_internal = unsigned __int128;
+
+				uint128_internal	internal_;
 
 				constexpr uint128(std::uint64_t high, std::uint64_t low) noexcept :
-					internal_{ ((unsigned __int128)low) | (((unsigned __int128)high) << 64) } {}
+					internal_{ ((uint128_internal)low) | (((uint128_internal)high) << 64) } {}
 
-				constexpr uint128(unsigned __int128 u) noexcept : internal_{ u } {}
+				constexpr uint128(uint128_internal u) noexcept : internal_{ u } {}
 
 				constexpr std::uint64_t high() const noexcept {
 					return std::uint64_t(internal_ >> 64);
@@ -418,6 +424,7 @@ namespace jkj::dragonbox {
 #endif
 			};
 
+#if !defined(__SIZEOF_INT128__)
 			static inline std::uint64_t umul64(std::uint32_t x, std::uint32_t y) noexcept {
 #if defined(_MSC_VER) && defined(_M_IX86)
 				return __emulu(x, y);
@@ -425,11 +432,12 @@ namespace jkj::dragonbox {
 				return x * std::uint64_t(y);
 #endif
 			}
+#endif
 
 			// Get 128-bit result of multiplication of two 64-bit unsigned integers
 			JKJ_SAFEBUFFERS inline uint128 umul128(std::uint64_t x, std::uint64_t y) noexcept {
 #if defined(__SIZEOF_INT128__)
-				return (unsigned __int128)(x) * (unsigned __int128)(y);
+				return (uint128::uint128_internal)(x) * (uint128::uint128_internal)(y);
 #elif defined(_MSC_VER) && defined(_M_X64)
 				uint128 result;
 				result.low_ = _umul128(x, y, &result.high_);
@@ -454,7 +462,7 @@ namespace jkj::dragonbox {
 
 			JKJ_SAFEBUFFERS inline std::uint64_t umul128_upper64(std::uint64_t x, std::uint64_t y) noexcept {
 #if defined(__SIZEOF_INT128__)
-				auto p = (unsigned __int128)(x) * (unsigned __int128)(y);
+				auto p = (uint128::uint128_internal)(x) * (uint128::uint128_internal)(y);
 				return std::uint64_t(p >> 64);
 #elif defined(_MSC_VER) && defined(_M_X64)
 				return __umulh(x, y);
