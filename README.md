@@ -21,16 +21,24 @@ The core idea of Schubfach, which Dragonbox is based on, is a continuous analogu
 Although Drgonbox is intended for float-to-string conversion routines, the actual string generation is not officially a part of the algorithm. Dragonbox just outputs two integers (the decimal significand/exponent) that can be consumed by a string generation procedure. The header file [`include/dragonbox/dragonbox.h`](include/dragonbox/dragonbox.h) includes everything needed for this (it is header-only). Nevertheless, a string generation procedure is included in the library. There are two additional files needed for that: [`include/dragonbox/dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) and [`source/dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp). Since there are only three files, it should be not difficult to set up this library manually if you want, but you can also use it via CMake as explained below.
 
 ## Installing Dragonbox
-The following will install Dragonbox into your system:
+The following will create platform-specific build files on your directory:
 ```
 git clone https://github.com/jk-jeon/dragonbox
 cd dragonbox
 mkdir build
 cd build
 cmake ..
+```
+If you only want [`dragonbox.h`](include/dragonbox/dragonbox.h) but not [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h)/[`.cpp`](source/dragonbox_to_chars.cpp), you can do the following to install [`dragonbox.h`](include/dragonbox/dragonbox.h) into your system:
+```
+cmake .. -DDRAGONBOX_INSTALL_TO_CHARS=OFF
 cmake --install .
 ```
-Of course you can specify things like `--config` or `--prefix` for configuring/installing if you wish. You can also specify the option `-DDRAGONBOX_INSTALL_TO_CHARS=OFF` if you only want [`dragonbox.h`](include/dragonbox/dragonbox.h) but not [`dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h)/[`.cpp`](source/dragonbox_to_chars.cpp).
+If you want the string generation part as well, build the generated files using platform-specific build tools (`make` or Visual Studio for example) and then perform
+```
+cmake --install .
+```
+on the `build` directory.
 
 ## Including Dragonbox into CMake project
 The easiest way to include Dragonbox in a CMake project is to do the following:
