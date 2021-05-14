@@ -32,33 +32,10 @@ namespace {
 			jkj::dragonbox::policy::correct_rounding::to_even);
 	}
 
-	void dragonbox_wo_tzremoval_float_to_chars(float x, char* buffer)
-	{
-		jkj::dragonbox::to_chars(x, buffer,
-			jkj::dragonbox::policy::trailing_zero::ignore,
-			jkj::dragonbox::policy::rounding_mode::nearest_to_even,
-			jkj::dragonbox::policy::correct_rounding::to_even);
-	}
-	void dragonbox_wo_tzremoval_double_to_chars(double x, char* buffer)
-	{
-		jkj::dragonbox::to_chars(x, buffer,
-			jkj::dragonbox::policy::trailing_zero::ignore,
-			jkj::dragonbox::policy::rounding_mode::nearest_to_even,
-			jkj::dragonbox::policy::correct_rounding::to_even);
-	}
-
 	auto dummy = []() -> register_function_for_benchmark {
-		if constexpr (benchmark_kind == benchmark_no_trailing_zero) {
-			return { "Dragonbox",
-				dragonbox_float_to_chars,
-				dragonbox_double_to_chars
-			};
-		}
-		else {
-			return { "Dragonbox (w/o trailing zero removal)",
-				dragonbox_wo_tzremoval_float_to_chars,
-				dragonbox_wo_tzremoval_double_to_chars
-			};
-		}
+		return { "Dragonbox",
+			dragonbox_float_to_chars,
+			dragonbox_double_to_chars
+		};
 	}();
 }

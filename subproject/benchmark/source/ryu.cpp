@@ -20,14 +20,9 @@
 
 namespace {
 	auto dummy = []() -> register_function_for_benchmark {
-		if constexpr (benchmark_kind == benchmark_no_trailing_zero) {
-			return { "Ryu",
-				f2s_buffered,
-				d2s_buffered
-			};
-		}
-		else {
-			return {};
-		}
+		return { "Ryu",
+			f2s_buffered,
+			d2s_buffered
+		};
 	}();
 }

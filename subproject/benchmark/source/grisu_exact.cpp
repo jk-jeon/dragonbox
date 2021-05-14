@@ -33,14 +33,9 @@ namespace {
 	}
 
 	auto dummy = []() -> register_function_for_benchmark {
-		if constexpr (benchmark_kind == benchmark_no_trailing_zero) {
-			return { "Grisu-Exact",
-				grisu_exact_float_to_chars,
-				grisu_exact_double_to_chars
-			};
-		}
-		else {
-			return {};
-		}
+		return { "Grisu-Exact",
+			grisu_exact_float_to_chars,
+			grisu_exact_double_to_chars
+		};
 	}();
 }

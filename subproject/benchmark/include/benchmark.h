@@ -20,11 +20,6 @@
 
 #include <string_view>
 
-static constexpr enum {
-	benchmark_no_trailing_zero,
-	benchmark_allow_trailing_zero
-} benchmark_kind = benchmark_no_trailing_zero;
-
 struct register_function_for_benchmark {
 	register_function_for_benchmark() = default;
 
