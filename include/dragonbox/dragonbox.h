@@ -2489,8 +2489,6 @@ namespace jkj::dragonbox {
 				ret_value.significand *= 10;
 				ret_value.exponent = minus_k + kappa;
 
-				constexpr auto mask = (std::uint32_t(1) << kappa) - 1;
-
 				if constexpr (CorrectRoundingPolicy::tag ==
 					policy_impl::correct_rounding::tag_t::do_not_care)
 				{
