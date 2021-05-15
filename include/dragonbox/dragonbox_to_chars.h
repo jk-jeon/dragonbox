@@ -89,6 +89,16 @@ namespace jkj::dragonbox {
 		*ptr = '\0';
 		return ptr;
 	}
+
+	// Maximum required buffer size
+	template <ieee754_format format>
+	inline constexpr std::size_t max_output_string_length =
+		format == ieee754_format::binary32 ?
+		// sign(1) + significand(9) + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp(2)
+		(1 + 9 + 1 + 1 + 1 + 2) :
+		// format == ieee754_format::binary64
+		// sign(1) + significand(17) + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp(3)
+		(1 + 17 + 1 + 1 + 1 + 3);
 }
 
 #endif
