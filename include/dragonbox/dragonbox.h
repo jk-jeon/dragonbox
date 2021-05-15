@@ -124,11 +124,11 @@ namespace jkj::dragonbox {
 			return carrier_uint(u & significand_bits_mask);
 		}
 
-		// Allows positive zero and positive NaN's, but not allow negative zero
+		// Allows positive zero and positive NaN's, but not allow negative zero.
 		static constexpr bool is_positive(carrier_uint u) noexcept {
 			return (u >> (carrier_bits - 1)) == 0;
 		}
-		// Allows negative zero and negative NaN's, but not allow positive zero
+		// Allows negative zero and negative NaN's, but not allow positive zero.
 		static constexpr bool is_negative(carrier_uint u) noexcept {
 			return (u >> (carrier_bits - 1)) != 0;
 		}
@@ -146,7 +146,7 @@ namespace jkj::dragonbox {
 		static constexpr bool is_nonzero(carrier_uint u) noexcept {
 			return (u << 1) != 0;
 		}
-		// Allows positive and negative zeros
+		// Allows positive and negative zeros.
 		static constexpr bool is_subnormal(carrier_uint u) noexcept {
 			constexpr int significand_bits = ieee754_format_info<format>::significand_bits;
 			constexpr int exponent_bits = ieee754_format_info<format>::exponent_bits;
@@ -178,11 +178,11 @@ namespace jkj::dragonbox {
 		}
 	};
 
-	// Speciailze this class template for possible extensions
+	// Speciailze this class template for possible extensions.
 	template <class T>
 	struct ieee754_traits : default_ieee754_traits<T> {
 		// I don't know if there is a truly reliable way of detecting
-		// IEEE-754 binary32/binary64 formats; I just did my best here
+		// IEEE-754 binary32/binary64 formats; I just did my best here.
 		static_assert(std::numeric_limits<T>::is_iec559 &&
 			std::numeric_limits<T>::radix == 2 &&
 			(detail::physical_bits<T> == 32 || detail::physical_bits<T> == 64),
@@ -194,7 +194,7 @@ namespace jkj::dragonbox {
 	// In order to reduce the argument passing overhead,
 	// this class should be as simple as possible
 	// (e.g., no inheritance, no private non-static data member, etc.;
-	// this is an unfortunate fact about x64 calling convention)
+	// this is an unfortunate fact about x64 calling convention).
 	template <class T>
 	struct ieee754_bits {
 		using carrier_uint = typename ieee754_traits<T>::carrier_uint;
@@ -244,15 +244,15 @@ namespace jkj::dragonbox {
 		constexpr bool is_nonzero() const noexcept {
 			return ieee754_traits<T>::is_nonzero(u);
 		}
-		// Allows positive and negative zeros
+		// Allows positive and negative zeros.
 		constexpr bool is_subnormal() const noexcept {
 			return ieee754_traits<T>::is_subnormal(u);
 		}
-		// Allows positive zero and positive NaN's, but not allow negative zero
+		// Allows positive zero and positive NaN's, but not allow negative zero.
 		constexpr bool is_positive() const noexcept {
 			return ieee754_traits<T>::is_positive(u);
 		}
-		// Allows negative zero and negative NaN's, but not allow positive zero
+		// Allows negative zero and negative NaN's, but not allow positive zero.
 		constexpr bool is_negative() const noexcept {
 			return ieee754_traits<T>::is_negative(u);
 		}
@@ -263,7 +263,7 @@ namespace jkj::dragonbox {
 		constexpr bool is_negative_infinity() const noexcept {
 			return ieee754_traits<T>::is_negative_infinity(u);
 		}
-		// Allows both plus and minus infinities
+		// Allows both plus and minus infinities.
 		constexpr bool is_infinity() const noexcept {
 			return ieee754_traits<T>::is_infinity(u);
 		}
@@ -434,7 +434,7 @@ namespace jkj::dragonbox {
 			}
 #endif
 
-			// Get 128-bit result of multiplication of two 64-bit unsigned integers
+			// Get 128-bit result of multiplication of two 64-bit unsigned integers.
 			JKJ_SAFEBUFFERS inline uint128 umul128(std::uint64_t x, std::uint64_t y) noexcept {
 #if defined(__SIZEOF_INT128__)
 				return (uint128::uint128_internal)(x) * (uint128::uint128_internal)(y);
@@ -483,14 +483,14 @@ namespace jkj::dragonbox {
 #endif
 			}
 
-			// Get upper 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit unsigned integer
+			// Get upper 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit unsigned integer.
 			JKJ_SAFEBUFFERS inline std::uint64_t umul192_upper64(std::uint64_t x, uint128 y) noexcept {
 				auto g0 = umul128(x, y.high());
 				g0 += umul128_upper64(x, y.low());
 				return g0.high();
 			}
 
-			// Get upper 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit unsigned integer
+			// Get upper 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit unsigned integer.
 			inline std::uint32_t umul96_upper32(std::uint32_t x, std::uint64_t y) noexcept {
 #if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
 				return std::uint32_t(umul128_upper64(x, y));
@@ -510,14 +510,14 @@ namespace jkj::dragonbox {
 #endif
 			}
 
-			// Get middle 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit unsigned integer
+			// Get middle 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit unsigned integer.
 			JKJ_SAFEBUFFERS inline std::uint64_t umul192_middle64(std::uint64_t x, uint128 y) noexcept {
 				auto g01 = x * y.high();
 				auto g10 = umul128_upper64(x, y.low());
 				return g01 + g10;
 			}
 
-			// Get middle 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit unsigned integer
+			// Get middle 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit unsigned integer.
 			inline std::uint64_t umul96_lower64(std::uint32_t x, std::uint64_t y) noexcept {
 				return x * y;
 			}
@@ -564,7 +564,7 @@ namespace jkj::dragonbox {
 						(fractional_digits >> (64 - shift_amount)));
 			}
 
-			// Compute floor(e * c - s)
+			// Compute floor(e * c - s).
 			template <
 				std::uint32_t c_integer_part,
 				std::uint64_t c_fractional_digits,
@@ -596,8 +596,8 @@ namespace jkj::dragonbox {
 			inline constexpr int floor_log5_pow2_input_limit = 1492;
 			inline constexpr int floor_log5_pow2_minus_log5_3_input_limit = 2427;
 
-			// For constexpr computation
-			// Returns -1 when n = 0
+			// For constexpr computation.
+			// Returns -1 when n = 0.
 			template <class UInt>
 			constexpr int floor_log2(UInt n) noexcept {
 				int count = -1;
@@ -660,7 +660,7 @@ namespace jkj::dragonbox {
 			constexpr UInt modular_inverse(unsigned int bit_width = unsigned(value_bits<UInt>)) noexcept {
 				// By Euler's theorem, a^phi(2^n) == 1 (mod 2^n),
 				// where phi(2^n) = 2^(n-1), so the modular inverse of a is
-				// a^(2^(n-1) - 1) = a^(1 + 2 + 2^2 + ... + 2^(n-2))
+				// a^(2^(n-1) - 1) = a^(1 + 2 + 2^2 + ... + 2^(n-2)).
 				std::common_type_t<UInt, unsigned int> mod_inverse = 1;
 				for (unsigned int i = 1; i < bit_width; ++i) {
 					mod_inverse = mod_inverse * mod_inverse * a;
@@ -726,8 +726,8 @@ namespace jkj::dragonbox {
 #endif
 			}
 
-			// Replace n by floor(n / 10^N)
-			// Returns true if and only if n is divisible by 10^N
+			// Replace n by floor(n / 10^N).
+			// Returns true if and only if n is divisible by 10^N.
 			// Precondition: n <= 10^(N+1)
 			// !!It takes an in-out parameter!!
 			template <int N>
@@ -752,7 +752,7 @@ namespace jkj::dragonbox {
 			template <int N>
 			constexpr bool check_divisibility_and_divide_by_pow10(std::uint32_t& n) noexcept
 			{
-				// Make sure the computation for max_n does not overflow
+				// Make sure the computation for max_n does not overflow.
 				static_assert(N + 1 <= log::floor_log10_pow2(31));
 				assert(n <= compute_power<N + 1>(std::uint32_t(10)));
 
@@ -764,14 +764,14 @@ namespace jkj::dragonbox {
 					std::uint32_t((std::uint32_t(1) << info::bits_for_comparison) - 1);
 
 				// The lowest N bits of (n & comparison_mask) must be zero, and
-				// (n >> N) & comparison_mask must be at most threshold
+				// (n >> N) & comparison_mask must be at most threshold.
 				auto c = ((n >> N) | (n << (info::bits_for_comparison - N))) & comparison_mask;
 
 				n >>= info::shift_amount;
 				return c <= info::threshold;
 			}
 
-			// Compute floor(n / 10^N) for small n and N
+			// Compute floor(n / 10^N) for small n and N.
 			// Precondition: n <= 10^(N+1)
 			template <int N>
 			struct small_division_by_pow10_info;
@@ -796,7 +796,7 @@ namespace jkj::dragonbox {
 					>> small_division_by_pow10_info<N>::shift_amount;
 			}
 
-			// Compute floor(n / 10^N) for small N
+			// Compute floor(n / 10^N) for small N.
 			// Precondition: n <= 2^a * 5^b (a = max_pow2, b = max_pow5)
 			template <int N, int max_pow2, int max_pow5, class UInt>
 			constexpr UInt divide_by_pow10(UInt n) noexcept
@@ -806,8 +806,8 @@ namespace jkj::dragonbox {
 				// Ensure no overflow
 				static_assert(max_pow2 + (log::floor_log2_pow10(max_pow5) - max_pow5) < value_bits<UInt>);
 
-				// Specialize for 64bit division by 1000
-				// Ensure that the correctness condition is met
+				// Specialize for 64bit division by 1000.
+				// Ensure that the correctness condition is met.
 				if constexpr (std::is_same_v<UInt, std::uint64_t> && N == 3 &&
 					max_pow2 + (log::floor_log2_pow10(N + max_pow5) - (N + max_pow5)) < 70)
 				{
@@ -2153,25 +2153,25 @@ namespace jkj::dragonbox {
 
 						if constexpr (format == ieee754_format::binary64)
 						{
-							// Compute base index
+							// Compute base index.
 							auto cache_index = (k - cache_holder<format>::min_k) /
 								compressed_cache_detail::compression_ratio;
 							auto kb = cache_index * compressed_cache_detail::compression_ratio
 								+ cache_holder<format>::min_k;
 							auto offset = k - kb;
 
-							// Get base cache
+							// Get base cache.
 							auto base_cache = compressed_cache_detail::cache.table[cache_index];
 
 							if (offset == 0) {
 								return base_cache;
 							}
 							else {
-								// Compute the required amount of bit-shift
+								// Compute the required amount of bit-shift.
 								auto alpha = log::floor_log2_pow10(kb + offset) - log::floor_log2_pow10(kb) - offset;
 								assert(alpha > 0 && alpha < 64);
 
-								// Try to recover the real cache
+								// Try to recover the real cache.
 								auto pow5 = compressed_cache_detail::pow5.table[offset];
 								auto recovered_cache = wuint::umul128(base_cache.high(), pow5);
 								auto middle_low = wuint::umul128(base_cache.low() - (kb < 0 ? 1 : 0), pow5);
@@ -2190,12 +2190,12 @@ namespace jkj::dragonbox {
 									recovered_cache += 1;
 								}
 
-								// Get error
+								// Get error.
 								auto error_idx = (k - cache_holder<format>::min_k) / 16;
 								auto error = (compressed_cache_detail::errors[error_idx] >>
 									((k - cache_holder<format>::min_k) % 16) * 2) & 0x3;
 
-								// Add the error back
+								// Add the error back.
 								assert(recovered_cache.low() + error >= recovered_cache.low());
 								recovered_cache = {
 									recovered_cache.high(),
@@ -2304,7 +2304,7 @@ namespace jkj::dragonbox {
 		////////////////////////////////////////////////////////////////////////////////////////
 
 		// Get sign/decimal significand/decimal exponent from
-		// the bit representation of a floating-point number
+		// the bit representation of a floating-point number.
 		template <class Float>
 		struct impl : private ieee754_traits<Float>,
 			private ieee754_format_info<ieee754_traits<Float>::format>
@@ -2390,11 +2390,11 @@ namespace jkj::dragonbox {
 				auto significand = br.extract_significand_bits();
 				auto exponent = int(br.extract_exponent_bits());
 
-				// Deal with normal/subnormal dichotomy
+				// Deal with normal/subnormal dichotomy.
 				if (exponent != 0) {
 					exponent += exponent_bias - significand_bits;
 
-					// Shorter interval case; proceed like Schubfach
+					// Shorter interval case; proceed like Schubfach.
 					if (significand == 0) {
 						shorter_interval_case<TrailingZeroPolicy, CorrectRoundingPolicy, CachePolicy>(
 							ret_value, exponent,
@@ -2404,19 +2404,19 @@ namespace jkj::dragonbox {
 
 					significand |= (carrier_uint(1) << significand_bits);
 				}
-				// Subnormal case; interval is always regular
+				// Subnormal case; interval is always regular.
 				else {
 					exponent = min_exponent - significand_bits;
 				}
 
 				auto const interval_type = IntervalTypeProvider::interval_type_normal(br);
 
-				// Compute k and beta
+				// Compute k and beta.
 				int const minus_k = log::floor_log10_pow2(exponent) - kappa;
 				auto const cache = CachePolicy::template get_cache<format>(-minus_k);
 				int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
 
-				// Compute zi and deltai
+				// Compute zi and deltai.
 				// 10^kappa <= deltai < 10^(kappa + 1)
 				auto const deltai = compute_delta(cache, beta_minus_1);
 				carrier_uint const two_fc = significand << 1;
@@ -2432,7 +2432,7 @@ namespace jkj::dragonbox {
 				constexpr auto small_divisor = compute_power<kappa>(std::uint32_t(10));
 
 				// Using an upper bound on zi, we might be able to optimize the division
-				// better than the compiler; we are computing zi / big_divisor here
+				// better than the compiler; we are computing zi / big_divisor here.
 				ret_value.significand = div::divide_by_pow10<kappa + 1,
 					significand_bits + kappa + 2, kappa + 1>(zi);
 				auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
@@ -2441,7 +2441,7 @@ namespace jkj::dragonbox {
 					goto small_divisor_case_label;
 				}
 				else if (r < deltai) {
-					// Exclude the right endpoint if necessary
+					// Exclude the right endpoint if necessary.
 					if (r == 0 && !interval_type.include_right_endpoint() &&
 						is_product_integer<integer_check_case_id::fc_pm_half>(two_fr, exponent, minus_k))
 					{
@@ -2461,9 +2461,9 @@ namespace jkj::dragonbox {
 					}
 				}
 				else {
-					// r == deltai; compare fractional parts
+					// r == deltai; compare fractional parts.
 					// Check conditions in the order different from the paper
-					// to take advantage of short-circuiting
+					// to take advantage of short-circuiting.
 					auto const two_fl = two_fc - 1;
 					if ((!interval_type.include_left_endpoint() ||
 						!is_product_integer<integer_check_case_id::fc_pm_half>(
@@ -2475,7 +2475,7 @@ namespace jkj::dragonbox {
 				}
 				ret_value.exponent = minus_k + kappa + 1;
 
-				// We may need to remove trailing zeros
+				// We may need to remove trailing zeros.
 				TrailingZeroPolicy::on_trailing_zeros(ret_value);
 				return ret_value;
 
@@ -2495,13 +2495,13 @@ namespace jkj::dragonbox {
 					// Normally, we want to compute
 					// ret_value.significand += r / small_divisor
 					// and return, but we need to take care of the case that the resulting
-					// value is exactly the right endpoint, while that is not included in the interval
+					// value is exactly the right endpoint, while that is not included in the interval.
 					if (!interval_type.include_right_endpoint()) {
 						// Is r divisible by 10^kappa?
 						if (div::check_divisibility_and_divide_by_pow10<kappa>(r) &&
 							is_product_integer<integer_check_case_id::fc_pm_half>(two_fr, exponent, minus_k))
 						{
-							// This should be in the interval
+							// This should be in the interval.
 							ret_value.significand += r - 1;
 						}
 						else {
@@ -2521,23 +2521,23 @@ namespace jkj::dragonbox {
 					bool divisible_by_10_to_the_kappa =
 						div::check_divisibility_and_divide_by_pow10<kappa>(dist);
 
-					// Add dist / 10^kappa to the significand
+					// Add dist / 10^kappa to the significand.
 					ret_value.significand += dist;
 
 					if (divisible_by_10_to_the_kappa) {
 						// Check z^(f) >= epsilon^(f)
 						// We have either yi == zi - epsiloni or yi == (zi - epsiloni) - 1,
 						// where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f)
-						// Since there are only 2 possibilities, we only need to care about the parity
+						// Since there are only 2 possibilities, we only need to care about the parity.
 						// Also, zi and r should have the same parity since the divisor
-						// is an even number
+						// is an even number.
 						if (compute_mul_parity(two_fc, cache, beta_minus_1) != approx_y_parity) {
 							--ret_value.significand;
 						}
 						else {
 							// If z^(f) >= epsilon^(f), we might have a tie
-							// when z^(f) == epsilon^(f), or equivalently, when y is an integer
-							// For tie-to-up case, we can just choose the upper one
+							// when z^(f) == epsilon^(f), or equivalently, when y is an integer.
+							// For tie-to-up case, we can just choose the upper one.
 							if constexpr (CorrectRoundingPolicy::tag !=
 								policy_impl::correct_rounding::tag_t::away_from_zero)
 							{
@@ -2558,47 +2558,47 @@ namespace jkj::dragonbox {
 			JKJ_FORCEINLINE JKJ_SAFEBUFFERS static void shorter_interval_case(
 				ReturnType& ret_value, int const exponent, IntervalType const interval_type) noexcept
 			{
-				// Compute k and beta
+				// Compute k and beta.
 				int const minus_k = log::floor_log10_pow2_minus_log10_4_over_3(exponent);
 				int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
 
-				// Compute xi and zi
+				// Compute xi and zi.
 				auto const cache = CachePolicy::template get_cache<format>(-minus_k);
 
 				auto xi = compute_left_endpoint_for_shorter_interval_case(cache, beta_minus_1);
 				auto zi = compute_right_endpoint_for_shorter_interval_case(cache, beta_minus_1);
 
 				// If we don't accept the right endpoint and
-				// if the right endpoint is an integer, decrease it
+				// if the right endpoint is an integer, decrease it.
 				if (!interval_type.include_right_endpoint() &&
 					is_right_endpoint_integer_shorter_interval(exponent))
 				{
 					--zi;
 				}
 				// If we don't accept the left endpoint or
-				// if the left endpoint is not an integer, increase it
+				// if the left endpoint is not an integer, increase it.
 				if (!interval_type.include_left_endpoint() ||
 					!is_left_endpoint_integer_shorter_interval(exponent))
 				{
 					++xi;
 				}
 
-				// Try bigger divisor
+				// Try bigger divisor.
 				ret_value.significand = zi / 10;
 
-				// If succeed, remove trailing zeros if necessary and return
+				// If succeed, remove trailing zeros if necessary and return.
 				if (ret_value.significand * 10 >= xi) {
 					ret_value.exponent = minus_k + 1;
 					TrailingZeroPolicy::on_trailing_zeros(ret_value);
 					return;
 				}
 
-				// Otherwise, compute the round-up of y
+				// Otherwise, compute the round-up of y.
 				TrailingZeroPolicy::no_trailing_zeros(ret_value);
 				ret_value.significand = compute_round_up_for_shorter_interval_case(cache, beta_minus_1);
 				ret_value.exponent = minus_k;
 
-				// When tie occurs, choose one of them according to the rule
+				// When tie occurs, choose one of them according to the rule.
 				if constexpr (CorrectRoundingPolicy::tag !=
 					policy_impl::correct_rounding::tag_t::do_not_care &&
 					CorrectRoundingPolicy::tag !=
@@ -2636,22 +2636,22 @@ namespace jkj::dragonbox {
 				auto significand = br.extract_significand_bits();
 				auto exponent = int(br.extract_exponent_bits());
 
-				// Deal with normal/subnormal dichotomy
+				// Deal with normal/subnormal dichotomy.
 				if (exponent != 0) {
 					exponent += exponent_bias - significand_bits;
 					significand |= (carrier_uint(1) << significand_bits);
 				}
-				// Subnormal case; interval is always regular
+				// Subnormal case; interval is always regular.
 				else {
 					exponent = min_exponent - significand_bits;
 				}
 
-				// Compute k and beta
+				// Compute k and beta.
 				int const minus_k = log::floor_log10_pow2(exponent) - kappa;
 				auto const cache = CachePolicy::template get_cache<format>(-minus_k);
 				int const beta = exponent + log::floor_log2_pow10(-minus_k) + 1;
 
-				// Compute xi and deltai
+				// Compute xi and deltai.
 				// 10^kappa <= deltai < 10^(kappa + 1)
 				auto const deltai = compute_delta(cache, beta - 1);
 				carrier_uint xi = compute_mul(significand << beta, cache);
@@ -2668,7 +2668,7 @@ namespace jkj::dragonbox {
 				constexpr auto small_divisor = compute_power<kappa>(std::uint32_t(10));
 
 				// Using an upper bound on xi, we might be able to optimize the division
-				// better than the compiler; we are computing xi / big_divisor here
+				// better than the compiler; we are computing xi / big_divisor here.
 				ret_value.significand = div::divide_by_pow10<kappa + 1,
 					significand_bits + kappa + 2, kappa + 1>(xi);
 				auto r = std::uint32_t(xi - big_divisor * ret_value.significand);
@@ -2682,7 +2682,7 @@ namespace jkj::dragonbox {
 					goto small_divisor_case_label;
 				}
 				else if (r == deltai) {
-					// Compare the fractional parts
+					// Compare the fractional parts.
 					if (compute_mul_parity(significand + 1, cache, beta) ||
 						is_product_integer<integer_check_case_id::fc>(significand + 1, exponent + 1, minus_k))
 					{
@@ -2691,7 +2691,7 @@ namespace jkj::dragonbox {
 
 				}
 
-				// The ceiling is inside, so we are done
+				// The ceiling is inside, so we are done.
 				ret_value.exponent = minus_k + kappa + 1;
 				TrailingZeroPolicy::on_trailing_zeros(ret_value);
 				return ret_value;
@@ -2724,7 +2724,7 @@ namespace jkj::dragonbox {
 				auto significand = br.extract_significand_bits();
 				auto exponent = int(br.extract_exponent_bits());
 
-				// Deal with normal/subnormal dichotomy
+				// Deal with normal/subnormal dichotomy.
 				bool closer_boundary = false;
 				if (exponent != 0) {
 					exponent += exponent_bias - significand_bits;
@@ -2733,17 +2733,17 @@ namespace jkj::dragonbox {
 					}
 					significand |= (carrier_uint(1) << significand_bits);
 				}
-				// Subnormal case; interval is always regular
+				// Subnormal case; interval is always regular.
 				else {
 					exponent = min_exponent - significand_bits;
 				}
 
-				// Compute k and beta
+				// Compute k and beta.
 				int const minus_k = log::floor_log10_pow2(exponent - (closer_boundary ? 1 : 0)) - kappa;
 				auto const cache = CachePolicy::template get_cache<format>(-minus_k);
 				int const beta = exponent + log::floor_log2_pow10(-minus_k) + 1;
 
-				// Compute zi and deltai
+				// Compute zi and deltai.
 				// 10^kappa <= deltai < 10^(kappa + 1)
 				auto const deltai = closer_boundary ?
 					compute_delta(cache, beta - 2) :
@@ -2759,7 +2759,7 @@ namespace jkj::dragonbox {
 				constexpr auto small_divisor = compute_power<kappa>(std::uint32_t(10));
 
 				// Using an upper bound on zi, we might be able to optimize the division
-				// better than the compiler; we are computing zi / big_divisor here
+				// better than the compiler; we are computing zi / big_divisor here.
 				ret_value.significand = div::divide_by_pow10<kappa + 1,
 					significand_bits + kappa + 2, kappa + 1>(zi);
 				auto const r = std::uint32_t(zi - big_divisor * ret_value.significand);
@@ -2768,7 +2768,7 @@ namespace jkj::dragonbox {
 					goto small_divisor_case_label;
 				}
 				else if (r == deltai) {
-					// Compare the fractional parts
+					// Compare the fractional parts.
 					if (closer_boundary) {
 						if (!compute_mul_parity((significand * 2) - 1, cache, beta - 1))
 						{
@@ -2783,7 +2783,7 @@ namespace jkj::dragonbox {
 					}
 				}
 
-				// The floor is inside, so we are done
+				// The floor is inside, so we are done.
 				ret_value.exponent = minus_k + kappa + 1;
 				TrailingZeroPolicy::on_trailing_zeros(ret_value);
 				return ret_value;
@@ -2801,7 +2801,7 @@ namespace jkj::dragonbox {
 				return ret_value;
 			}
 
-			// Remove trailing zeros from n and return the number of zeros removed
+			// Remove trailing zeros from n and return the number of zeros removed.
 			JKJ_FORCEINLINE static int remove_trailing_zeros(carrier_uint& n) noexcept {
 				constexpr auto max_power = [] {
 					constexpr auto max_possible_significand =
@@ -2823,7 +2823,7 @@ namespace jkj::dragonbox {
 					constexpr auto const& divtable =
 						div::table_holder<carrier_uint, 5, decimal_digits>::table;
 
-					// Perform a binary search
+					// Perform a binary search.
 					carrier_uint quotient;
 					int s = 0;
 
@@ -2860,71 +2860,69 @@ namespace jkj::dragonbox {
 					static_assert(format == ieee754_format::binary64);
 					static_assert(max_power == 16, "Assertion failed! Did you change kappa?");
 
-					// Divide by 10^8 and reduce to 32-bits
+					// Divide by 10^8 and reduce to 32-bits.
 					// Since ret_value.significand <= (2^64 - 1) / 1000 < 10^17,
-					// both of the quotient and the r should fit in 32-bits
+					// both of the quotient and the r should fit in 32-bits.
 
-					constexpr auto const& divtable64 =
-						div::table_holder<carrier_uint, 5, decimal_digits>::table;
 					constexpr auto const& divtable32 =
 						div::table_holder<std::uint32_t, 5, 9>::table;
 
-					// If the number is divisible by 1'0000'0000, work with the quotient
-					if ((n & 0xff) == 0) {
-						auto quotient64 = (n >> 8) * divtable64.mod_inv[8];
-						if (quotient64 <= divtable64.max_quotients[8]) {
-							auto n32 = std::uint32_t(quotient64);
-							std::uint32_t quotient32;
-
-							// Is n divisible by 10^8?
-							if ((n32 & 0xff) == 0) {
-								quotient32 = (n32 >> 8) * divtable32.mod_inv[8];
-								if (quotient32 <= divtable32.max_quotients[8]) {
-									n = quotient32;
-									return 16;
-								}
-							}
-
-							// Otherwise, perform a branchless binary search
-							int s = 8;
-
-							// Is n divisible by 10^4?
-							if ((n32 & 0xf) == 0) {
-								quotient32 = (n32 >> 4) * divtable32.mod_inv[4];
-								if (quotient32 <= divtable32.max_quotients[4]) {
-									n32 = quotient32;
-									s |= 0x4;
-								}
-							}
-
-							// Is n divisible by 10^2?
-							if ((n32 & 0x3) == 0) {
-								quotient32 = (n32 >> 2) * divtable32.mod_inv[2];
-								if (quotient32 <= divtable32.max_quotients[2]) {
-									n32 = quotient32;
-									s |= 0x2;
-								}
-							}
-
-							// Is n divisible by 10^1?
-							if ((n32 & 0x1) == 0) {
-								quotient32 = (n32 >> 1) * divtable32.mod_inv[1];
-								if (quotient32 <= divtable32.max_quotients[1]) {
-									n32 = quotient32;
-									s |= 0x1;
-								}
-							}							
-
-							n = n32;
-							return s;
-						}
-					}
-
-					// If the number is not divisible by 1'0000'0000, work with the remainder
+					// If the number is divisible by 1'0000'0000, work with the quotient.
 					auto quotient_by_pow10_8 = std::uint32_t(div::divide_by_pow10<8, 54, 0>(n));
 					auto remainder = std::uint32_t(n - 1'0000'0000 * quotient_by_pow10_8);
 
-					// Perform a branchless binary search
+					if (remainder == 0) {
+						auto n32 = quotient_by_pow10_8;
+						std::uint32_t quotient32;
+
+						// Is n divisible by 10^8?
+						// This branch is extremely unlikely.
+						// I suspect it is impossible to get into this branch.
+						if ((n32 & 0xff) == 0) {
+							quotient32 = (n32 >> 8) * divtable32.mod_inv[8];
+							if (quotient32 <= divtable32.max_quotients[8]) {
+								n = quotient32;
+								return 16;
+							}
+						}
+
+						// Otherwise, perform a binary search.
+						int s = 8;
+
+						// Is n divisible by 10^4?
+						if ((n32 & 0xf) == 0) {
+							quotient32 = (n32 >> 4) * divtable32.mod_inv[4];
+							if (quotient32 <= divtable32.max_quotients[4]) {
+								n32 = quotient32;
+								s |= 0x4;
+							}
+						}
+
+						// Is n divisible by 10^2?
+						if ((n32 & 0x3) == 0) {
+							quotient32 = (n32 >> 2) * divtable32.mod_inv[2];
+							if (quotient32 <= divtable32.max_quotients[2]) {
+								n32 = quotient32;
+								s |= 0x2;
+							}
+						}
+
+						// Is n divisible by 10^1?
+						if ((n32 & 0x1) == 0) {
+							quotient32 = (n32 >> 1) * divtable32.mod_inv[1];
+							if (quotient32 <= divtable32.max_quotients[1]) {
+								n32 = quotient32;
+								s |= 0x1;
+							}
+						}							
+
+						n = n32;
+						return s;
+					}
+
+					// If the number is not divisible by 1'0000'0000, work with the remainder.
+
+					// Perform a binary search.
 					std::uint32_t quotient32;
 					std::uint32_t multiplier = 1'0000'0000;
 					int s = 0;
@@ -3163,7 +3161,7 @@ namespace jkj::dragonbox {
 			template <class... BaseDefaultPairs>
 			struct base_default_pair_list {};
 
-			// Check if a given policy belongs to one of the kinds specified by the library
+			// Check if a given policy belongs to one of the kinds specified by the library.
 			template <class Policy>
 			constexpr bool check_policy_validity(Policy, base_default_pair_list<>)
 			{
@@ -3190,7 +3188,7 @@ namespace jkj::dragonbox {
 					check_policy_list_validity(BaseDefaultPairList{}, remaining_policies...);
 			}
 
-			// Build policy_holder
+			// Build policy_holder.
 			template <bool repeated_, class... FoundPolicyPairs>
 			struct found_policy_pair_list {
 				static constexpr bool repeated = repeated_;
@@ -3262,7 +3260,7 @@ namespace jkj::dragonbox {
 	template <class Float, class... Policies>
 	JKJ_SAFEBUFFERS JKJ_FORCEINLINE auto to_decimal(Float x, Policies... policies)
 	{
-		// Build policy holder type
+		// Build policy holder type.
 		using namespace detail::policy_impl;
 		using policy_holder = decltype(make_policy_holder(
 				base_default_pair_list<
