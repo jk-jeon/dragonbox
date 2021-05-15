@@ -17,28 +17,49 @@
 
 #include "dragonbox/dragonbox_to_chars.h"
 #include "random_float.h"
+#include <chrono>
 #include <iostream>
 
 template <class Float>
 static void uniform_random_perf_test(std::size_t number_of_tests)
 {
-	char buffer[41];
+	std::cout << "Generating random samples...\n";
 	auto rg = generate_correctly_seeded_mt19937_64();
-	for (std::size_t test_idx = 0; test_idx < number_of_tests; ++test_idx) {
-		auto x = uniformly_randomly_generate_general_float<Float>(rg);
-		jkj::dragonbox::to_chars(x, buffer);
+	std::vector<Float> samples(number_of_tests);
+	for (auto& sample : samples) {
+		sample = uniformly_randomly_generate_general_float<Float>(rg);
 	}
+
+	std::cout << "Performing test...\n";
+	char buffer[41];
+	auto from = std::chrono::steady_clock::now();
+	for (auto& sample : samples) {
+		jkj::dragonbox::to_chars(sample, buffer);
+	}
+	auto dur = std::chrono::steady_clock::now() - from;
+	std::cout << "Average time: " <<
+		double(std::chrono::duration_cast<std::chrono::nanoseconds>(dur).count()) / number_of_tests << "ns\n";
 }
 
 template <class Float>
 static void digit_perf_test(unsigned int digits, std::size_t number_of_tests)
 {
-	char buffer[41];
+	std::cout << "Generating random samples...\n";
 	auto rg = generate_correctly_seeded_mt19937_64();
-	for (std::size_t test_idx = 0; test_idx < number_of_tests; ++test_idx) {
-		auto x = randomly_generate_float_with_given_digits<Float>(digits, rg);
-		jkj::dragonbox::to_chars(x, buffer);
+	std::vector<Float> samples(number_of_tests);
+	for (auto& sample : samples) {
+		sample = randomly_generate_float_with_given_digits<Float>(digits, rg);
 	}
+
+	std::cout << "Performing test...\n";
+	char buffer[41];
+	auto from = std::chrono::steady_clock::now();
+	for (auto& sample : samples) {
+		jkj::dragonbox::to_chars(sample, buffer);
+	}
+	auto dur = std::chrono::steady_clock::now() - from;
+	std::cout << "Average time: " <<
+		double(std::chrono::duration_cast<std::chrono::nanoseconds>(dur).count()) / number_of_tests << "ns\n";
 }
 
 int main()
