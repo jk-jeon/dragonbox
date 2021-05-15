@@ -726,49 +726,49 @@ namespace jkj::dragonbox {
 #endif
 			}
 
-			// Replace n by floor(n / 5^N)
-			// Returns true if and only if n is divisible by 5^N
-			// Precondition: n <= 2 * 5^(N+1)
+			// Replace n by floor(n / 10^N)
+			// Returns true if and only if n is divisible by 10^N
+			// Precondition: n <= 10^(N+1)
+			// !!It takes an in-out parameter!!
 			template <int N>
-			struct check_divisibility_and_divide_by_pow5_info;
+			struct check_divisibility_and_divide_by_pow10_info;
 
 			template <>
-			struct check_divisibility_and_divide_by_pow5_info<1> {
+			struct check_divisibility_and_divide_by_pow10_info<1> {
 				static constexpr std::uint32_t magic_number = 0xcccd;
 				static constexpr int bits_for_comparison = 16;
 				static constexpr std::uint32_t threshold = 0x3333;
-				static constexpr int shift_amount = 18;
+				static constexpr int shift_amount = 19;
 			};
 
 			template <>
-			struct check_divisibility_and_divide_by_pow5_info<2> {
-				static constexpr std::uint32_t magic_number = 0xa429;
-				static constexpr int bits_for_comparison = 8;
-				static constexpr std::uint32_t threshold = 0x0a;
-				static constexpr int shift_amount = 20;
+			struct check_divisibility_and_divide_by_pow10_info<2> {
+				static constexpr std::uint32_t magic_number = 0x147c29;
+				static constexpr int bits_for_comparison = 12;
+				static constexpr std::uint32_t threshold = 0xa3;
+				static constexpr int shift_amount = 27;
 			};
 
 			template <int N>
-			constexpr bool check_divisibility_and_divide_by_pow5(std::uint32_t& n) noexcept
+			constexpr bool check_divisibility_and_divide_by_pow10(std::uint32_t& n) noexcept
 			{
 				// Make sure the computation for max_n does not overflow
-				static_assert(N + 1 <= log::floor_log5_pow2(31));
-				assert(n <= compute_power<N + 1>(std::uint32_t(5)) * 2);
+				static_assert(N + 1 <= log::floor_log10_pow2(31));
+				assert(n <= compute_power<N + 1>(std::uint32_t(10)));
 
-				using info = check_divisibility_and_divide_by_pow5_info<N>;
+				using info = check_divisibility_and_divide_by_pow10_info<N>;
 				n *= info::magic_number;
+
 				constexpr std::uint32_t comparison_mask =
 					info::bits_for_comparison >= 32 ? std::numeric_limits<std::uint32_t>::max() :
 					std::uint32_t((std::uint32_t(1) << info::bits_for_comparison) - 1);
 
-				if ((n & comparison_mask) <= info::threshold) {
-					n >>= info::shift_amount;
-					return true;
-				}
-				else {
-					n >>= info::shift_amount;
-					return false;
-				}
+				// The lowest N bits of (n & comparison_mask) must be zero, and
+				// (n >> N) & comparison_mask must be at most threshold
+				auto c = ((n >> N) | (n << (info::bits_for_comparison - N))) & comparison_mask;
+
+				n >>= info::shift_amount;
+				return c <= info::threshold;
 			}
 
 			// Compute floor(n / 10^N) for small n and N
@@ -1698,7 +1698,7 @@ namespace jkj::dragonbox {
 					static constexpr bool report_trailing_zeros = false;
 
 					template <class Fp>
-					static constexpr void on_trailing_zeros(Fp& fp) noexcept {
+					JKJ_FORCEINLINE static constexpr void on_trailing_zeros(Fp& fp) noexcept {
 						fp.exponent +=
 							impl<typename Fp::float_type>::remove_trailing_zeros(fp.significand);
 					}
@@ -2499,23 +2499,15 @@ namespace jkj::dragonbox {
 					// and return, but we need to take care of the case that the resulting
 					// value is exactly the right endpoint, while that is not included in the interval
 					if (!interval_type.include_right_endpoint()) {
-						// Is r divisible by 2^kappa?
-						if ((r & mask) == 0) {
-							r >>= kappa;
-
-							// Is r divisible by 5^kappa?
-							if (div::check_divisibility_and_divide_by_pow5<kappa>(r) &&
-								is_product_integer<integer_check_case_id::fc_pm_half>(two_fr, exponent, minus_k))
-							{
-								// This should be in the interval
-								ret_value.significand += r - 1;
-							}
-							else {
-								ret_value.significand += r;
-							}
+						// Is r divisible by 10^kappa?
+						if (div::check_divisibility_and_divide_by_pow10<kappa>(r) &&
+							is_product_integer<integer_check_case_id::fc_pm_half>(two_fr, exponent, minus_k))
+						{
+							// This should be in the interval
+							ret_value.significand += r - 1;
 						}
 						else {
-							ret_value.significand += div::small_division_by_pow10<kappa>(r);
+							ret_value.significand += r;
 						}
 					}
 					else {
@@ -2525,50 +2517,39 @@ namespace jkj::dragonbox {
 				else
 				{
 					auto dist = r - (deltai / 2) + (small_divisor / 2);
+					bool const approx_y_parity = ((dist ^ (small_divisor / 2)) & 1) != 0;
 
-					// Is dist divisible by 2^kappa?
-					if ((dist & mask) == 0) {
-						bool const approx_y_parity = ((dist ^ (small_divisor / 2)) & 1) != 0;
-						dist >>= kappa;
+					// Is dist divisible by 10^kappa?
+					bool divisible_by_10_to_the_kappa =
+						div::check_divisibility_and_divide_by_pow10<kappa>(dist);
 
-						// Is dist divisible by 5^kappa?
-						if (div::check_divisibility_and_divide_by_pow5<kappa>(dist)) {
-							ret_value.significand += dist;
+					// Add dist / 10^kappa to the significand
+					ret_value.significand += dist;
 
-							// Check z^(f) >= epsilon^(f)
-							// We have either yi == zi - epsiloni or yi == (zi - epsiloni) - 1,
-							// where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f)
-							// Since there are only 2 possibilities, we only need to care about the parity
-							// Also, zi and r should have the same parity since the divisor
-							// is an even number
-							if (compute_mul_parity(two_fc, cache, beta_minus_1) != approx_y_parity) {
-								--ret_value.significand;
-							}
-							else {
-								// If z^(f) >= epsilon^(f), we might have a tie
-								// when z^(f) == epsilon^(f), or equivalently, when y is an integer
-								// For tie-to-up case, we can just choose the upper one
-								if constexpr (CorrectRoundingPolicy::tag !=
-									policy_impl::correct_rounding::tag_t::away_from_zero)
+					if (divisible_by_10_to_the_kappa) {
+						// Check z^(f) >= epsilon^(f)
+						// We have either yi == zi - epsiloni or yi == (zi - epsiloni) - 1,
+						// where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f)
+						// Since there are only 2 possibilities, we only need to care about the parity
+						// Also, zi and r should have the same parity since the divisor
+						// is an even number
+						if (compute_mul_parity(two_fc, cache, beta_minus_1) != approx_y_parity) {
+							--ret_value.significand;
+						}
+						else {
+							// If z^(f) >= epsilon^(f), we might have a tie
+							// when z^(f) == epsilon^(f), or equivalently, when y is an integer
+							// For tie-to-up case, we can just choose the upper one
+							if constexpr (CorrectRoundingPolicy::tag !=
+								policy_impl::correct_rounding::tag_t::away_from_zero)
+							{
+								if (is_product_integer<integer_check_case_id::fc>(
+									two_fc, exponent, minus_k))
 								{
-									if (is_product_integer<integer_check_case_id::fc>(
-										two_fc, exponent, minus_k))
-									{
-										CorrectRoundingPolicy::break_rounding_tie(ret_value);
-									}
+									CorrectRoundingPolicy::break_rounding_tie(ret_value);
 								}
 							}
 						}
-						// Is dist not divisible by 5^kappa?
-						else {
-							ret_value.significand += dist;
-						}
-					}
-					// Is dist not divisible by 2^kappa?
-					else {
-						// Since we know dist is small, we might be able to optimize the division
-						// better than the compiler; we are computing dist / small_divisor here
-						ret_value.significand += div::small_division_by_pow10<kappa>(dist);
 					}
 				}
 				return ret_value;
@@ -2825,7 +2806,7 @@ namespace jkj::dragonbox {
 			// Remove trailing zeros from n and return the number of zeros removed
 			JKJ_FORCEINLINE static int remove_trailing_zeros(carrier_uint& n) noexcept {
 				constexpr auto max_power = [] {
-					auto max_possible_significand =
+					constexpr auto max_possible_significand =
 						std::numeric_limits<carrier_uint>::max() /
 						compute_power<kappa + 1>(std::uint32_t(10));
 
@@ -2838,123 +2819,150 @@ namespace jkj::dragonbox {
 					return k;
 				}();
 
-				auto t = bits::countr_zero(n);
-				if (t > max_power) {
-					t = max_power;
-				}
-
 				if constexpr (format == ieee754_format::binary32) {
+					static_assert(max_power == 7, "Assertion failed! Did you change kappa?");
+
 					constexpr auto const& divtable =
 						div::table_holder<carrier_uint, 5, decimal_digits>::table;
 
+					// Perform a binary search
+					carrier_uint quotient;
 					int s = 0;
-					for (; s < t - 1; s += 2) {
-						if (n * divtable.mod_inv[2] > divtable.max_quotients[2]) {
-							break;
+
+					// Is n divisible by 10^4?
+					if ((n & 0xf) == 0) {
+						quotient = (n >> 4) * divtable.mod_inv[4];
+						if (quotient <= divtable.max_quotients[4]) {
+							n = quotient;
+							s |= 0x4;
 						}
-						n *= divtable.mod_inv[2];
 					}
-					if (s < t && n * divtable.mod_inv[1] <= divtable.max_quotients[1])
-					{
-						n *= divtable.mod_inv[1];
-						++s;
+					
+					// Is n divisible by 10^2?
+					if ((n & 0x3) == 0) {
+						quotient = (n >> 2) * divtable.mod_inv[2];
+						if (quotient <= divtable.max_quotients[2]) {
+							n = quotient;
+							s |= 0x2;
+						}
 					}
-					n >>= s;
+
+					// Is n divisible by 10^1?
+					if ((n & 0x1) == 0) {
+						quotient = (n >> 1) * divtable.mod_inv[1];
+						if (quotient <= divtable.max_quotients[1]) {
+							n = quotient;
+							s |= 0x1;
+						}
+					}
+
 					return s;
 				}
 				else {
 					static_assert(format == ieee754_format::binary64);
-					static_assert(kappa >= 2);
+					static_assert(max_power == 16, "Assertion failed! Did you change kappa?");
 
 					// Divide by 10^8 and reduce to 32-bits
 					// Since ret_value.significand <= (2^64 - 1) / 1000 < 10^17,
 					// both of the quotient and the r should fit in 32-bits
 
-					constexpr auto const& divtable =
+					constexpr auto const& divtable64 =
 						div::table_holder<carrier_uint, 5, decimal_digits>::table;
+					constexpr auto const& divtable32 =
+						div::table_holder<std::uint32_t, 5, 9>::table;
 
 					// If the number is divisible by 1'0000'0000, work with the quotient
-					if (t >= 8) {
-						auto quotient_candidate = n * divtable.mod_inv[8];
+					if ((n & 0xff) == 0) {
+						auto quotient64 = (n >> 8) * divtable64.mod_inv[8];
+						if (quotient64 <= divtable64.max_quotients[8]) {
+							auto n32 = std::uint32_t(quotient64);
+							std::uint32_t quotient32;
 
-						if (quotient_candidate <= divtable.max_quotients[8]) {
-							auto quotient = std::uint32_t(quotient_candidate >> 8);
-
-							constexpr auto mod_inverse = std::uint32_t(divtable.mod_inv[1]);
-							constexpr auto max_quotient =
-								std::numeric_limits<std::uint32_t>::max() / 5;
-
-							int s = 8;
-							for (; s < t; ++s) {
-								if (quotient * mod_inverse > max_quotient) {
-									break;
+							// Is n divisible by 10^8?
+							if ((n32 & 0xff) == 0) {
+								quotient32 = (n32 >> 8) * divtable32.mod_inv[8];
+								if (quotient32 <= divtable32.max_quotients[8]) {
+									n = quotient32;
+									return 16;
 								}
-								quotient *= mod_inverse;
 							}
-							quotient >>= (s - 8);
-							n = quotient;
+
+							// Otherwise, perform a branchless binary search
+							int s = 8;
+
+							// Is n divisible by 10^4?
+							if ((n32 & 0xf) == 0) {
+								quotient32 = (n32 >> 4) * divtable32.mod_inv[4];
+								if (quotient32 <= divtable32.max_quotients[4]) {
+									n32 = quotient32;
+									s |= 0x4;
+								}
+							}
+
+							// Is n divisible by 10^2?
+							if ((n32 & 0x3) == 0) {
+								quotient32 = (n32 >> 2) * divtable32.mod_inv[2];
+								if (quotient32 <= divtable32.max_quotients[2]) {
+									n32 = quotient32;
+									s |= 0x2;
+								}
+							}
+
+							// Is n divisible by 10^1?
+							if ((n32 & 0x1) == 0) {
+								quotient32 = (n32 >> 1) * divtable32.mod_inv[1];
+								if (quotient32 <= divtable32.max_quotients[1]) {
+									n32 = quotient32;
+									s |= 0x1;
+								}
+							}							
+
+							n = n32;
 							return s;
 						}
 					}
 
-					// Otherwise, work with the remainder
-					auto quotient = std::uint32_t(div::divide_by_pow10<8, 54, 0>(n));
-					auto remainder = std::uint32_t(n - 1'0000'0000 * quotient);
+					// If the number is not divisible by 1'0000'0000, work with the remainder
+					auto quotient_by_pow10_8 = std::uint32_t(div::divide_by_pow10<8, 54, 0>(n));
+					auto remainder = std::uint32_t(n - 1'0000'0000 * quotient_by_pow10_8);
 
-					constexpr auto mod_inverse = std::uint32_t(divtable.mod_inv[1]);
-					constexpr auto max_quotient =
-						std::numeric_limits<std::uint32_t>::max() / 5;
+					// Perform a branchless binary search
+					std::uint32_t quotient32;
+					std::uint32_t multiplier = 1'0000'0000;
+					int s = 0;
 
-					if (t == 0 || remainder * mod_inverse > max_quotient) {
-						return 0;
+					// Is n divisible by 10^4?
+					if ((remainder & 0xf) == 0) {
+						quotient32 = (remainder >> 4) * divtable32.mod_inv[4];
+						if (quotient32 <= divtable32.max_quotients[4]) {
+							remainder = quotient32;
+							multiplier = 1'0000;
+							s |= 0x4;
+						}
 					}
-					remainder *= mod_inverse;
 
-					if (t == 1 || remainder * mod_inverse > max_quotient) {
-						n = (remainder >> 1)
-							+ quotient * carrier_uint(1000'0000);
-						return 1;
+					// Is n divisible by 10^2?
+					if ((remainder & 0x3) == 0) {
+						quotient32 = (remainder >> 2) * divtable32.mod_inv[2];
+						if (quotient32 <= divtable32.max_quotients[2]) {
+							remainder = quotient32;
+							multiplier = (s == 4 ? 100 : 100'0000);
+							s |= 0x2;
+						}
 					}
-					remainder *= mod_inverse;
 
-					if (t == 2 || remainder * mod_inverse > max_quotient) {
-						n = (remainder >> 2)
-							+ quotient * carrier_uint(100'0000);
-						return 2;
+					// Is n divisible by 10^1?
+					if ((remainder & 0x1) == 0) {
+						quotient32 = (remainder >> 1) * divtable32.mod_inv[1];
+						if (quotient32 <= divtable32.max_quotients[1]) {
+							remainder = quotient32;
+							multiplier = (multiplier >> 1) * divtable32.mod_inv[1];
+							s |= 0x1;
+						}
 					}
-					remainder *= mod_inverse;
 
-					if (t == 3 || remainder * mod_inverse > max_quotient) {
-						n = (remainder >> 3)
-							+ quotient * carrier_uint(10'0000);
-						return 3;
-					}
-					remainder *= mod_inverse;
-
-					if (t == 4 || remainder * mod_inverse > max_quotient) {
-						n = (remainder >> 4)
-							+ quotient * carrier_uint(1'0000);
-						return 4;
-					}
-					remainder *= mod_inverse;
-
-					if (t == 5 || remainder * mod_inverse > max_quotient) {
-						n = (remainder >> 5)
-							+ quotient * carrier_uint(1000);
-						return 5;
-					}
-					remainder *= mod_inverse;
-
-					if (t == 6 || remainder * mod_inverse > max_quotient) {
-						n = (remainder >> 6)
-							+ quotient * carrier_uint(100);
-						return 6;
-					}
-					remainder *= mod_inverse;
-
-					n = (remainder >> 7)
-						+ quotient * carrier_uint(10);
-					return 7;
+					n = remainder + quotient_by_pow10_8 * carrier_uint(multiplier);
+					return s;
 				}
 			}
 
