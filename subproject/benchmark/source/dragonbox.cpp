@@ -21,15 +21,11 @@
 namespace {
 	void dragonbox_float_to_chars(float x, char* buffer)
 	{
-		jkj::dragonbox::to_chars(x, buffer,
-			jkj::dragonbox::policy::rounding_mode::nearest_to_even,
-			jkj::dragonbox::policy::correct_rounding::to_even);
+		jkj::dragonbox::to_chars(x, buffer);
 	}
 	void dragonbox_double_to_chars(double x, char* buffer)
 	{
-		jkj::dragonbox::to_chars(x, buffer,
-			jkj::dragonbox::policy::rounding_mode::nearest_to_even,
-			jkj::dragonbox::policy::correct_rounding::to_even);
+		jkj::dragonbox::to_chars(x, buffer);
 	}
 
 	auto dummy = []() -> register_function_for_benchmark {
