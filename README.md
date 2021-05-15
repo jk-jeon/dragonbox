@@ -64,8 +64,10 @@ The library is targetting C++17 and actively using its features (e.g., `if const
 (Simple string generation from `float/double`)
 ```cpp
 #include "dragonbox/dragonbox_to_chars.h"
+constexpr int buffer_length = 1 + // for '\0'
+  jkj::dragonbox::max_output_string_length<jkj::dragonbox::ieee754_format::binary64>;
 double x = 1.234;  // Also works for float
-char buffer[31];   // Should be long enough
+char buffer[buffer_length];
 
 // Null-terminate the buffer and return the pointer to the null character
 // Hence, the length of the string is (end_ptr - buffer)
