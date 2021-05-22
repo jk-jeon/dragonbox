@@ -103,8 +103,9 @@ namespace jkj::dragonbox {
 						auto c = r - 1'0000 * (r / 1'0000);
 #else
 						auto c = r % 1'0000;
-						r /= 1'0000;
 #endif
+						r /= 1'0000;
+
 						auto c1 = r / 100;
 						auto c2 = r % 100;
 						auto c3 = c / 100;
