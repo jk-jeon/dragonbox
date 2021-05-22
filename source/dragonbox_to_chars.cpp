@@ -109,10 +109,10 @@ namespace jkj::dragonbox {
 			}
 		}
 
-		template <class Float>
-		static char* to_chars_impl(unsigned_fp_t<Float> v, char* buffer)
+		template <class Float, class FloatTraits>
+		char* to_chars(typename FloatTraits::carrier_uint significand, int exponent, char* buffer)
 		{
-			auto output = v.significand;
+			auto output = significand;
 			auto const olength = decimal_length(output);
 
 			// Print the decimal digits.
@@ -192,7 +192,7 @@ namespace jkj::dragonbox {
 			// Print the exponent.
 			*buffer = 'E';
 			++buffer;
-			int32_t exp = v.exponent + (int32_t)olength - 1;
+			int32_t exp = exponent + (int32_t)olength - 1;
 			if (exp < 0) {
 				*buffer = '-';
 				++buffer;
@@ -227,12 +227,8 @@ namespace jkj::dragonbox {
 
 			return buffer;
 		}
-		
-		char* to_chars(unsigned_fp_t<float> v, char* buffer) {
-			return to_chars_impl(v, buffer);
-		}
-		char* to_chars(unsigned_fp_t<double> v, char* buffer) {
-			return to_chars_impl(v, buffer);
-		}
+
+		template char* to_chars<float, default_float_traits<float>>(std::uint32_t, int, char*);
+		template char* to_chars<double, default_float_traits<double>>(std::uint64_t, int, char*);
 	}
 }

@@ -46,7 +46,7 @@ static void live_test()
 			break;
 		}
 
-		auto xx = jkj::dragonbox::ieee754_bits<Float>{ x };
+		auto xx = jkj::dragonbox::float_bits<Float>{ x };
 		std::cout << "              sign: " << (xx.is_negative() ? "-" : "+") << std::endl;
 		std::cout << "     exponent bits: " << "0x" << std::hex << std::setfill('0')
 			<< xx.extract_exponent_bits() << std::dec

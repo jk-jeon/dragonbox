@@ -22,42 +22,43 @@
 
 namespace jkj::dragonbox {
 	namespace to_chars_detail {
-		char* to_chars(unsigned_fp_t<float> v, char* buffer);
-		char* to_chars(unsigned_fp_t<double> v, char* buffer);
+		template <class Float, class FloatTraits>
+		extern char* to_chars(typename FloatTraits::carrier_uint significand, int exponent, char* buffer);
 	}
 
 	// Returns the next-to-end position
-	template <class Float, class... Policies>
+	template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
 	char* to_chars_n(Float x, char* buffer, Policies... policies)
 	{
 		using namespace jkj::dragonbox::detail::policy_impl;
 		using policy_holder = decltype(make_policy_holder(
 			base_default_pair_list<
 				base_default_pair<trailing_zero::base, trailing_zero::remove>,
-				base_default_pair<rounding_mode::base, rounding_mode::nearest_to_even>,
-				base_default_pair<correct_rounding::base, correct_rounding::to_even>,
-				base_default_pair<cache::base, cache::normal>
+				base_default_pair<decimal_to_binary_rounding::base, decimal_to_binary_rounding::nearest_to_even>,
+				base_default_pair<binary_to_decimal_rounding::base, binary_to_decimal_rounding::to_even>,
+				base_default_pair<cache::base, cache::full>
 			>{}, policies...));
 
 		static_assert(!policy_holder::report_trailing_zeros,
 			"jkj::dragonbox::policy::trailing_zeros::report is not valid for to_chars & to_chars_n");
 
-		using ieee754_format_info = ieee754_format_info<ieee754_traits<Float>::format>;
+		using format = typename FloatTraits::format;
 
-		auto br = ieee754_bits(x);
+		auto br = float_bits(x);
 		if (br.is_finite()) {
 			if (br.is_negative()) {
 				*buffer = '-';
 				++buffer;
 			}
 			if (br.is_nonzero()) {
-				return to_chars_detail::to_chars(to_decimal(x,
+				auto result = to_decimal<Float, FloatTraits>(x,
 					policy::sign::ignore,
 					typename policy_holder::trailing_zero_policy{},
-					typename policy_holder::rounding_mode_policy{},
-					typename policy_holder::correct_rounding_policy{},
-					typename policy_holder::cache_policy{}),
-					buffer);
+					typename policy_holder::decimal_to_binary_rounding_policy{},
+					typename policy_holder::binary_to_decimal_rounding_policy{},
+					typename policy_holder::cache_policy{});
+				return to_chars_detail::to_chars<Float, FloatTraits>(
+					result.significand, result.exponent, buffer);
 			}
 			else {
 				std::memcpy(buffer, "0E0", 3);
@@ -65,7 +66,7 @@ namespace jkj::dragonbox {
 			}
 		}
 		else {
-			if ((br.u << (ieee754_format_info::exponent_bits + 1)) != 0)
+			if ((br.u << (format::exponent_bits + 1)) != 0)
 			{
 				std::memcpy(buffer, "NaN", 3);
 				return buffer + 3;
@@ -82,18 +83,18 @@ namespace jkj::dragonbox {
 	}
 
 	// Null-terminate and bypass the return value of fp_to_chars_n
-	template <class Float, class... Policies>
+	template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
 	char* to_chars(Float x, char* buffer, Policies... policies)
 	{
-		auto ptr = to_chars_n(x, buffer, policies...);
+		auto ptr = to_chars_n<Float, FloatTraits>(x, buffer, policies...);
 		*ptr = '\0';
 		return ptr;
 	}
 
 	// Maximum required buffer size
-	template <ieee754_format format>
+	template <class FloatFormat>
 	inline constexpr std::size_t max_output_string_length =
-		format == ieee754_format::binary32 ?
+		std::is_same_v<FloatFormat, ieee754_binary32> ?
 		// sign(1) + significand(9) + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp(2)
 		(1 + 9 + 1 + 1 + 1 + 2) :
 		// format == ieee754_format::binary64
