@@ -33,14 +33,10 @@ namespace jkj::dragonbox {
 		using namespace jkj::dragonbox::detail::policy_impl;
 		using policy_holder = decltype(make_policy_holder(
 			base_default_pair_list<
-				base_default_pair<trailing_zero::base, trailing_zero::remove>,
 				base_default_pair<decimal_to_binary_rounding::base, decimal_to_binary_rounding::nearest_to_even>,
 				base_default_pair<binary_to_decimal_rounding::base, binary_to_decimal_rounding::to_even>,
 				base_default_pair<cache::base, cache::full>
 			>{}, policies...));
-
-		static_assert(!policy_holder::report_trailing_zeros,
-			"jkj::dragonbox::policy::trailing_zeros::report is not valid for to_chars & to_chars_n");
 
 		auto br = float_bits<Float, FloatTraits>(x);
 		auto exponent_bits = br.extract_exponent_bits();
@@ -54,7 +50,7 @@ namespace jkj::dragonbox {
 			if (br.is_nonzero()) {
 				auto result = to_decimal<Float, FloatTraits>(x,
 					policy::sign::ignore,
-					typename policy_holder::trailing_zero_policy{},
+					policy::trailing_zero::ignore,
 					typename policy_holder::decimal_to_binary_rounding_policy{},
 					typename policy_holder::binary_to_decimal_rounding_policy{},
 					typename policy_holder::cache_policy{});
