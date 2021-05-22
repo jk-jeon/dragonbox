@@ -124,11 +124,11 @@ namespace jkj::dragonbox {
 			return carrier_uint(u & significand_bits_mask);
 		}
 
-		// Allows positive zero and positive NaN's, but not allow negative zero.
+		// Allows positive zero and positive NaN's, but not negative zero.
 		static constexpr bool is_positive(carrier_uint u) noexcept {
 			return (u >> (carrier_bits - 1)) == 0;
 		}
-		// Allows negative zero and negative NaN's, but not allow positive zero.
+		// Allows negative zero and negative NaN's, but not positive zero.
 		static constexpr bool is_negative(carrier_uint u) noexcept {
 			return (u >> (carrier_bits - 1)) != 0;
 		}
@@ -248,11 +248,11 @@ namespace jkj::dragonbox {
 		constexpr bool is_subnormal() const noexcept {
 			return ieee754_traits<T>::is_subnormal(u);
 		}
-		// Allows positive zero and positive NaN's, but not allow negative zero.
+		// Allows positive zero and positive NaN's, but not negative zero.
 		constexpr bool is_positive() const noexcept {
 			return ieee754_traits<T>::is_positive(u);
 		}
-		// Allows negative zero and negative NaN's, but not allow positive zero.
+		// Allows negative zero and negative NaN's, but not positive zero.
 		constexpr bool is_negative() const noexcept {
 			return ieee754_traits<T>::is_negative(u);
 		}
