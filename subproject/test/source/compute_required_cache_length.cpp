@@ -613,19 +613,19 @@ int main()
 	out.open("results/binary32_negative_k.csv");
 	out << "e,required_bits\n";
 	success &= (check_negative_k<float>(on_each, on_max) <=
-		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_format::binary32>::cache_bits);
+		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_binary32>::cache_bits);
 	out.close();
 
 	out.open("results/binary32_negative_k_nearest_shorter_interval.csv");
 	out << "e,required_bits\n";
 	success &= (check_negative_k_nearest_shorter_interval<float>(on_each, on_max) <=
-		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_format::binary32>::cache_bits);
+		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_binary32>::cache_bits);
 	out.close();
 
 	out.open("results/binary32_negative_k_right_closed_directed_shorter_interval.csv");
 	out << "e,required_bits\n";
 	success &= (check_negative_k_right_closed_directed_shorter_interval<float>(on_each, on_max) <=
-		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_format::binary32>::cache_bits);
+		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_binary32>::cache_bits);
 	out.close();
 
 
@@ -634,19 +634,19 @@ int main()
 	out.open("results/binary32_positive_k.csv");
 	out << "e,required_bits\n";
 	success &= (check_positive_k<float>(on_each, on_max) <=
-		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_format::binary32>::cache_bits);
+		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_binary32>::cache_bits);
 	out.close();
 
 	out.open("results/binary32_positive_k_nearest_shorter_interval.csv");
 	out << "e,required_bits\n";
 	success &= (check_positive_k_nearest_shorter_interval<float>(on_each, on_max) <=
-		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_format::binary32>::cache_bits);
+		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_binary32>::cache_bits);
 	out.close();
 
 	out.open("results/binary32_positive_k_right_closed_directed_shorter_interval.csv");
 	out << "e,required_bits\n";
 	success &= (check_positive_k_right_closed_directed_shorter_interval<float>(on_each, on_max) <=
-		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_format::binary32>::cache_bits);
+		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_binary32>::cache_bits);
 	out.close();
 
 
@@ -655,19 +655,19 @@ int main()
 	out.open("results/binary64_negative_k.csv");
 	out << "e,required_bits\n";
 	success &= (check_negative_k<double>(on_each, on_max) <=
-		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_format::binary64>::cache_bits);
+		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_binary64>::cache_bits);
 	out.close();
 
 	out.open("results/binary64_negative_k_nearest_shorter_interval.csv");
 	out << "e,required_bits\n";
 	success &= (check_negative_k_nearest_shorter_interval<double>(on_each, on_max) <=
-		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_format::binary64>::cache_bits);
+		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_binary64>::cache_bits);
 	out.close();
 
 	out.open("results/binary64_negative_k_right_closed_directed_shorter_interval.csv");
 	out << "e,required_bits\n";
 	success &= (check_negative_k_right_closed_directed_shorter_interval<double>(on_each, on_max) <=
-		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_format::binary64>::cache_bits);
+		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_binary64>::cache_bits);
 	out.close();
 
 
@@ -676,19 +676,19 @@ int main()
 	out.open("results/binary64_positive_k.csv");
 	out << "e,required_bits\n";
 	success &= (check_positive_k<double>(on_each, on_max) <=
-		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_format::binary64>::cache_bits);
+		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_binary64>::cache_bits);
 	out.close();
 
 	out.open("results/binary64_positive_k_nearest_shorter_interval.csv");
 	out << "e,required_bits\n";
 	success &= (check_positive_k_nearest_shorter_interval<double>(on_each, on_max) <=
-		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_format::binary64>::cache_bits);
+		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_binary64>::cache_bits);
 	out.close();
 
 	out.open("results/binary64_positive_k_right_closed_directed_shorter_interval.csv");
 	out << "e,required_bits\n";
 	success &= (check_positive_k_right_closed_directed_shorter_interval<double>(on_each, on_max) <=
-		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_format::binary64>::cache_bits);
+		jkj::dragonbox::detail::cache_holder<jkj::dragonbox::ieee754_binary64>::cache_bits);
 	out.close();
 
 	std::cout << std::endl;

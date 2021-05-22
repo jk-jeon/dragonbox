@@ -28,11 +28,11 @@ int main()
 	bool success = true;
 	for (int k = impl<double>::min_k; k <= impl<double>::max_k; ++k)
 	{
-		using jkj::dragonbox::policy::cache::normal;
-		using jkj::dragonbox::policy::cache::compressed;
+		using jkj::dragonbox::policy::cache::full;
+		using jkj::dragonbox::policy::cache::compact;
 
-		auto real_cache = normal.get_cache<jkj::dragonbox::ieee754_format::binary64>(k);
-		auto recovered_cache = compressed.get_cache<jkj::dragonbox::ieee754_format::binary64>(k);
+		auto real_cache = full.get_cache<jkj::dragonbox::ieee754_binary64>(k);
+		auto recovered_cache = compact.get_cache<jkj::dragonbox::ieee754_binary64>(k);
 
 		if (real_cache.high() != recovered_cache.high() ||
 			real_cache.low() != recovered_cache.low())

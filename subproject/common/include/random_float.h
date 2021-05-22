@@ -81,8 +81,8 @@ inline std::mt19937_64 generate_correctly_seeded_mt19937_64()
 template <class Float, class RandGen>
 Float uniformly_randomly_generate_finite_float(RandGen& rg)
 {
-	using ieee754_traits = jkj::dragonbox::ieee754_traits<Float>;
-	using ieee754_format_info = jkj::dragonbox::ieee754_format_info<ieee754_traits::format>;
+	using ieee754_traits = jkj::dragonbox::default_float_traits<Float>;
+	using ieee754_format_info = typename ieee754_traits::format;
 	using carrier_uint = typename ieee754_traits::carrier_uint;
 	using uniform_distribution = std::uniform_int_distribution<carrier_uint>;
 
@@ -107,7 +107,7 @@ Float uniformly_randomly_generate_finite_float(RandGen& rg)
 template <class Float, class RandGen>
 Float uniformly_randomly_generate_general_float(RandGen& rg)
 {
-	using ieee754_traits = jkj::dragonbox::ieee754_traits<Float>;
+	using ieee754_traits = jkj::dragonbox::default_float_traits<Float>;
 	using carrier_uint = typename ieee754_traits::carrier_uint;
 	using uniform_distribution = std::uniform_int_distribution<carrier_uint>;
 
@@ -123,12 +123,12 @@ Float uniformly_randomly_generate_general_float(RandGen& rg)
 template <class Float, class RandGen>
 Float randomly_generate_float_with_given_digits(unsigned int digits, RandGen& rg)
 {
-	using ieee754_traits = jkj::dragonbox::ieee754_traits<Float>;
+	using ieee754_traits = jkj::dragonbox::default_float_traits<Float>;
 	using carrier_uint = typename ieee754_traits::carrier_uint;
 	using signed_int_t = std::make_signed_t<carrier_uint>;
 
 	assert(digits >= 1);
-	assert(digits <= jkj::dragonbox::ieee754_format_info<ieee754_traits::format>::decimal_digits);
+	assert(digits <= ieee754_traits::format::decimal_digits);
 
 	// Generate sign uniformly randomly
 	signed_int_t sign = std::uniform_int_distribution<signed_int_t>{ 0, 1 }(rg) == 0 ? 1 : -1;
@@ -172,8 +172,8 @@ Float randomly_generate_float_with_given_digits(unsigned int digits, RandGen& rg
 			// We don't need to care about sign and correct rounding here
 			auto roundtrip = jkj::dragonbox::to_decimal(result,
 				jkj::dragonbox::policy::sign::ignore,
-				jkj::dragonbox::policy::rounding_mode::nearest_to_even,
-				jkj::dragonbox::policy::correct_rounding::do_not_care);
+				jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even,
+				jkj::dragonbox::policy::binary_to_decimal_rounding::do_not_care);
 			if (from != 0 && roundtrip.significand <= carrier_uint(from * 10)) {
 				continue;
 			}

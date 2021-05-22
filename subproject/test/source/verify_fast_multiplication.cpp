@@ -42,7 +42,7 @@ static bool verify_fast_multiplication_xz()
 		int const beta_minus_2 = beta_minus_1 - 1;
 
 		// Load cache
-		auto const cache = jkj::dragonbox::policy::cache::normal.get_cache<impl::format>(-minus_k);
+		auto const cache = jkj::dragonbox::policy::cache::full.get_cache<typename impl::format>(-minus_k);
 
 		// Compute the endpoints using the fast method
 		auto x_fast = impl::compute_left_endpoint_for_shorter_interval_case(cache, beta_minus_1);
@@ -85,11 +85,11 @@ static bool verify_fast_multiplication_yru()
 	bool success = true;
 
 	for (int k = impl::min_k; k < 0; ++k) {
-		auto const cache = jkj::dragonbox::policy::cache::normal.get_cache<impl::format>(k);
+		auto const cache = jkj::dragonbox::policy::cache::full.get_cache<typename impl::format>(k);
 
 		// Since p + beta <= q, suffices to check that the lower half of the cache is not 0
 		auto const lower_half = [cache] {
-			if constexpr (impl::format == jkj::dragonbox::ieee754_format::binary32)
+			if constexpr (std::is_same_v<typename impl::format, jkj::dragonbox::ieee754_binary32>)
 			{
 				return std::uint32_t(cache);
 			}

@@ -242,7 +242,7 @@ int main()
 		impl<float>::cache_bits,
 		impl<float>::min_k,
 		impl<float>::max_k>();
-	write_file(out, jkj::dragonbox::ieee754_traits<float>{}, binary32_cache_bitset,
+	write_file(out, jkj::dragonbox::default_float_traits<float>{}, binary32_cache_bitset,
 		"binary32",
 		[](std::uint64_t& value) {
 			++value;
@@ -258,7 +258,7 @@ int main()
 		impl<double>::cache_bits,
 		impl<double>::min_k,
 		impl<double>::max_k>();
-	write_file(out, jkj::dragonbox::ieee754_traits<double>{}, binary64_cache_bitset,
+	write_file(out, jkj::dragonbox::default_float_traits<double>{}, binary64_cache_bitset,
 		"binary64",
 		[](uint128& value) {
 			value = uint128(value.high(), value.low() + 1);

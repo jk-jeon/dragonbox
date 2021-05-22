@@ -25,8 +25,8 @@
 template <class Float>
 static bool test_all_shorter_interval_cases_impl()
 {
-	using ieee754_traits = jkj::dragonbox::ieee754_traits<Float>;
-	using ieee754_format_info = jkj::dragonbox::ieee754_format_info<ieee754_traits::format>;
+	using ieee754_traits = jkj::dragonbox::default_float_traits<Float>;
+	using ieee754_format_info = typename ieee754_traits::format;
 	using carrier_uint = typename ieee754_traits::carrier_uint;
 
 	char buffer1[64];
@@ -38,7 +38,7 @@ static bool test_all_shorter_interval_cases_impl()
 	{
 		// Compose a floating-point number
 		carrier_uint br = carrier_uint(e) << ieee754_format_info::significand_bits;
-		auto x = jkj::dragonbox::ieee754_bits<Float>{ br }.to_float();
+		auto x = jkj::dragonbox::float_bits<Float>{ br }.to_float();
 
 		jkj::dragonbox::to_chars(x, buffer1);
 		if constexpr (std::is_same_v<Float, float>) {
