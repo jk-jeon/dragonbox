@@ -1,18 +1,10 @@
-// The contents of this file is based on contents of:
+// Copyright 2020 Junekey Jeon
 //
-// https://github.com/ulfjack/ryu/blob/master/ryu/common.h,
-// https://github.com/ulfjack/ryu/blob/master/ryu/d2s.c, and
-// https://github.com/ulfjack/ryu/blob/master/ryu/f2s.c,
-//
-// which are distributed under the following terms:
-//--------------------------------------------------------------------------------
-// Copyright 2018 Ulf Adams
-//
-// The contents of this file may be used under the terms of the Apache License,
-// Version 2.0.
+// The contents of this file may be used under the terms of
+// the Apache License v2.0 with LLVM Exceptions.
 //
 //    (See accompanying file LICENSE-Apache or copy at
-//     http://www.apache.org/licenses/LICENSE-2.0)
+//     https://llvm.org/foundation/relicensing/LICENSE.txt)
 //
 // Alternatively, the contents of this file may be used under the terms of
 // the Boost Software License, Version 1.0.
@@ -22,23 +14,17 @@
 // Unless required by applicable law or agreed to in writing, this software
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
-//--------------------------------------------------------------------------------
-// Modifications Copyright 2020 Junekey Jeon
-//
-// Following modifications were made to the original contents:
-//  - Put everything inside the namespace jkj::dragonbox::to_chars_detail
-//  - Combined decimalLength9 (from common.h) and decimalLength17 (from d2s.c)
-//    into a single template function decimal_length
-//  - Combined to_chars (from f2s.c) and to_chars (from d2s.c) into a
-//    single template function fp_to_chars_impl
-//  - Removed index counting statements; replaced them with pointer increments
-//  - Removed usages of DIGIT_TABLE; replaced them with radix_100_table
-//
-//  These modifications, together with other contents of this file may be used
-//  under the same terms as the original contents.
 
 
 #include "dragonbox/dragonbox_to_chars.h"
+
+#if defined(__GNUC__) || defined(__clang__)
+#define JKJ_FORCEINLINE inline __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define JKJ_FORCEINLINE __forceinline
+#else
+#define JKJ_FORCEINLINE inline
+#endif
 
 namespace jkj::dragonbox {
 	namespace to_chars_detail {
@@ -65,163 +51,140 @@ namespace jkj::dragonbox {
 			'9', '5', '9', '6', '9', '7', '9', '8', '9', '9'
 		};
 
-		template <class UInt>
-		static constexpr std::uint32_t decimal_length(UInt const v) {
-			if constexpr (std::is_same_v<UInt, std::uint32_t>) {
-				// Function precondition: v is not a 10-digit number.
-				// (f2s: 9 digits are sufficient for round-tripping.)
-				// (d2fixed: We print 9-digit blocks.)
-				assert(v < 1000000000);
-				if (v >= 100000000) { return 9; }
-				if (v >= 10000000) { return 8; }
-				if (v >= 1000000) { return 7; }
-				if (v >= 100000) { return 6; }
-				if (v >= 10000) { return 5; }
-				if (v >= 1000) { return 4; }
-				if (v >= 100) { return 3; }
-				if (v >= 10) { return 2; }
-				return 1;
-			}
-			else {
-				static_assert(std::is_same_v<UInt, std::uint64_t>);
-				// This is slightly faster than a loop.
-				// The average output length is 16.38 digits, so we check high-to-low.
-				// Function precondition: v is not an 18, 19, or 20-digit number.
-				// (17 digits are sufficient for round-tripping.)
-				assert(v < 100000000000000000L);
-				if (v >= 10000000000000000L) { return 17; }
-				if (v >= 1000000000000000L) { return 16; }
-				if (v >= 100000000000000L) { return 15; }
-				if (v >= 10000000000000L) { return 14; }
-				if (v >= 1000000000000L) { return 13; }
-				if (v >= 100000000000L) { return 12; }
-				if (v >= 10000000000L) { return 11; }
-				if (v >= 1000000000L) { return 10; }
-				if (v >= 100000000L) { return 9; }
-				if (v >= 10000000L) { return 8; }
-				if (v >= 1000000L) { return 7; }
-				if (v >= 100000L) { return 6; }
-				if (v >= 10000L) { return 5; }
-				if (v >= 1000L) { return 4; }
-				if (v >= 100L) { return 3; }
-				if (v >= 10L) { return 2; }
-				return 1;
-			}
+		JKJ_FORCEINLINE static constexpr std::uint32_t decimal_length(std::uint32_t const v) {
+			assert(v < 1000000000);
+			if (v >= 100000000) { return 9; }
+			if (v >= 10000000) { return 8; }
+			if (v >= 1000000) { return 7; }
+			if (v >= 100000) { return 6; }
+			if (v >= 10000) { return 5; }
+			if (v >= 1000) { return 4; }
+			if (v >= 100) { return 3; }
+			if (v >= 10) { return 2; }
+			return 1;
 		}
 
 		template <class Float, class FloatTraits>
 		char* to_chars(typename FloatTraits::carrier_uint significand, int exponent, char* buffer)
 		{
-			auto output = significand;
-			auto const olength = decimal_length(output);
+			std::uint32_t s32;
+			int significand_length, remaining_significand_length;
+			if constexpr (std::is_same_v<typename FloatTraits::format, ieee754_binary64>)
+			{
+				if ((significand >> 32) != 0) {
+					// Since significand is at most 10^17, the quotient is at most 10^9, so
+					// it fits inside 32-bit integer
+					s32 = std::uint32_t(significand / 1'0000'0000);
+					auto r = std::uint32_t(significand) - s32 * 1'0000'0000;
 
-			// Print the decimal digits.
-			// The following code is equivalent to:
-			// for (uint32_t i = 0; i < olength - 1; ++i) {
-			//   const uint32_t c = output % 10; output /= 10;
-			//   result[index + olength - i] = (char) ('0' + c);
-			// }
-			// result[index] = '0' + output % 10;
+					remaining_significand_length = int(decimal_length(s32));
+					significand_length = remaining_significand_length + 8;
 
-			uint32_t i = 0;
-			if constexpr (sizeof(Float) == 8) {
-				// We prefer 32-bit operations, even on 64-bit platforms.
-				// We have at most 17 digits, and uint32_t can store 9 digits.
-				// If output doesn't fit into uint32_t, we cut off 8 digits,
-				// so the rest will fit into uint32_t.
-				if ((output >> 32) != 0) {
-					// Expensive 64-bit division.
-					const uint64_t q = output / 100000000;
-					uint32_t output2 = ((uint32_t)output) - 100000000 * ((uint32_t)q);
-					output = q;
+					// Print 8 digits
+					for (int i = 0; i < 2; ++i) {
+#ifdef __clang__ // https://bugs.llvm.org/show_bug.cgi?id=38217
+						auto c = r - 1'0000 * (r / 1'0000);
+#else
+						auto c = r % 1'0000;
+#endif
+						r /= 1'0000;
+						std::memcpy(buffer + significand_length - 4 * i - 1,
+							&radix_100_table[(c % 100) * 2], 2);
+						std::memcpy(buffer + significand_length - 4 * i - 3,
+							&radix_100_table[(c / 100) * 2], 2);
+					}
+				}
+				else {
+					s32 = std::uint32_t(significand);
+					if (s32 >= 10'0000'0000) {
+						significand_length = 10;
+					}
+					else {
+						significand_length = int(decimal_length(s32));
+					}
+					remaining_significand_length = significand_length;
+				}
+			}
+			else
+			{
+				s32 = std::uint32_t(significand);
+				significand_length = int(decimal_length(s32));
+				remaining_significand_length = significand_length;
+			}
 
-					const uint32_t c = output2 % 10000;
-					output2 /= 10000;
-					const uint32_t d = output2 % 10000;
-					const uint32_t c0 = (c % 100) << 1;
-					const uint32_t c1 = (c / 100) << 1;
-					const uint32_t d0 = (d % 100) << 1;
-					const uint32_t d1 = (d / 100) << 1;
-					memcpy(buffer + olength - i - 1, radix_100_table + c0, 2);
-					memcpy(buffer + olength - i - 3, radix_100_table + c1, 2);
-					memcpy(buffer + olength - i - 5, radix_100_table + d0, 2);
-					memcpy(buffer + olength - i - 7, radix_100_table + d1, 2);
-					i += 8;
+			while (remaining_significand_length > 4) {
+#ifdef __clang__ // https://bugs.llvm.org/show_bug.cgi?id=38217
+				auto c = s32 - 1'0000 * (significand / 1'0000);
+#else
+				auto c = s32 % 1'0000;
+#endif
+				s32 /= 1'0000;
+				std::memcpy(buffer + remaining_significand_length - 1,
+					&radix_100_table[(c % 100) * 2], 2);
+				std::memcpy(buffer + remaining_significand_length - 3,
+					&radix_100_table[(c / 100) * 2], 2);
+				remaining_significand_length -= 4;
+			}
+			if (remaining_significand_length > 2) {
+				auto c = s32 % 100;
+				s32 /= 100;
+				std::memcpy(buffer + remaining_significand_length - 1,
+					&radix_100_table[c * 2], 2);
+				remaining_significand_length -= 2;
+			}
+			if (remaining_significand_length > 1) {
+				assert(remaining_significand_length == 2);
+				buffer[0] = char('0' + (s32 / 10));
+				buffer[1] = '.';
+				buffer[2] = char('0' + (s32 % 10));
+				buffer += (significand_length + 1);
+			}
+			else {
+				buffer[0] = char('0' + s32);
+				if (significand_length > 1) {
+					buffer[1] = '.';
+					buffer += (significand_length + 1);
+				}
+				else {
+					buffer += 1;
 				}
 			}
 
-			auto output2 = (uint32_t)output;
-			while (output2 >= 10000) {
-#ifdef __clang__ // https://bugs.llvm.org/show_bug.cgi?id=38217
-				const uint32_t c = output2 - 10000 * (output2 / 10000);
-#else
-				const uint32_t c = output2 % 10000;
-#endif
-				output2 /= 10000;
-				const uint32_t c0 = (c % 100) << 1;
-				const uint32_t c1 = (c / 100) << 1;
-				memcpy(buffer + olength - i - 1, radix_100_table + c0, 2);
-				memcpy(buffer + olength - i - 3, radix_100_table + c1, 2);
-				i += 4;
-			}
-			if (output2 >= 100) {
-				const uint32_t c = (output2 % 100) << 1;
-				output2 /= 100;
-				memcpy(buffer + olength - i - 1, radix_100_table + c, 2);
-				i += 2;
-			}
-			if (output2 >= 10) {
-				const uint32_t c = output2 << 1;
-				// We can't use memcpy here: the decimal dot goes between these two digits.
-				buffer[olength - i] = radix_100_table[c + 1];
-				buffer[0] = radix_100_table[c];
-			}
-			else {
-				buffer[0] = (char)('0' + output2);
-			}
-
-			// Print decimal point if needed.
-			if (olength > 1) {
-				buffer[1] = '.';
-				buffer += olength + 1;
-			}
-			else {
-				++buffer;
-			}
-
-			// Print the exponent.
+			// Print exponent and return
 			*buffer = 'E';
 			++buffer;
-			int32_t exp = exponent + (int32_t)olength - 1;
+			auto exp = exponent + significand_length - 1;
 			if (exp < 0) {
 				*buffer = '-';
 				++buffer;
 				exp = -exp;
 			}
-			if constexpr (sizeof(Float) == 8) {
+
+			if constexpr (std::is_same_v<typename FloatTraits::format, ieee754_binary64>)
+			{
 				if (exp >= 100) {
-					const int32_t c = exp % 10;
-					memcpy(buffer, radix_100_table + 2 * (exp / 10), 2);
-					buffer[2] = (char)('0' + c);
+					std::memcpy(buffer, &radix_100_table[(exp / 10) * 2], 2);
+					buffer[2] = (char)('0' + (exp % 10));
 					buffer += 3;
 				}
 				else if (exp >= 10) {
-					memcpy(buffer, radix_100_table + 2 * exp, 2);
+					std::memcpy(buffer, &radix_100_table[exp * 2], 2);
 					buffer += 2;
 				}
 				else {
 					*buffer = (char)('0' + exp);
-					++buffer;
+					buffer += 1;
 				}
 			}
-			else {
+			else
+			{
 				if (exp >= 10) {
-					memcpy(buffer, radix_100_table + 2 * exp, 2);
+					std::memcpy(buffer, &radix_100_table[exp * 2], 2);
 					buffer += 2;
 				}
 				else {
 					*buffer = (char)('0' + exp);
-					++buffer;
+					buffer += 1;
 				}
 			}
 
