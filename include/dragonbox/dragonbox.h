@@ -315,6 +315,12 @@ namespace jkj::dragonbox {
 		constexpr bool is_negative() const noexcept {
 			return traits_type::is_negative(u);
 		}
+		constexpr bool is_finite(unsigned int exponent_bits) const noexcept {
+			return traits_type::is_finite(exponent_bits);
+		}
+		constexpr bool is_finite() const noexcept {
+			return traits_type::is_finite(extract_exponent_bits());
+		}
 	};
 
 	template <class T, class Traits>
@@ -3352,6 +3358,8 @@ namespace jkj::dragonbox {
 		auto br = float_bits<Float, FloatTraits>(x);
 		auto exponent_bits = br.extract_exponent_bits();
 		auto s = br.remove_exponent_bits(exponent_bits);
+
+		assert(br.is_finite());
 
 		auto ret = policy_holder::delegate(s,
 			[br, exponent_bits, s](auto interval_type_provider) {
