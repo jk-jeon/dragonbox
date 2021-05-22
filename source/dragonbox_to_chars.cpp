@@ -77,128 +77,199 @@ namespace jkj::dragonbox {
 			return 0;
 		}
 
-		template <class Float, class FloatTraits>
-		char* to_chars(typename FloatTraits::carrier_uint const significand, int exponent, char* buffer)
+		// Assumes no trailing zero.
+		template <>
+		char* to_chars<float, default_float_traits<float>>(
+			std::uint32_t s32, int exponent, char* buffer) noexcept
+		{
+			int remaining_digits_minus_1 = int(decimal_length_minus_1(s32));
+			exponent += remaining_digits_minus_1;
+			int exponent_position = remaining_digits_minus_1 + 2;
+
+			while (remaining_digits_minus_1 >= 4) {
+#ifdef __clang__ // https://bugs.llvm.org/show_bug.cgi?id=38217
+				auto c = s32 - 1'0000 * (s32 / 1'0000);
+#else
+				auto c = s32 % 1'0000;
+#endif
+				s32 /= 1'0000;
+
+				auto c1 = c / 100;
+				auto c2 = c % 100;
+
+				std::memcpy(buffer + remaining_digits_minus_1,
+					&radix_100_table[c2 * 2], 2);
+				std::memcpy(buffer + remaining_digits_minus_1 - 2,
+					&radix_100_table[c1 * 2], 2);
+				remaining_digits_minus_1 -= 4;
+			}
+			if (remaining_digits_minus_1 >= 2) {
+				auto c = s32 % 100;
+				s32 /= 100;
+
+				std::memcpy(buffer + remaining_digits_minus_1,
+					&radix_100_table[c * 2], 2);
+				remaining_digits_minus_1 -= 2;
+			}
+			if (remaining_digits_minus_1 > 0) {
+				assert(remaining_digits_minus_1 == 1);
+				auto d1 = s32 / 10;
+				auto d2 = s32 % 10;
+
+				buffer[0] = char('0' + d1);
+				buffer[1] = '.';
+				buffer[2] = char('0' + d2);
+				buffer += exponent_position;
+			}
+			else {
+				buffer[0] = char('0' + s32);
+
+				// If the significand is of 1 digit, do not print decimal dot.
+				if (exponent_position == 2) {
+					buffer += 1;
+				}
+				else {
+					buffer[1] = '.';
+					buffer += exponent_position;
+				}
+			}
+
+			// Print exponent and return
+			if (exponent < 0) {
+				std::memcpy(buffer, "E-", 2);
+				buffer += 2;
+				exponent = -exponent;
+			}
+			else {
+				*buffer = 'E';
+				buffer += 1;
+			}
+
+			if (exponent >= 10) {
+				std::memcpy(buffer, &radix_100_table[exponent * 2], 2);
+				buffer += 2;
+			}
+			else {
+				*buffer = (char)('0' + exponent);
+				buffer += 1;
+			}
+
+			return buffer;
+		}
+
+		// May have trailing zeros.
+		template <>
+		char* to_chars<double, default_float_traits<double>>(
+			std::uint64_t const significand, int exponent, char* buffer) noexcept
 		{
 			std::uint32_t s32;
 			int remaining_digits_minus_1;
 			int exponent_position;
 			bool may_have_more_trailing_zeros = false;
 
-			if constexpr (std::is_same_v<typename FloatTraits::format, ieee754_binary64>)
-			{
-				if ((significand >> 32) != 0) {
-					// Since significand is at most 10^17, the quotient is at most 10^9, so
-					// it fits inside 32-bit integer
-					s32 = std::uint32_t(significand / 1'0000'0000);
-					auto r = std::uint32_t(significand) - s32 * 1'0000'0000;
+			if ((significand >> 32) != 0) {
+				// Since significand is at most 10^17, the quotient is at most 10^9, so
+				// it fits inside 32-bit integer
+				s32 = std::uint32_t(significand / 1'0000'0000);
+				auto r = std::uint32_t(significand) - s32 * 1'0000'0000;
 
-					remaining_digits_minus_1 = int(decimal_length_minus_1(s32)) + 8;
-					exponent += remaining_digits_minus_1;
-					exponent_position = remaining_digits_minus_1 + 2;
+				remaining_digits_minus_1 = int(decimal_length_minus_1(s32)) + 8;
+				exponent += remaining_digits_minus_1;
+				exponent_position = remaining_digits_minus_1 + 2;
 
-					if (r != 0) {
-						// Print 8 digits
+				if (r != 0) {
+					// Print 8 digits
 #ifdef __clang__ // https://bugs.llvm.org/show_bug.cgi?id=38217
-						auto c = r - 1'0000 * (r / 1'0000);
+					auto c = r - 1'0000 * (r / 1'0000);
 #else
-						auto c = r % 1'0000;
+					auto c = r % 1'0000;
 #endif
-						r /= 1'0000;
+					r /= 1'0000;
 
-						auto c1 = r / 100;
-						auto c2 = r % 100;
-						auto c3 = c / 100;
-						auto c4 = c % 100;
+					auto c1 = r / 100;
+					auto c2 = r % 100;
+					auto c3 = c / 100;
+					auto c4 = c % 100;
 
-						auto tz = trailing_zero_count_table[c4];
-						if (tz == 0) {
-							goto print_c4_label;
-						}
-						else if (tz == 1) {
-							std::memcpy(buffer + remaining_digits_minus_1,
-								&radix_100_table[c4 * 2], 1);
-							exponent_position -= 1;
-							goto print_c3_label;
-						}
-
-						tz = trailing_zero_count_table[c3];
-						if (tz == 0) {
-							exponent_position -= 2;
-							goto print_c3_label;
-						}
-						else if (tz == 1) {
-							std::memcpy(buffer + remaining_digits_minus_1 - 2,
-								&radix_100_table[c3 * 2], 1);
-							exponent_position -= 3;
-							goto print_c2_label;
-						}
-
-						tz = trailing_zero_count_table[c2];
-						if (tz == 0) {
-							exponent_position -= 4;
-							goto print_c2_label;
-						}
-						else if (tz == 1) {
-							std::memcpy(buffer + remaining_digits_minus_1 - 4,
-								&radix_100_table[c2 * 2], 1);
-							exponent_position -= 5;
-							goto print_c1_label;
-						}
-
-						tz = trailing_zero_count_table[c1];
-						if (tz == 0) {
-							exponent_position -= 6;
-							goto print_c1_label;
-						}
-						// We assumed r != 0, so c1 cannot be zero in this case.
-						assert(tz == 1);
-						std::memcpy(buffer + remaining_digits_minus_1 - 6,
-							&radix_100_table[c1 * 2], 1);
-						exponent_position -= 7;
-						goto after_print_label;
-
-					print_c4_label:
+					auto tz = trailing_zero_count_table[c4];
+					if (tz == 0) {
+						goto print_c4_label;
+					}
+					else if (tz == 1) {
 						std::memcpy(buffer + remaining_digits_minus_1,
-							&radix_100_table[c4 * 2], 2);
+							&radix_100_table[c4 * 2], 1);
+						exponent_position -= 1;
+						goto print_c3_label;
+					}
 
-					print_c3_label:
+					tz = trailing_zero_count_table[c3];
+					if (tz == 0) {
+						exponent_position -= 2;
+						goto print_c3_label;
+					}
+					else if (tz == 1) {
 						std::memcpy(buffer + remaining_digits_minus_1 - 2,
-							&radix_100_table[c3 * 2], 2);
+							&radix_100_table[c3 * 2], 1);
+						exponent_position -= 3;
+						goto print_c2_label;
+					}
 
-					print_c2_label:
+					tz = trailing_zero_count_table[c2];
+					if (tz == 0) {
+						exponent_position -= 4;
+						goto print_c2_label;
+					}
+					else if (tz == 1) {
 						std::memcpy(buffer + remaining_digits_minus_1 - 4,
-							&radix_100_table[c2 * 2], 2);
+							&radix_100_table[c2 * 2], 1);
+						exponent_position -= 5;
+						goto print_c1_label;
+					}
 
-					print_c1_label:
-						std::memcpy(buffer + remaining_digits_minus_1 - 6,
-							&radix_100_table[c1 * 2], 2);
+					tz = trailing_zero_count_table[c1];
+					if (tz == 0) {
+						exponent_position -= 6;
+						goto print_c1_label;
+					}
+					// We assumed r != 0, so c1 cannot be zero in this case.
+					assert(tz == 1);
+					std::memcpy(buffer + remaining_digits_minus_1 - 6,
+						&radix_100_table[c1 * 2], 1);
+					exponent_position -= 7;
+					goto after_print_label;
 
-					after_print_label:;
-					} // r != 0
-					else { // r == 0
-						exponent_position -= 8;
-						may_have_more_trailing_zeros = true;
-					}
-					remaining_digits_minus_1 -= 8;
-				}
-				else {
-					s32 = std::uint32_t(significand);
-					if (s32 >= 10'0000'0000) {
-						remaining_digits_minus_1 = 9;
-					}
-					else {
-						remaining_digits_minus_1 = int(decimal_length_minus_1(s32));
-					}
-					exponent += remaining_digits_minus_1;
-					exponent_position = remaining_digits_minus_1 + 2;
+				print_c4_label:
+					std::memcpy(buffer + remaining_digits_minus_1,
+						&radix_100_table[c4 * 2], 2);
+
+				print_c3_label:
+					std::memcpy(buffer + remaining_digits_minus_1 - 2,
+						&radix_100_table[c3 * 2], 2);
+
+				print_c2_label:
+					std::memcpy(buffer + remaining_digits_minus_1 - 4,
+						&radix_100_table[c2 * 2], 2);
+
+				print_c1_label:
+					std::memcpy(buffer + remaining_digits_minus_1 - 6,
+						&radix_100_table[c1 * 2], 2);
+
+				after_print_label:;
+				} // r != 0
+				else { // r == 0
+					exponent_position -= 8;
 					may_have_more_trailing_zeros = true;
 				}
+				remaining_digits_minus_1 -= 8;
 			}
-			else
-			{
+			else {
 				s32 = std::uint32_t(significand);
-				remaining_digits_minus_1 = int(decimal_length_minus_1(s32));
+				if (s32 >= 10'0000'0000) {
+					remaining_digits_minus_1 = 9;
+				}
+				else {
+					remaining_digits_minus_1 = int(decimal_length_minus_1(s32));
+				}
 				exponent += remaining_digits_minus_1;
 				exponent_position = remaining_digits_minus_1 + 2;
 				may_have_more_trailing_zeros = true;
@@ -289,7 +360,7 @@ namespace jkj::dragonbox {
 
 				buffer[0] = char('0' + d1);
 				if (may_have_more_trailing_zeros && d2 == 0) {
-					++buffer;
+					buffer += 1;
 				}
 				else {
 					buffer[1] = '.';
@@ -301,7 +372,7 @@ namespace jkj::dragonbox {
 				buffer[0] = char('0' + s32);
 
 				if (may_have_more_trailing_zeros) {
-					++buffer;
+					buffer += 1;
 				}
 				else {
 					buffer[1] = '.';
@@ -317,41 +388,24 @@ namespace jkj::dragonbox {
 			}
 			else {
 				*buffer = 'E';
-				++buffer;
+				buffer += 1;
 			}
 
-			if constexpr (std::is_same_v<typename FloatTraits::format, ieee754_binary64>)
-			{
-				if (exponent >= 100) {
-					std::memcpy(buffer, &radix_100_table[(exponent / 10) * 2], 2);
-					buffer[2] = (char)('0' + (exponent % 10));
-					buffer += 3;
-				}
-				else if (exponent >= 10) {
-					std::memcpy(buffer, &radix_100_table[exponent * 2], 2);
-					buffer += 2;
-				}
-				else {
-					*buffer = (char)('0' + exponent);
-					buffer += 1;
-				}
+			if (exponent >= 100) {
+				std::memcpy(buffer, &radix_100_table[(exponent / 10) * 2], 2);
+				buffer[2] = (char)('0' + (exponent % 10));
+				buffer += 3;
 			}
-			else
-			{
-				if (exponent >= 10) {
-					std::memcpy(buffer, &radix_100_table[exponent * 2], 2);
-					buffer += 2;
-				}
-				else {
-					*buffer = (char)('0' + exponent);
-					buffer += 1;
-				}
+			else if (exponent >= 10) {
+				std::memcpy(buffer, &radix_100_table[exponent * 2], 2);
+				buffer += 2;
+			}
+			else {
+				*buffer = (char)('0' + exponent);
+				buffer += 1;
 			}
 
 			return buffer;
 		}
-
-		template char* to_chars<float, default_float_traits<float>>(std::uint32_t, int, char*);
-		template char* to_chars<double, default_float_traits<double>>(std::uint64_t, int, char*);
 	}
 }
