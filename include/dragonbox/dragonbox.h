@@ -53,7 +53,7 @@ namespace jkj::dragonbox {
 			std::numeric_limits<std::enable_if_t<std::is_unsigned_v<T>, T>>::digits;
 	}
 
-	// These classes expose encoding specs of floating-point formats.
+	// These classes expose encoding specs of IEEE-754-like floating-point formats.
 	// Currently available formats are IEEE754-binary32 & IEEE754-binary64.
 
 	struct ieee754_binary32 {
@@ -109,6 +109,14 @@ namespace jkj::dragonbox {
 		>;
 		static_assert(sizeof(carrier_uint) == sizeof(T));
 
+		// Defines a signed integer type for holding
+		// significand bits together with the sign bit.
+		using signed_significand = std::conditional_t<
+			detail::physical_bits<T> == 32,
+			std::int32_t,
+			std::int64_t
+		>;
+
 		// Number of bits in the above unsigned integer type.
 		static constexpr int carrier_bits = int(detail::physical_bits<carrier_uint>);
 
@@ -139,83 +147,102 @@ namespace jkj::dragonbox {
 			constexpr int exponent_bits = format::exponent_bits;
 			static_assert(detail::value_bits<unsigned int> > exponent_bits);
 			constexpr auto exponent_bits_mask = (unsigned int)(((unsigned int)(1) << exponent_bits) - 1);
-			return (unsigned int)((u >> significand_bits) & exponent_bits_mask);
+			return (unsigned int)(u >> significand_bits) & exponent_bits_mask;
 		}
 
 		// Extract significand bits from a bit pattern.
 		// The result must be aligned to the LSB so that there is
 		// no additional zero paddings on the right.
-		// The result of this function does not contain the implicit bit.
+		// The result does not contain the implicit bit.
 		static constexpr carrier_uint extract_significand_bits(carrier_uint u) noexcept {
-			constexpr int significand_bits = format::significand_bits;
-			constexpr auto significand_bits_mask = carrier_uint((carrier_uint(1) << significand_bits) - 1);
-			return carrier_uint(u & significand_bits_mask);
+			constexpr auto mask = carrier_uint((carrier_uint(1) << format::significand_bits) - 1);
+			return carrier_uint(u & mask);
+		}
+
+		// Remove the exponent bits and extract
+		// significand bits together with the sign bit.
+		static constexpr signed_significand remove_exponent_bits(carrier_uint u,
+			unsigned int exponent_bits) noexcept
+		{
+			return signed_significand(u ^ (carrier_uint(exponent_bits) << format::significand_bits));
+		}
+
+		// Shift the obtained signed significand bits to the left by 1 to remove the sign bit.
+		static constexpr carrier_uint remove_sign_bit_and_shift(signed_significand s) noexcept {
+			return carrier_uint(carrier_uint(s) << 1);
 		}
 
 		// The actual value of exponent is obtained by adding
 		// this value to the extracted exponent bits.
 		static constexpr int exponent_bias = 1 - (1 << (carrier_bits - format::significand_bits - 2));
 
+		// Obtain the actual value of the binary exponent from the
+		// extracted exponent bits.
+		static constexpr int binary_exponent(unsigned int exponent_bits) noexcept {
+			if (exponent_bits == 0) {
+				return format::min_exponent;
+			}
+			else {
+				return int(exponent_bits) + format::exponent_bias;
+			}
+		}
+
+		// Obtain the actual value of the binary exponent from the
+		// extracted significand bits and exponent bits.
+		static constexpr carrier_uint binary_significand(
+			carrier_uint significand_bits, unsigned int exponent_bits) noexcept
+		{
+			if (exponent_bits == 0) {
+				return significand_bits;
+			}
+			else {
+				return significand_bits | (carrier_uint(1) << format::significand_bits);
+			}
+		}
+
 
 		/* Various boolean observer functions */
 
-		// Allows positive zero and positive NaN's, but not negative zero.
-		static constexpr bool is_positive(carrier_uint u) noexcept {
-			return (u >> (carrier_bits - 1)) == 0;
-		}
-		// Allows negative zero and negative NaN's, but not positive zero.
-		static constexpr bool is_negative(carrier_uint u) noexcept {
-			return (u >> (carrier_bits - 1)) != 0;
-		}
-		static constexpr bool is_finite(carrier_uint u) noexcept {
-			constexpr int significand_bits = format::significand_bits;
-			constexpr int exponent_bits = format::exponent_bits;
-			constexpr auto exponent_bits_mask =
-				carrier_uint(((carrier_uint(1) << exponent_bits) - 1) << significand_bits);
-
-			return (u & exponent_bits_mask) != exponent_bits_mask;
-		}
 		static constexpr bool is_nonzero(carrier_uint u) noexcept {
 			return (u << 1) != 0;
 		}
-		// Allows positive and negative zeros.
-		static constexpr bool is_subnormal(carrier_uint u) noexcept {
-			constexpr int significand_bits = format::significand_bits;
-			constexpr int exponent_bits = format::exponent_bits;
-			constexpr auto exponent_bits_mask =
-				carrier_uint(((carrier_uint(1) << exponent_bits) - 1) << significand_bits);
-
-			return (u & exponent_bits_mask) == 0;
+		static constexpr bool is_positive(carrier_uint u) noexcept {
+			return signed_significand(u) >= 0;
 		}
-		static constexpr bool is_positive_infinity(carrier_uint u) noexcept {
-			constexpr int significand_bits = format::significand_bits;
-			constexpr int exponent_bits = format::exponent_bits;
-			constexpr auto positive_infinity =
-				carrier_uint((carrier_uint(1) << exponent_bits) - 1) << significand_bits;
-			return u == positive_infinity;
+		static constexpr bool is_negative(carrier_uint u) noexcept {
+			return signed_significand(u) < 0;
 		}
-		static constexpr bool is_negative_infinity(carrier_uint u) noexcept {
-			constexpr int significand_bits = format::significand_bits;
-			constexpr int exponent_bits = format::exponent_bits;
-			constexpr auto negative_infinity =
-				(carrier_uint((carrier_uint(1) << exponent_bits) - 1) << significand_bits)
-				| (carrier_uint(1) << (carrier_bits - 1));
-			return u == negative_infinity;
+		static constexpr bool is_positive(signed_significand s) noexcept {
+			return s >= 0;
 		}
-		static constexpr bool is_infinity(carrier_uint u) noexcept {
-			return is_positive_infinity(u) || is_negative_infinity(u);
+		static constexpr bool is_negative(signed_significand s) noexcept {
+			return s < 0;
 		}
-		static constexpr bool is_nan(carrier_uint u) noexcept {
-			return !is_finite(u) && (extract_significand_bits(u) != 0);
+		static constexpr bool is_finite(unsigned int exponent_bits) noexcept {
+			constexpr unsigned int exponent_bits_all_set = (1u << format::exponent_bits) - 1;
+			return exponent_bits != exponent_bits_all_set;
+		}
+		static constexpr bool has_all_zero_significand_bits(signed_significand s) noexcept {
+			return (s << 1) == 0;
+		}
+		static constexpr bool has_even_significand_bits(signed_significand s) noexcept {
+			return s % 2 == 0;
 		}
 	};
 
-	// Convenient wrapper for floating-point traits classes.
+	// Convenient wrappers for floating-point traits classes.
 	// In order to reduce the argument passing overhead,
-	// this class should be as simple as possible
+	// these classes should be as simple as possible
 	// (e.g., no inheritance, no private non-static data member, etc.;
 	// this is an unfortunate fact about x64 calling convention).
+
 	template <class T, class Traits = default_float_traits<T>>
+	struct float_bits;
+
+	template <class T, class Traits = default_float_traits<T>>
+	struct signed_significand_bits;
+
+	template <class T, class Traits>
 	struct float_bits {
 		using type = T;
 		using traits_type = Traits;
@@ -233,65 +260,92 @@ namespace jkj::dragonbox {
 			return traits_type::carrier_to_float(u);
 		}
 
-		constexpr carrier_uint extract_significand_bits() const noexcept {
-			return traits_type::extract_significand_bits(u);
-		}
+		// Extract exponent bits from a bit pattern.
+		// The result must be aligned to the LSB so that there is
+		// no additional zero paddings on the right.
+		// This function does not do bias adjustment.
 		constexpr unsigned int extract_exponent_bits() const noexcept {
 			return traits_type::extract_exponent_bits(u);
 		}
 
-		constexpr carrier_uint binary_significand() const noexcept {
-			using format = typename traits_type::format;
-			auto s = extract_significand_bits();
-			if (extract_exponent_bits() == 0) {
-				return s;
-			}
-			else {
-				return s | (carrier_uint(1) << format::significand_bits);
-			}
-		}
-		constexpr int binary_exponent() const noexcept {
-			using format = typename traits_type::format;
-			auto e = extract_exponent_bits();
-			if (e == 0) {
-				return format::min_exponent;
-			}
-			else {
-				return e + format::exponent_bias;
-			}
+		// Extract significand bits from a bit pattern.
+		// The result must be aligned to the LSB so that there is
+		// no additional zero paddings on the right.
+		// The result does not contain the implicit bit.
+		constexpr carrier_uint extract_significand_bits() const noexcept {
+			return traits_type::extract_significand_bits(u);
 		}
 
-		constexpr bool is_finite() const noexcept {
-			return traits_type::is_finite(u);
+		// Remove the exponent bits and extract
+		// significand bits together with the sign bit.
+		constexpr auto remove_exponent_bits(
+			unsigned int exponent_bits) const noexcept
+		{
+			return signed_significand_bits<type, traits_type>(
+				traits_type::remove_exponent_bits(u, exponent_bits));
 		}
+
+		// Obtain the actual value of the binary exponent from the
+		// extracted exponent bits.
+		static constexpr int binary_exponent(unsigned int exponent_bits) noexcept {
+			return traits_type::binary_exponent(exponent_bits);
+		}
+		constexpr int binary_exponent() const noexcept {
+			return binary_exponent(extract_exponent_bits());
+		}
+
+		// Obtain the actual value of the binary exponent from the
+		// extracted significand bits and exponent bits.
+		static constexpr carrier_uint binary_significand(
+			carrier_uint significand_bits, unsigned int exponent_bits) noexcept
+		{
+			return traits_type::binary_significand(significand_bits, exponent_bits);
+		}
+		constexpr carrier_uint binary_significand() const noexcept
+		{
+			return binary_significand(extract_significand_bits(), extract_exponent_bits());
+		}
+
 		constexpr bool is_nonzero() const noexcept {
 			return traits_type::is_nonzero(u);
 		}
-		// Allows positive and negative zeros.
-		constexpr bool is_subnormal() const noexcept {
-			return traits_type::is_subnormal(u);
-		}
-		// Allows positive zero and positive NaN's, but not negative zero.
 		constexpr bool is_positive() const noexcept {
 			return traits_type::is_positive(u);
 		}
-		// Allows negative zero and negative NaN's, but not positive zero.
 		constexpr bool is_negative() const noexcept {
 			return traits_type::is_negative(u);
 		}
-		constexpr bool is_positive_infinity() const noexcept {
-			return traits_type::is_positive_infinity(u);
+	};
+
+	template <class T, class Traits>
+	struct signed_significand_bits {
+		using type = T;
+		using traits_type = Traits;
+		using carrier_uint = typename traits_type::carrier_uint;
+		using signed_significand = typename traits_type::signed_significand;
+
+		signed_significand s;
+
+		signed_significand_bits() = default;
+		constexpr explicit signed_significand_bits(signed_significand bit_pattern) noexcept :
+			s{ bit_pattern } {}
+
+		// Shift the obtained signed significand bits to the left by 1 to remove the sign bit.
+		constexpr carrier_uint remove_sign_bit_and_shift() const noexcept {
+			return traits_type::remove_sign_bit_and_shift(s);
 		}
 
-		constexpr bool is_negative_infinity() const noexcept {
-			return traits_type::is_negative_infinity(u);
+		constexpr bool is_positive() const noexcept {
+			return traits_type::is_positive(s);
 		}
-		// Allows both plus and minus infinities.
-		constexpr bool is_infinity() const noexcept {
-			return traits_type::is_infinity(u);
+		constexpr bool is_negative() const noexcept {
+			return traits_type::is_negative(s);
 		}
-		constexpr bool is_nan() const noexcept {
-			return traits_type::is_nan(u);
+		constexpr bool has_all_zero_significand_bits() const noexcept {
+			return traits_type::has_all_zero_significand_bits(s);
+		}
+		constexpr bool has_even_significand_bits() const noexcept {
+			return traits_type::has_even_significand_bits(s);
 		}
 	};
 
@@ -1686,17 +1740,17 @@ namespace jkj::dragonbox {
 					using sign_policy = ignore;
 					static constexpr bool return_has_sign = false;
 
-					template <class Float, class ReturnType>
-					static constexpr void handle_sign(float_bits<Float>, ReturnType&) noexcept {}
+					template <class SignedSignificandBits, class ReturnType>
+					static constexpr void handle_sign(SignedSignificandBits, ReturnType&) noexcept {}
 				};
 
 				struct return_sign : base {
 					using sign_policy = return_sign;
 					static constexpr bool return_has_sign = true;
 
-					template <class Float, class ReturnType>
-					static constexpr void handle_sign(float_bits<Float> br, ReturnType& r) noexcept {
-						r.is_negative = br.is_negative();
+					template <class SignedSignificandBits, class ReturnType>
+					static constexpr void handle_sign(SignedSignificandBits s, ReturnType& r) noexcept {
+						r.is_negative = s.is_negative();
 					}
 				};
 			}
@@ -1817,20 +1871,20 @@ namespace jkj::dragonbox {
 					using decimal_to_binary_rounding_policy = nearest_to_even;
 					static constexpr auto tag = tag_t::to_nearest;
 
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float>, Func&& f) noexcept {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits, Func&& f) noexcept {
 						return f(nearest_to_even{});
 					}
 
-					template <class Float>
+					template <class SignedSignificandBits>
 					static constexpr interval_type::symmetric_boundary
-						interval_type_normal(float_bits<Float> br) noexcept
+						interval_type_normal(SignedSignificandBits s) noexcept
 					{
-						return{ br.u % 2 == 0 };
+						return{ s.has_even_significand_bits() };
 					}
-					template <class Float>
+					template <class SignedSignificandBits>
 					static constexpr interval_type::closed
-						interval_type_shorter(float_bits<Float>) noexcept
+						interval_type_shorter(SignedSignificandBits) noexcept
 					{
 						return{};
 					}
@@ -1839,20 +1893,20 @@ namespace jkj::dragonbox {
 					using decimal_to_binary_rounding_policy = nearest_to_odd;
 					static constexpr auto tag = tag_t::to_nearest;
 
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float>, Func&& f) noexcept {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits, Func&& f) noexcept {
 						return f(nearest_to_odd{});
 					}
 
-					template <class Float>
+					template <class SignedSignificandBits>
 					static constexpr interval_type::symmetric_boundary
-						interval_type_normal(float_bits<Float> br) noexcept
+						interval_type_normal(SignedSignificandBits s) noexcept
 					{
-						return{ br.u % 2 != 0 };
+						return{ !s.has_even_significand_bits() };
 					}
-					template <class Float>
+					template <class SignedSignificandBits>
 					static constexpr interval_type::open
-						interval_type_shorter(float_bits<Float>) noexcept
+						interval_type_shorter(SignedSignificandBits) noexcept
 					{
 						return{};
 					}
@@ -1861,63 +1915,63 @@ namespace jkj::dragonbox {
 					using decimal_to_binary_rounding_policy = nearest_toward_plus_infinity;
 					static constexpr auto tag = tag_t::to_nearest;
 
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float>, Func&& f) noexcept {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits, Func&& f) noexcept {
 						return f(nearest_toward_plus_infinity{});
 					}
 
-					template <class Float>
+					template <class SignedSignificandBits>
 					static constexpr interval_type::asymmetric_boundary
-						interval_type_normal(float_bits<Float> br) noexcept
+						interval_type_normal(SignedSignificandBits s) noexcept
 					{
-						return{ !br.is_negative() };
+						return{ !s.is_negative() };
 					}
-					template <class Float>
+					template <class SignedSignificandBits>
 					static constexpr interval_type::asymmetric_boundary
-						interval_type_shorter(float_bits<Float> br) noexcept
+						interval_type_shorter(SignedSignificandBits s) noexcept
 					{
-						return{ !br.is_negative() };
+						return{ !s.is_negative() };
 					}
 				};
 				struct nearest_toward_minus_infinity : base {
 					using decimal_to_binary_rounding_policy = nearest_toward_minus_infinity;
 					static constexpr auto tag = tag_t::to_nearest;
 
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float>, Func&& f) noexcept {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits, Func&& f) noexcept {
 						return f(nearest_toward_minus_infinity{});
 					}
 
-					template <class Float>
+					template <class SignedSignificandBits>
 					static constexpr interval_type::asymmetric_boundary
-						interval_type_normal(float_bits<Float> br) noexcept
+						interval_type_normal(SignedSignificandBits s) noexcept
 					{
-						return{ br.is_negative() };
+						return{ s.is_negative() };
 					}
-					template <class Float>
+					template <class SignedSignificandBits>
 					static constexpr interval_type::asymmetric_boundary
-						interval_type_shorter(float_bits<Float> br) noexcept
+						interval_type_shorter(SignedSignificandBits s) noexcept
 					{
-						return{ br.is_negative() };
+						return{ s.is_negative() };
 					}
 				};
 				struct nearest_toward_zero : base {
 					using decimal_to_binary_rounding_policy = nearest_toward_zero;
 					static constexpr auto tag = tag_t::to_nearest;
 
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float>, Func&& f) noexcept {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits, Func&& f) noexcept {
 						return f(nearest_toward_zero{});
 					}
-					template <class Float>
+					template <class SignedSignificandBits>
 					static constexpr interval_type::right_closed_left_open
-						interval_type_normal(float_bits<Float>) noexcept
+						interval_type_normal(SignedSignificandBits) noexcept
 					{
 						return{};
 					}
-					template <class Float>
+					template <class SignedSignificandBits>
 					static constexpr interval_type::right_closed_left_open
-						interval_type_shorter(float_bits<Float>) noexcept
+						interval_type_shorter(SignedSignificandBits) noexcept
 					{
 						return{};
 					}
@@ -1926,19 +1980,19 @@ namespace jkj::dragonbox {
 					using decimal_to_binary_rounding_policy = nearest_away_from_zero;
 					static constexpr auto tag = tag_t::to_nearest;
 
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float>, Func&& f) noexcept {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits, Func&& f) noexcept {
 						return f(nearest_away_from_zero{});
 					}
-					template <class Float>
+					template <class SignedSignificandBits>
 					static constexpr interval_type::left_closed_right_open
-						interval_type_normal(float_bits<Float>) noexcept
+						interval_type_normal(SignedSignificandBits) noexcept
 					{
 						return{};
 					}
-					template <class Float>
+					template <class SignedSignificandBits>
 					static constexpr interval_type::left_closed_right_open
-						interval_type_shorter(float_bits<Float>) noexcept
+						interval_type_shorter(SignedSignificandBits) noexcept
 					{
 						return{};
 					}
@@ -1948,15 +2002,15 @@ namespace jkj::dragonbox {
 					struct nearest_always_closed {
 						static constexpr auto tag = tag_t::to_nearest;
 
-						template <class Float>
+						template <class SignedSignificandBits>
 						static constexpr interval_type::closed
-							interval_type_normal(float_bits<Float>) noexcept
+							interval_type_normal(SignedSignificandBits) noexcept
 						{
 							return{};
 						}
-						template <class Float>
+						template <class SignedSignificandBits>
 						static constexpr interval_type::closed
-							interval_type_shorter(float_bits<Float>) noexcept
+							interval_type_shorter(SignedSignificandBits) noexcept
 						{
 							return{};
 						}
@@ -1964,15 +2018,15 @@ namespace jkj::dragonbox {
 					struct nearest_always_open {
 						static constexpr auto tag = tag_t::to_nearest;
 
-						template <class Float>
+						template <class SignedSignificandBits>
 						static constexpr interval_type::open
-							interval_type_normal(float_bits<Float>) noexcept
+							interval_type_normal(SignedSignificandBits) noexcept
 						{
 							return{};
 						}
-						template <class Float>
+						template <class SignedSignificandBits>
 						static constexpr interval_type::open
-							interval_type_shorter(float_bits<Float>) noexcept
+							interval_type_shorter(SignedSignificandBits) noexcept
 						{
 							return{};
 						}
@@ -1981,9 +2035,9 @@ namespace jkj::dragonbox {
 
 				struct nearest_to_even_static_boundary : base {
 					using decimal_to_binary_rounding_policy = nearest_to_even_static_boundary;
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float> br, Func&& f) noexcept {
-						if (br.u % 2 == 0) {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits s, Func&& f) noexcept {
+						if (s.has_even_significand_bits()) {
 							return f(detail::nearest_always_closed{});
 						}
 						else {
@@ -1993,9 +2047,9 @@ namespace jkj::dragonbox {
 				};
 				struct nearest_to_odd_static_boundary : base {
 					using decimal_to_binary_rounding_policy = nearest_to_odd_static_boundary;
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float> br, Func&& f) noexcept {
-						if (br.u % 2 == 0) {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits s, Func&& f) noexcept {
+						if (s.has_even_significand_bits()) {
 							return f(detail::nearest_always_open{});
 						}
 						else {
@@ -2005,9 +2059,9 @@ namespace jkj::dragonbox {
 				};
 				struct nearest_toward_plus_infinity_static_boundary : base {
 					using decimal_to_binary_rounding_policy = nearest_toward_plus_infinity_static_boundary;
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float> br, Func&& f) noexcept {
-						if (br.is_negative()) {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits s, Func&& f) noexcept {
+						if (s.is_negative()) {
 							return f(nearest_toward_zero{});
 						}
 						else {
@@ -2017,9 +2071,9 @@ namespace jkj::dragonbox {
 				};
 				struct nearest_toward_minus_infinity_static_boundary : base {
 					using decimal_to_binary_rounding_policy = nearest_toward_minus_infinity_static_boundary;
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float> br, Func&& f) noexcept {
-						if (br.is_negative()) {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits s, Func&& f) noexcept {
+						if (s.is_negative()) {
 							return f(nearest_away_from_zero{});
 						}
 						else {
@@ -2032,9 +2086,9 @@ namespace jkj::dragonbox {
 					struct left_closed_directed {
 						static constexpr auto tag = tag_t::left_closed_directed;
 
-						template <class Float>
+						template <class SignedSignificandBits>
 						static constexpr interval_type::left_closed_right_open
-							interval_type_normal(float_bits<Float>) noexcept
+							interval_type_normal(SignedSignificandBits) noexcept
 						{
 							return{};
 						}
@@ -2042,9 +2096,9 @@ namespace jkj::dragonbox {
 					struct right_closed_directed {
 						static constexpr auto tag = tag_t::right_closed_directed;
 
-						template <class Float>
+						template <class SignedSignificandBits>
 						static constexpr interval_type::right_closed_left_open
-							interval_type_normal(float_bits<Float>) noexcept
+							interval_type_normal(SignedSignificandBits) noexcept
 						{
 							return{};
 						}
@@ -2053,9 +2107,9 @@ namespace jkj::dragonbox {
 
 				struct toward_plus_infinity : base {
 					using decimal_to_binary_rounding_policy = toward_plus_infinity;
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float> br, Func&& f) noexcept {
-						if (br.is_negative()) {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits s, Func&& f) noexcept {
+						if (s.is_negative()) {
 							return f(detail::left_closed_directed{});
 						}
 						else {
@@ -2065,9 +2119,9 @@ namespace jkj::dragonbox {
 				};
 				struct toward_minus_infinity : base {
 					using decimal_to_binary_rounding_policy = toward_minus_infinity;
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float> br, Func&& f) noexcept {
-						if (br.is_negative()) {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits s, Func&& f) noexcept {
+						if (s.is_negative()) {
 							return f(detail::right_closed_directed{});
 						}
 						else {
@@ -2077,15 +2131,15 @@ namespace jkj::dragonbox {
 				};
 				struct toward_zero : base {
 					using decimal_to_binary_rounding_policy = toward_zero;
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float>, Func&& f) noexcept {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits, Func&& f) noexcept {
 						return f(detail::left_closed_directed{});
 					}
 				};
 				struct away_from_zero : base {
 					using decimal_to_binary_rounding_policy = away_from_zero;
-					template <class Float, class Func>
-					static auto delegate(float_bits<Float>, Func&& f) noexcept {
+					template <class SignedSignificandBits, class Func>
+					static auto delegate(SignedSignificandBits, Func&& f) noexcept {
 						return f(detail::right_closed_directed{});
 					}
 				};
@@ -2391,7 +2445,9 @@ namespace jkj::dragonbox {
 
 			template <class ReturnType, class IntervalTypeProvider,
 				class TrailingZeroPolicy, class BinaryToDecimalRoundingPolicy, class CachePolicy>
-			JKJ_SAFEBUFFERS static ReturnType compute_nearest(float_bits<Float> const br) noexcept
+			JKJ_SAFEBUFFERS static ReturnType compute_nearest(
+				signed_significand_bits<Float, FloatTraits> const s,
+				unsigned int const exponent_bits) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
@@ -2399,9 +2455,8 @@ namespace jkj::dragonbox {
 
 				ReturnType ret_value;
 
-				auto significand = br.extract_significand_bits();
-				auto exponent = int(br.extract_exponent_bits());
-				carrier_uint two_fc = significand << 1;
+				auto exponent = int(exponent_bits);
+				carrier_uint two_fc = s.remove_sign_bit_and_shift();
 
 				// Deal with normal/subnormal dichotomy.
 				if (exponent != 0) {
@@ -2412,7 +2467,7 @@ namespace jkj::dragonbox {
 						shorter_interval_case<TrailingZeroPolicy,
 							BinaryToDecimalRoundingPolicy, CachePolicy>(
 							ret_value, exponent,
-							IntervalTypeProvider::interval_type_shorter(br));
+							IntervalTypeProvider::interval_type_shorter(s));
 						return ret_value;
 					}
 
@@ -2423,7 +2478,7 @@ namespace jkj::dragonbox {
 					exponent = min_exponent - significand_bits;
 				}
 
-				auto const interval_type = IntervalTypeProvider::interval_type_normal(br);
+				auto const interval_type = IntervalTypeProvider::interval_type_normal(s);
 
 				// Compute k and beta.
 				int const minus_k = log::floor_log10_pow2(exponent) - kappa;
@@ -2636,7 +2691,9 @@ namespace jkj::dragonbox {
 
 			template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
 			JKJ_SAFEBUFFERS static ReturnType
-				compute_left_closed_directed(float_bits<Float> const br) noexcept
+				compute_left_closed_directed(
+					float_bits<Float, FloatTraits> const br,
+					unsigned int const exponent_bits) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
@@ -2644,8 +2701,8 @@ namespace jkj::dragonbox {
 
 				ReturnType ret_value;
 
-				auto significand = br.extract_significand_bits();
-				auto exponent = int(br.extract_exponent_bits());
+				carrier_uint significand = br.extract_significand_bits();
+				auto exponent = int(exponent_bits);
 
 				// Deal with normal/subnormal dichotomy.
 				if (exponent != 0) {
@@ -2721,7 +2778,9 @@ namespace jkj::dragonbox {
 
 			template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
 			JKJ_SAFEBUFFERS static ReturnType
-				compute_right_closed_directed(float_bits<Float> const br) noexcept
+				compute_right_closed_directed(
+					float_bits<Float, FloatTraits> const br,
+					unsigned int const exponent_bits) noexcept
 			{
 				//////////////////////////////////////////////////////////////////////
 				// Step 1: integer promotion & Schubfach multiplier calculation
@@ -2729,8 +2788,8 @@ namespace jkj::dragonbox {
 
 				ReturnType ret_value;
 
-				auto significand = br.extract_significand_bits();
-				auto exponent = int(br.extract_exponent_bits());
+				carrier_uint significand = br.extract_significand_bits();
+				auto exponent = int(exponent_bits);
 
 				// Deal with normal/subnormal dichotomy.
 				bool closer_boundary = false;
@@ -3290,10 +3349,12 @@ namespace jkj::dragonbox {
 			policy_holder::return_has_sign,
 			policy_holder::report_trailing_zeros>;
 
-		auto br = float_bits(x);
+		auto br = float_bits<Float, FloatTraits>(x);
+		auto exponent_bits = br.extract_exponent_bits();
+		auto s = br.remove_exponent_bits(exponent_bits);
 
-		auto ret = policy_holder::delegate(br,
-			[br](auto interval_type_provider) {
+		auto ret = policy_holder::delegate(s,
+			[br, exponent_bits, s](auto interval_type_provider) {
 				constexpr auto tag = decltype(interval_type_provider)::tag;
 
 				if constexpr (tag == decimal_to_binary_rounding::tag_t::to_nearest) {
@@ -3302,14 +3363,14 @@ namespace jkj::dragonbox {
 							typename policy_holder::trailing_zero_policy,
 							typename policy_holder::binary_to_decimal_rounding_policy,
 							typename policy_holder::cache_policy
-						>(br);
+						>(s, exponent_bits);
 				}
 				else if constexpr (tag == decimal_to_binary_rounding::tag_t::left_closed_directed) {
 					return detail::impl<Float>::template
 						compute_left_closed_directed<return_type,
 							typename policy_holder::trailing_zero_policy,
 							typename policy_holder::cache_policy
-						>(br);
+						>(br, exponent_bits);
 				}
 				else {
 					static_assert(tag == decimal_to_binary_rounding::tag_t::right_closed_directed);
@@ -3317,11 +3378,11 @@ namespace jkj::dragonbox {
 						compute_right_closed_directed<return_type,
 							typename policy_holder::trailing_zero_policy,
 							typename policy_holder::cache_policy
-						>(br);
+						>(br, exponent_bits);
 				}
 			});
 
-		policy_holder::handle_sign(br, ret);
+		policy_holder::handle_sign(s, ret);
 		return ret;
 	}
 }

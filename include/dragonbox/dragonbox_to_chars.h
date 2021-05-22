@@ -42,11 +42,12 @@ namespace jkj::dragonbox {
 		static_assert(!policy_holder::report_trailing_zeros,
 			"jkj::dragonbox::policy::trailing_zeros::report is not valid for to_chars & to_chars_n");
 
-		using format = typename FloatTraits::format;
+		auto br = float_bits<Float, FloatTraits>(x);
+		auto exponent_bits = br.extract_exponent_bits();
+		auto s = br.remove_exponent_bits(exponent_bits);
 
-		auto br = float_bits(x);
-		if (br.is_finite()) {
-			if (br.is_negative()) {
+		if (FloatTraits::is_finite(exponent_bits)) {
+			if (s.is_negative()) {
 				*buffer = '-';
 				++buffer;
 			}
@@ -66,18 +67,18 @@ namespace jkj::dragonbox {
 			}
 		}
 		else {
-			if ((br.u << (format::exponent_bits + 1)) != 0)
+			if (s.has_all_zero_significand_bits())
 			{
-				std::memcpy(buffer, "NaN", 3);
-				return buffer + 3;
-			}
-			else {
-				if (br.is_negative()) {
+				if (s.is_negative()) {
 					*buffer = '-';
 					++buffer;
 				}
 				std::memcpy(buffer, "Infinity", 8);
 				return buffer + 8;
+			}
+			else {
+				std::memcpy(buffer, "NaN", 3);
+				return buffer + 3;				
 			}
 		}
 	}
