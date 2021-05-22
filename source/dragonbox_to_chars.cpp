@@ -151,13 +151,15 @@ namespace jkj::dragonbox {
 			}
 
 			// Print exponent and return
-			*buffer = 'E';
-			++buffer;
 			auto exp = exponent + significand_length - 1;
 			if (exp < 0) {
-				*buffer = '-';
-				++buffer;
+				std::memcpy(buffer, "E-", 2);
+				buffer += 2;
 				exp = -exp;
+			}
+			else {
+				*buffer = 'E';
+				++buffer;
 			}
 
 			if constexpr (std::is_same_v<typename FloatTraits::format, ieee754_binary64>)
