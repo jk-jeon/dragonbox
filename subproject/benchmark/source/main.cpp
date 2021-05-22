@@ -226,12 +226,12 @@ int main() {
 	constexpr bool benchmark_float = true;
 	constexpr std::size_t number_of_uniform_benchmark_samples_float = 1000000;
 	constexpr std::size_t number_of_digits_benchmark_samples_per_digits_float = 100000;
-	constexpr std::size_t number_of_benchmark_iterations_float = 100;
+	constexpr std::size_t number_of_benchmark_iterations_float = 1000;
 
 	constexpr bool benchmark_double = true;
 	constexpr std::size_t number_of_uniform_benchmark_samples_double = 1000000;
 	constexpr std::size_t number_of_digits_benchmark_samples_per_digits_double = 100000;
-	constexpr std::size_t number_of_benchmark_iterations_double = 100;
+	constexpr std::size_t number_of_benchmark_iterations_double = 1000;
 
 	if constexpr (benchmark_float) {
 		std::cout << "[Running benchmark for binary32...]\n";
