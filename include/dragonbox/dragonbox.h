@@ -2688,7 +2688,6 @@ namespace jkj::dragonbox {
 					{
 						goto small_divisor_case_label;
 					}
-
 				}
 
 				// The ceiling is inside, so we are done.
@@ -3301,6 +3300,7 @@ namespace jkj::dragonbox {
 						>(br);
 				}
 				else {
+					static_assert(tag == rounding_mode::tag_t::right_closed_directed);
 					return detail::impl<Float>::template
 						compute_right_closed_directed<return_type,
 							typename policy_holder::sign_policy,
