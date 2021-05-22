@@ -1829,7 +1829,7 @@ namespace jkj::dragonbox {
 						return{ br.u % 2 != 0 };
 					}
 					template <class Float>
-					static constexpr interval_type::closed
+					static constexpr interval_type::open
 						interval_type_shorter(ieee754_bits<Float>) noexcept
 					{
 						return{};
