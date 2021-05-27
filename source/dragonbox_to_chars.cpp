@@ -77,6 +77,33 @@ namespace jkj::dragonbox {
 			return 0;
 		}
 
+		// Granlund-Montgomery style fast division
+		struct quotient_remainder_pair {
+			std::uint32_t quotient;
+			std::uint32_t remainder;
+		};
+		template <std::uint32_t divisor, unsigned int max_precision, unsigned int additional_precision>
+		static constexpr quotient_remainder_pair fast_div(std::uint32_t n) noexcept {
+			static_assert(max_precision > 0 && max_precision <= 32);
+			assert(n < std::uint32_t(1u << max_precision));
+
+			constexpr auto left_end = std::uint32_t(
+				((1u << (max_precision + additional_precision)) + divisor - 1) / divisor
+			);
+			constexpr auto right_end = std::uint32_t(
+				((1u << additional_precision) * ((1 << max_precision) + 1)) / divisor
+			);
+
+			// Ensures sufficient precision.
+			static_assert(left_end <= right_end);
+			// Ensures no overflow.
+			static_assert(left_end <= std::uint32_t(1u << (32 - max_precision)));
+
+			auto quotient = (n * left_end) >> (max_precision + additional_precision);
+			auto remainder = n - divisor * quotient;
+			return{ quotient, remainder };
+		}
+
 		// Assumes no trailing zero.
 		template <>
 		char* to_chars<float, default_float_traits<float>>(
@@ -94,8 +121,8 @@ namespace jkj::dragonbox {
 #endif
 				s32 /= 1'0000;
 
-				auto c1 = c / 100;
-				auto c2 = c % 100;
+				// c1 = c / 100; c2 = c % 100;
+				auto [c1, c2] = fast_div<100, 14, 5>(c);
 
 				std::memcpy(buffer + remaining_digits_minus_1,
 					&radix_100_table[c2 * 2], 2);
@@ -104,17 +131,18 @@ namespace jkj::dragonbox {
 				remaining_digits_minus_1 -= 4;
 			}
 			if (remaining_digits_minus_1 >= 2) {
-				auto c = s32 % 100;
-				s32 /= 100;
+				// c1 = s32 / 100; c2 = s32 % 100;
+				auto [c1, c2] = fast_div<100, 14, 5>(s32);
+				s32 = c1;
 
 				std::memcpy(buffer + remaining_digits_minus_1,
-					&radix_100_table[c * 2], 2);
+					&radix_100_table[c2 * 2], 2);
 				remaining_digits_minus_1 -= 2;
 			}
 			if (remaining_digits_minus_1 > 0) {
 				assert(remaining_digits_minus_1 == 1);
-				auto d1 = s32 / 10;
-				auto d2 = s32 % 10;
+				// d1 = s32 / 10; d2 = s32 % 10;
+				auto [d1, d2] = fast_div<10, 7, 3>(s32);
 
 				buffer[0] = char('0' + d1);
 				buffer[1] = '.';
@@ -125,12 +153,12 @@ namespace jkj::dragonbox {
 				buffer[0] = char('0' + s32);
 
 				// If the significand is of 1 digit, do not print decimal dot.
-				if (exponent_position == 2) {
-					buffer += 1;
-				}
-				else {
+				if (exponent_position != 2) {
 					buffer[1] = '.';
 					buffer += exponent_position;
+				}
+				else {
+					buffer += 1;
 				}
 			}
 
@@ -186,10 +214,10 @@ namespace jkj::dragonbox {
 #endif
 					r /= 1'0000;
 
-					auto c1 = r / 100;
-					auto c2 = r % 100;
-					auto c3 = c / 100;
-					auto c4 = c % 100;
+					// c1 = r / 100; c2 = r % 100;
+					auto [c1, c2] = fast_div<100, 14, 5>(r);
+					// c3 = c / 100; c4 = c % 100;
+					auto [c3, c4] = fast_div<100, 14, 5>(c);
 
 					auto tz = trailing_zero_count_table[c4];
 					if (tz == 0) {
@@ -283,8 +311,8 @@ namespace jkj::dragonbox {
 #endif
 				s32 /= 1'0000;
 
-				auto c1 = c / 100;
-				auto c2 = c % 100;
+				// c1 = c / 100; c2 = c % 100;
+				auto [c1, c2] = fast_div<100, 14, 5>(c);
 
 				if (may_have_more_trailing_zeros) {
 					auto tz = trailing_zero_count_table[c2];
@@ -329,34 +357,35 @@ namespace jkj::dragonbox {
 				remaining_digits_minus_1 -= 4;
 			}
 			if (remaining_digits_minus_1 >= 2) {
-				auto c = s32 % 100;
-				s32 /= 100;
+				// c1 = s32 / 100; c2 = s32 % 100;
+				auto [c1, c2] = fast_div<100, 14, 5>(s32);
+				s32 = c1;
 
 				if (may_have_more_trailing_zeros) {
-					auto tz = trailing_zero_count_table[c];
+					auto tz = trailing_zero_count_table[c2];
 					exponent_position -= tz;
 					if (tz == 0) {
 						std::memcpy(buffer + remaining_digits_minus_1,
-							&radix_100_table[c * 2], 2);
+							&radix_100_table[c2 * 2], 2);
 						may_have_more_trailing_zeros = false;
 					}
 					else if (tz == 1) {
 						std::memcpy(buffer + remaining_digits_minus_1,
-							&radix_100_table[c * 2], 1);
+							&radix_100_table[c2 * 2], 1);
 						may_have_more_trailing_zeros = false;
 					}
 				}
 				else {
 					std::memcpy(buffer + remaining_digits_minus_1,
-						&radix_100_table[c * 2], 2);
+						&radix_100_table[c2 * 2], 2);
 				}
 
 				remaining_digits_minus_1 -= 2;
 			}
 			if (remaining_digits_minus_1 > 0) {
 				assert(remaining_digits_minus_1 == 1);
-				auto d1 = s32 / 10;
-				auto d2 = s32 % 10;
+				// d1 = s32 / 10; d2 = s32 % 10;
+				auto [d1, d2] = fast_div<10, 7, 3>(s32);
 
 				buffer[0] = char('0' + d1);
 				if (may_have_more_trailing_zeros && d2 == 0) {
@@ -392,8 +421,10 @@ namespace jkj::dragonbox {
 			}
 
 			if (exponent >= 100) {
-				std::memcpy(buffer, &radix_100_table[(exponent / 10) * 2], 2);
-				buffer[2] = (char)('0' + (exponent % 10));
+				// d1 = exponent / 10; d2 = exponent % 10;
+				auto [d1, d2] = fast_div<10, 10, 3>(std::uint32_t(exponent));
+				std::memcpy(buffer, &radix_100_table[d1 * 2], 2);
+				buffer[2] = (char)('0' + d2);
 				buffer += 3;
 			}
 			else if (exponent >= 10) {
