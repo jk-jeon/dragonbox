@@ -2469,6 +2469,34 @@ namespace jkj::dragonbox {
 					exponent += exponent_bias - significand_bits;
 
 					// Shorter interval case; proceed like Schubfach.
+					// One might think this condition is wrong,
+					// since when exponent_bits == 1 and two_fc == 0,
+					// the interval is actullay regular.
+					// However, it turns out that this seemingly wrong condition
+					// is actually fine, because the end result is anyway the same.
+					// 
+					// [binary32]
+					// floor( (fc-1/2) * 2^e ) = 1.175'494'28... * 10^-38
+					// floor( (fc-1/4) * 2^e ) = 1.175'494'31... * 10^-38
+					// floor(    fc    * 2^e ) = 1.175'494'35... * 10^-38
+					// floor( (fc+1/2) * 2^e ) = 1.175'494'42... * 10^-38
+					// 
+					// Hence, shorter_interval_case will return 1.175'494'4 * 10^-38.
+					// 1.175'494'3 * 10^-38 is also a correct shortest representation
+					// that will be rejected if we assume shorter interval,
+					// but 1.175'494'4 * 10^-38 is closer to the true value so it doesn't matter.
+					//
+					// [binary64]
+					// floor( (fc-1/2) * 2^e ) = 2.225'073'858'507'201'13... * 10^-308
+					// floor( (fc-1/4) * 2^e ) = 2.225'073'858'507'201'25... * 10^-308
+					// floor(    fc    * 2^e ) = 2.225'073'858'507'201'38... * 10^-308
+					// floor( (fc+1/2) * 2^e ) = 2.225'073'858'507'201'63... * 10^-308
+					//
+					// Hence, shorter_interval_case will return 2.225'073'858'507'201'4 * 10^-308.
+					// This is indeed of the shortest length, and it is the unique one
+					// closest to the true value among valid representations of the same length.
+					static_assert(std::is_same_v<format, ieee754_binary32> ||
+						std::is_same_v<format, ieee754_binary64>);
 					if (two_fc == 0) {
 						shorter_interval_case<TrailingZeroPolicy,
 							BinaryToDecimalRoundingPolicy, CachePolicy>(
@@ -2739,7 +2767,6 @@ namespace jkj::dragonbox {
 				//////////////////////////////////////////////////////////////////////
 
 				constexpr auto big_divisor = compute_power<kappa + 1>(std::uint32_t(10));
-				constexpr auto small_divisor = compute_power<kappa>(std::uint32_t(10));
 
 				// Using an upper bound on xi, we might be able to optimize the division
 				// better than the compiler; we are computing xi / big_divisor here.
@@ -2801,7 +2828,7 @@ namespace jkj::dragonbox {
 				bool closer_boundary = false;
 				if (exponent != 0) {
 					exponent += exponent_bias - significand_bits;
-					if (significand == 0) {
+					if (significand == 0 && exponent != 1) {
 						closer_boundary = true;
 					}
 					significand |= (carrier_uint(1) << significand_bits);
@@ -3046,7 +3073,8 @@ namespace jkj::dragonbox {
 				}
 			}
 
-			static std::uint32_t compute_delta(cache_entry_type const& cache, int beta_minus_1) noexcept
+			static constexpr std::uint32_t compute_delta(
+				cache_entry_type const& cache, int beta_minus_1) noexcept
 			{
 				if constexpr (std::is_same_v<format, ieee754_binary32>) {
 					return std::uint32_t(cache >> (cache_bits - 1 - beta_minus_1));
@@ -3074,7 +3102,7 @@ namespace jkj::dragonbox {
 				}
 			}
 
-			static carrier_uint compute_left_endpoint_for_shorter_interval_case(
+			static constexpr carrier_uint compute_left_endpoint_for_shorter_interval_case(
 				cache_entry_type const& cache, int beta_minus_1) noexcept
 			{
 				if constexpr (std::is_same_v<format, ieee754_binary32>) {
@@ -3089,7 +3117,7 @@ namespace jkj::dragonbox {
 				}
 			}
 
-			static carrier_uint compute_right_endpoint_for_shorter_interval_case(
+			static constexpr carrier_uint compute_right_endpoint_for_shorter_interval_case(
 				cache_entry_type const& cache, int beta_minus_1) noexcept
 			{
 				if constexpr (std::is_same_v<format, ieee754_binary32>) {
@@ -3104,7 +3132,7 @@ namespace jkj::dragonbox {
 				}
 			}
 
-			static carrier_uint compute_round_up_for_shorter_interval_case(
+			static constexpr carrier_uint compute_round_up_for_shorter_interval_case(
 				cache_entry_type const& cache, int beta_minus_1) noexcept
 			{
 				if constexpr (std::is_same_v<format, ieee754_binary32>) {
@@ -3116,12 +3144,12 @@ namespace jkj::dragonbox {
 				}
 			}
 
-			static bool is_right_endpoint_integer_shorter_interval(int exponent) noexcept {
+			static constexpr bool is_right_endpoint_integer_shorter_interval(int exponent) noexcept {
 				return exponent >= case_shorter_interval_right_endpoint_lower_threshold &&
 					exponent <= case_shorter_interval_right_endpoint_upper_threshold;
 			}
 
-			static bool is_left_endpoint_integer_shorter_interval(int exponent) noexcept {
+			static constexpr bool is_left_endpoint_integer_shorter_interval(int exponent) noexcept {
 				return exponent >= case_shorter_interval_left_endpoint_lower_threshold &&
 					exponent <= case_shorter_interval_left_endpoint_upper_threshold;
 			}
@@ -3338,7 +3366,7 @@ namespace jkj::dragonbox {
 	////////////////////////////////////////////////////////////////////////////////////////
 
 	template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
-	JKJ_SAFEBUFFERS JKJ_FORCEINLINE auto to_decimal(Float x, Policies... policies)
+	JKJ_FORCEINLINE JKJ_SAFEBUFFERS auto to_decimal(Float x, Policies... policies)
 	{
 		// Build policy holder type.
 		using namespace detail::policy_impl;
