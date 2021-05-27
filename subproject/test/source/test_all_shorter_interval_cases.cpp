@@ -33,11 +33,12 @@ static bool test_all_shorter_interval_cases_impl()
 	char buffer2[64];
 
 	bool success = true;
-	for (int e = ieee754_format_info::min_exponent + 1;
+	for (int e = ieee754_format_info::min_exponent;
 		e <= ieee754_format_info::max_exponent; ++e)
 	{
 		// Compose a floating-point number
-		carrier_uint br = carrier_uint(e) << ieee754_format_info::significand_bits;
+		carrier_uint br = carrier_uint(e - ieee754_format_info::exponent_bias)
+			<< ieee754_format_info::significand_bits;
 		auto x = jkj::dragonbox::float_bits<Float>{ br }.to_float();
 
 		jkj::dragonbox::to_chars(x, buffer1);
