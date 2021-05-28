@@ -3355,15 +3355,14 @@ namespace jkj::dragonbox {
 
 						if (two_fc == 0) {
 							return decltype(interval_type_provider)::invoke_shorter_interval_case(
-								signed_significand_bits, [exponent](auto&&... additional_args) {
+								signed_significand_bits, [exponent](auto... additional_args) {
 									return detail::impl<Float, FloatTraits>::template compute_nearest_shorter<
 										return_type,
 										typename decltype(interval_type_provider)::shorter_interval_type,
 										typename policy_holder::trailing_zero_policy,
 										typename policy_holder::binary_to_decimal_rounding_policy,
 										typename policy_holder::cache_policy
-									>(exponent,
-										std::forward<decltype(additional_args)>(additional_args)...);
+									>(exponent, additional_args...);
 								});
 						}
 
@@ -3375,15 +3374,14 @@ namespace jkj::dragonbox {
 					}
 
 					return decltype(interval_type_provider)::invoke_normal_interval_case(
-						signed_significand_bits, [two_fc, exponent](auto&&... additional_args) {
+						signed_significand_bits, [two_fc, exponent](auto... additional_args) {
 							return detail::impl<Float, FloatTraits>::template compute_nearest_normal<
 								return_type,
 								typename decltype(interval_type_provider)::normal_interval_type,
 								typename policy_holder::trailing_zero_policy,
 								typename policy_holder::binary_to_decimal_rounding_policy,
 								typename policy_holder::cache_policy
-							>(two_fc, exponent,
-								std::forward<decltype(additional_args)>(additional_args)...);
+							>(two_fc, exponent, additional_args...);
 						});
 				}
 				else if constexpr (tag == decimal_to_binary_rounding::tag_t::left_closed_directed) {
