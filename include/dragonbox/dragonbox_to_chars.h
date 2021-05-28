@@ -28,7 +28,7 @@ namespace jkj::dragonbox {
 
 	// Returns the next-to-end position
 	template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
-	char* to_chars_n(Float x, char* buffer, Policies... policies)
+	char* to_chars_n(Float x, char* buffer, Policies... policies) noexcept
 	{
 		using namespace jkj::dragonbox::detail::policy_impl;
 		using policy_holder = decltype(make_policy_holder(
@@ -38,17 +38,17 @@ namespace jkj::dragonbox {
 				base_default_pair<cache::base, cache::full>
 			>{}, policies...));
 
-		auto br = float_bits<Float, FloatTraits>(x);
-		auto exponent_bits = br.extract_exponent_bits();
-		auto s = br.remove_exponent_bits(exponent_bits);
+		auto const br = float_bits<Float, FloatTraits>(x);
+		auto const exponent_bits = br.extract_exponent_bits();
+		auto const s = br.remove_exponent_bits(exponent_bits);
 
-		if (FloatTraits::is_finite(exponent_bits)) {
+		if (br.is_finite(exponent_bits)) {
 			if (s.is_negative()) {
 				*buffer = '-';
 				++buffer;
 			}
 			if (br.is_nonzero()) {
-				auto result = to_decimal<Float, FloatTraits>(x,
+				auto result = to_decimal<Float, FloatTraits>(s, exponent_bits,
 					policy::sign::ignore,
 					[] {
 						// For binary32, trailing zero removal procedure is very fast,
@@ -92,7 +92,7 @@ namespace jkj::dragonbox {
 
 	// Null-terminate and bypass the return value of fp_to_chars_n
 	template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
-	char* to_chars(Float x, char* buffer, Policies... policies)
+	char* to_chars(Float x, char* buffer, Policies... policies) noexcept
 	{
 		auto ptr = to_chars_n<Float, FloatTraits>(x, buffer, policies...);
 		*ptr = '\0';
