@@ -101,10 +101,6 @@ namespace jkj::dragonbox {
             std::conditional_t<detail::physical_bits<T> == 32, std::uint32_t, std::uint64_t>;
         static_assert(sizeof(carrier_uint) == sizeof(T));
 
-        // Defines a signed integer type for holding significand bits together with the sign bit.
-        using signed_significand =
-            std::conditional_t<detail::physical_bits<T> == 32, std::int32_t, std::int64_t>;
-
         // Number of bits in the above unsigned integer type.
         static constexpr int carrier_bits = int(detail::physical_bits<carrier_uint>);
 
@@ -146,15 +142,14 @@ namespace jkj::dragonbox {
         }
 
         // Remove the exponent bits and extract significand bits together with the sign bit.
-        static constexpr signed_significand
+        static constexpr carrier_uint
         remove_exponent_bits(carrier_uint u, unsigned int exponent_bits) noexcept {
-            return signed_significand(u ^
-                                      (carrier_uint(exponent_bits) << format::significand_bits));
+            return u ^ (carrier_uint(exponent_bits) << format::significand_bits);
         }
 
         // Shift the obtained signed significand bits to the left by 1 to remove the sign bit.
-        static constexpr carrier_uint remove_sign_bit_and_shift(signed_significand s) noexcept {
-            return carrier_uint(carrier_uint(s) << 1);
+        static constexpr carrier_uint remove_sign_bit_and_shift(carrier_uint u) noexcept {
+            return carrier_uint(carrier_uint(u) << 1);
         }
 
         // The actual value of exponent is obtained by adding this value to the extracted exponent
@@ -189,25 +184,20 @@ namespace jkj::dragonbox {
 
         static constexpr bool is_nonzero(carrier_uint u) noexcept { return (u << 1) != 0; }
         static constexpr bool is_positive(carrier_uint u) noexcept {
-            return signed_significand(u) >= 0;
+            constexpr auto sign_bit = carrier_uint(1)
+                                      << (format::significand_bits + format::exponent_bits);
+            return u < sign_bit;
         }
-        static constexpr bool is_negative(carrier_uint u) noexcept {
-            return signed_significand(u) < 0;
-        }
-        static constexpr bool is_positive(signed_significand s) noexcept { return s >= 0; }
-        static constexpr bool is_negative(signed_significand s) noexcept { return s < 0; }
+        static constexpr bool is_negative(carrier_uint u) noexcept { return !is_positive(u); }
         static constexpr bool is_finite(unsigned int exponent_bits) noexcept {
             constexpr unsigned int exponent_bits_all_set = (1u << format::exponent_bits) - 1;
             return exponent_bits != exponent_bits_all_set;
         }
-        static constexpr bool has_all_zero_significand_bits(signed_significand s) noexcept {
-            return (s << 1) == 0;
+        static constexpr bool has_all_zero_significand_bits(carrier_uint u) noexcept {
+            return (u << 1) == 0;
         }
         static constexpr bool has_even_significand_bits(carrier_uint u) noexcept {
             return u % 2 == 0;
-        }
-        static constexpr bool has_even_significand_bits(signed_significand s) noexcept {
-            return s % 2 == 0;
         }
     };
 
@@ -294,26 +284,25 @@ namespace jkj::dragonbox {
         using type = T;
         using traits_type = Traits;
         using carrier_uint = typename traits_type::carrier_uint;
-        using signed_significand = typename traits_type::signed_significand;
 
-        signed_significand s;
+        carrier_uint u;
 
         signed_significand_bits() = default;
-        constexpr explicit signed_significand_bits(signed_significand bit_pattern) noexcept
-            : s{bit_pattern} {}
+        constexpr explicit signed_significand_bits(carrier_uint bit_pattern) noexcept
+            : u{bit_pattern} {}
 
         // Shift the obtained signed significand bits to the left by 1 to remove the sign bit.
         constexpr carrier_uint remove_sign_bit_and_shift() const noexcept {
-            return traits_type::remove_sign_bit_and_shift(s);
+            return traits_type::remove_sign_bit_and_shift(u);
         }
 
-        constexpr bool is_positive() const noexcept { return traits_type::is_positive(s); }
-        constexpr bool is_negative() const noexcept { return traits_type::is_negative(s); }
+        constexpr bool is_positive() const noexcept { return traits_type::is_positive(u); }
+        constexpr bool is_negative() const noexcept { return traits_type::is_negative(u); }
         constexpr bool has_all_zero_significand_bits() const noexcept {
-            return traits_type::has_all_zero_significand_bits(s);
+            return traits_type::has_all_zero_significand_bits(u);
         }
         constexpr bool has_even_significand_bits() const noexcept {
-            return traits_type::has_even_significand_bits(s);
+            return traits_type::has_even_significand_bits(u);
         }
     };
 
