@@ -142,8 +142,8 @@ namespace jkj::dragonbox {
         }
 
         // Remove the exponent bits and extract significand bits together with the sign bit.
-        static constexpr carrier_uint
-        remove_exponent_bits(carrier_uint u, unsigned int exponent_bits) noexcept {
+        static constexpr carrier_uint remove_exponent_bits(carrier_uint u,
+                                                           unsigned int exponent_bits) noexcept {
             return u ^ (carrier_uint(exponent_bits) << format::significand_bits);
         }
 
@@ -1906,8 +1906,6 @@ namespace jkj::dragonbox {
         // The main algorithm.
         ////////////////////////////////////////////////////////////////////////////////////////
 
-        // Get decimal significand/decimal exponent from
-        // the bit representation of a floating-point number.
         template <class Float, class FloatTraits>
         struct impl : private FloatTraits, private FloatTraits::format {
             using format = typename FloatTraits::format;
@@ -2106,7 +2104,7 @@ namespace jkj::dragonbox {
                     if (divisible_by_10_to_the_kappa) {
                         // Check z^(f) >= epsilon^(f)
                         // We have either yi == zi - epsiloni or yi == (zi - epsiloni) - 1,
-                        // where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f)
+                        // where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f).
                         // Since there are only 2 possibilities, we only need to care about the
                         // parity. Also, zi and r should have the same parity since the divisor is
                         // an even number.
