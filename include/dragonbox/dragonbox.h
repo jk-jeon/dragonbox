@@ -2308,15 +2308,9 @@ namespace jkj::dragonbox {
                 }
                 else if (r == deltai) {
                     // Compare the fractional parts.
-                    if (shorter_interval) {
-                        if (!compute_mul_parity((two_fc * 2) - 1, cache, beta_minus_1 - 1)) {
-                            goto small_divisor_case_label;
-                        }
-                    }
-                    else {
-                        if (!compute_mul_parity(two_fc - 1, cache, beta_minus_1)) {
-                            goto small_divisor_case_label;
-                        }
+                    if (!compute_mul_parity(two_fc - (shorter_interval ? 1 : 2), cache,
+                                            beta_minus_1)) {
+                        goto small_divisor_case_label;
                     }
                 }
 
