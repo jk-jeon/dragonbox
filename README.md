@@ -129,7 +129,7 @@ Determines what `jkj::dragonbox::to_decimal` will do with possible trailing deci
 You cannot specify trailing zero policy to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
 
 ## Decimal-to-binary rounding policy
-Dragonbox provides roundtrip guarantee. What it means is that if we convert the output of Dragonbox back to IEEE-754 binary floating-point format, the result should be equal to the original input to Dragonbox. However, when one must perform rounding when converting the decimal output of Dragonbox back into binary floating-point number, so ensuring roundtrip guarantee requires one to specify the rounding mode for decimal-to-binary conversion.
+Dragonbox provides roundtrip guarantee. What it means is that if we convert the output of Dragonbox back to IEEE-754 binary floating-point format, the result should be equal to the original input to Dragonbox. However, converting the decimal output of Dragonbox back into binary floating-point number requires a rounding, so in order to ensure the roundtrip guarantee, Dragonbox must assume which kind of rounding will be performed for *the inverse, decimal-to-binary conversion*.
 
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even`: **This is the default policy.** Use *round-to-nearest, tie-to-even* rounding mode.
 
@@ -162,7 +162,7 @@ Dragonbox provides roundtrip guarantee. What it means is that if we convert the 
 All of these policies can be specified also to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
 
 ## Binary-to-decimal rounding policy
-Determines what `jkj::dragonbox::to_decimal` will do when rounding tie occurs when obtaining the decimal significand. This policy will be completely ignored if the specified binary-to-decimal rounding policy is not one of the round-to-nearest policies.
+Determines what `jkj::dragonbox::to_decimal` will do when rounding tie occurs while obtaining the decimal significand. This policy will be completely ignored if the specified binary-to-decimal rounding policy is not one of the round-to-nearest policies (because for other policies rounding tie simply doesn't exist).
 
 - `jkj::dragonbox::policy::binary_to_decimal_rounding::do_not_care`: Do not care about correct rounding at all and just find any shortest output with the correct roundtrip. It will produce a faster code, but the performance difference will not be big.
 
