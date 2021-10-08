@@ -707,40 +707,43 @@ namespace jkj::dragonbox {
             }
 
             template <class UInt, UInt a, std::size_t N>
-            struct table_t {
+            struct table_holder {
                 static_assert(std::is_unsigned_v<UInt>);
                 static_assert(a % 2 != 0);
                 static_assert(N > 0);
 
                 static constexpr std::size_t size = N;
-                UInt mod_inv[N];
-                UInt max_quotients[N];
+
+                struct entry {
+                    UInt mod_inv;
+                    UInt max_quotients;
+                };
+
+                entry table[N];
             };
 
             template <class UInt, UInt a, std::size_t N>
-            struct table_holder {
-                static constexpr table_t<UInt, a, N> table = [] {
-                    constexpr auto mod_inverse = modular_inverse<UInt, a>();
-                    table_t<UInt, a, N> table{};
-                    std::common_type_t<UInt, unsigned int> pow_of_mod_inverse = 1;
-                    UInt pow_of_a = 1;
-                    for (std::size_t i = 0; i < N; ++i) {
-                        table.mod_inv[i] = UInt(pow_of_mod_inverse);
-                        table.max_quotients[i] = UInt(std::numeric_limits<UInt>::max() / pow_of_a);
+            constexpr table_holder<UInt, a, N> divisibility_check_table = [] {
+                constexpr auto mod_inverse = modular_inverse<UInt, a>();
+                table_holder<UInt, a, N> t{};
+                std::common_type_t<UInt, unsigned int> pow_of_mod_inverse = 1;
+                UInt pow_of_a = 1;
+                for (std::size_t i = 0; i < N; ++i) {
+                    t.table[i].mod_inv = UInt(pow_of_mod_inverse);
+                    t.table[i].max_quotients = UInt(std::numeric_limits<UInt>::max() / pow_of_a);
 
-                        pow_of_mod_inverse *= mod_inverse;
-                        pow_of_a *= a;
-                    }
+                    pow_of_mod_inverse *= mod_inverse;
+                    pow_of_a *= a;
+                }
 
-                    return table;
-                }();
-            };
+                return t;
+            }();
 
             template <std::size_t table_size, class UInt>
             constexpr bool divisible_by_power_of_5(UInt x, unsigned int exp) noexcept {
-                auto const& table = table_holder<UInt, 5, table_size>::table;
-                assert(exp < table.size);
-                return (x * table.mod_inv[exp]) <= table.max_quotients[exp];
+                constexpr auto const& divtable = divisibility_check_table<UInt, 5, table_size>;
+                assert(exp < divtable.size);
+                return (x * divtable.table[exp].mod_inv) <= divtable.table[exp].max_quotients;
             }
 
             template <class UInt>
@@ -2352,7 +2355,7 @@ namespace jkj::dragonbox {
                     static_assert(max_power == 7, "Assertion failed! Did you change kappa?");
 
                     constexpr auto const& divtable =
-                        div::table_holder<carrier_uint, 5, decimal_digits>::table;
+                        div::divisibility_check_table<carrier_uint, 5, decimal_digits>;
 
                     // Perform a binary search.
                     carrier_uint quotient;
@@ -2360,8 +2363,8 @@ namespace jkj::dragonbox {
 
                     // Is n divisible by 10^4?
                     if ((n & 0xf) == 0) {
-                        quotient = (n >> 4) * divtable.mod_inv[4];
-                        if (quotient <= divtable.max_quotients[4]) {
+                        quotient = (n >> 4) * divtable.table[4].mod_inv;
+                        if (quotient <= divtable.table[4].max_quotients) {
                             n = quotient;
                             s |= 0x4;
                         }
@@ -2369,8 +2372,8 @@ namespace jkj::dragonbox {
 
                     // Is n divisible by 10^2?
                     if ((n & 0x3) == 0) {
-                        quotient = (n >> 2) * divtable.mod_inv[2];
-                        if (quotient <= divtable.max_quotients[2]) {
+                        quotient = (n >> 2) * divtable.table[2].mod_inv;
+                        if (quotient <= divtable.table[2].max_quotients) {
                             n = quotient;
                             s |= 0x2;
                         }
@@ -2378,8 +2381,8 @@ namespace jkj::dragonbox {
 
                     // Is n divisible by 10^1?
                     if ((n & 0x1) == 0) {
-                        quotient = (n >> 1) * divtable.mod_inv[1];
-                        if (quotient <= divtable.max_quotients[1]) {
+                        quotient = (n >> 1) * divtable.table[1].mod_inv;
+                        if (quotient <= divtable.table[1].max_quotients) {
                             n = quotient;
                             s |= 0x1;
                         }
@@ -2396,7 +2399,7 @@ namespace jkj::dragonbox {
                     // quotient and the r should fit in 32-bits.
 
                     constexpr auto const& divtable32 =
-                        div::table_holder<std::uint32_t, 5, 9>::table;
+                        div::divisibility_check_table<std::uint32_t, 5, 9>;
 
                     // If the number is divisible by 1'0000'0000, work with the quotient.
                     auto quotient_by_pow10_8 = std::uint32_t(div::divide_by_pow10<8, 54, 0>(n));
@@ -2410,8 +2413,8 @@ namespace jkj::dragonbox {
                         // This branch is extremely unlikely.
                         // I suspect it is impossible to get into this branch.
                         if ((n32 & 0xff) == 0) {
-                            quotient32 = (n32 >> 8) * divtable32.mod_inv[8];
-                            if (quotient32 <= divtable32.max_quotients[8]) {
+                            quotient32 = (n32 >> 8) * divtable32.table[8].mod_inv;
+                            if (quotient32 <= divtable32.table[8].max_quotients) {
                                 n = quotient32;
                                 return 16;
                             }
@@ -2422,8 +2425,8 @@ namespace jkj::dragonbox {
 
                         // Is n divisible by 10^4?
                         if ((n32 & 0xf) == 0) {
-                            quotient32 = (n32 >> 4) * divtable32.mod_inv[4];
-                            if (quotient32 <= divtable32.max_quotients[4]) {
+                            quotient32 = (n32 >> 4) * divtable32.table[4].mod_inv;
+                            if (quotient32 <= divtable32.table[4].max_quotients) {
                                 n32 = quotient32;
                                 s |= 0x4;
                             }
@@ -2431,8 +2434,8 @@ namespace jkj::dragonbox {
 
                         // Is n divisible by 10^2?
                         if ((n32 & 0x3) == 0) {
-                            quotient32 = (n32 >> 2) * divtable32.mod_inv[2];
-                            if (quotient32 <= divtable32.max_quotients[2]) {
+                            quotient32 = (n32 >> 2) * divtable32.table[2].mod_inv;
+                            if (quotient32 <= divtable32.table[2].max_quotients) {
                                 n32 = quotient32;
                                 s |= 0x2;
                             }
@@ -2440,8 +2443,8 @@ namespace jkj::dragonbox {
 
                         // Is n divisible by 10^1?
                         if ((n32 & 0x1) == 0) {
-                            quotient32 = (n32 >> 1) * divtable32.mod_inv[1];
-                            if (quotient32 <= divtable32.max_quotients[1]) {
+                            quotient32 = (n32 >> 1) * divtable32.table[1].mod_inv;
+                            if (quotient32 <= divtable32.table[1].max_quotients) {
                                 n32 = quotient32;
                                 s |= 0x1;
                             }
@@ -2460,8 +2463,8 @@ namespace jkj::dragonbox {
 
                     // Is n divisible by 10^4?
                     if ((remainder & 0xf) == 0) {
-                        quotient32 = (remainder >> 4) * divtable32.mod_inv[4];
-                        if (quotient32 <= divtable32.max_quotients[4]) {
+                        quotient32 = (remainder >> 4) * divtable32.table[4].mod_inv;
+                        if (quotient32 <= divtable32.table[4].max_quotients) {
                             remainder = quotient32;
                             multiplier = 1'0000;
                             s |= 0x4;
@@ -2470,8 +2473,8 @@ namespace jkj::dragonbox {
 
                     // Is n divisible by 10^2?
                     if ((remainder & 0x3) == 0) {
-                        quotient32 = (remainder >> 2) * divtable32.mod_inv[2];
-                        if (quotient32 <= divtable32.max_quotients[2]) {
+                        quotient32 = (remainder >> 2) * divtable32.table[2].mod_inv;
+                        if (quotient32 <= divtable32.table[2].max_quotients) {
                             remainder = quotient32;
                             multiplier = (s == 4 ? 100 : 100'0000);
                             s |= 0x2;
@@ -2480,10 +2483,10 @@ namespace jkj::dragonbox {
 
                     // Is n divisible by 10^1?
                     if ((remainder & 0x1) == 0) {
-                        quotient32 = (remainder >> 1) * divtable32.mod_inv[1];
-                        if (quotient32 <= divtable32.max_quotients[1]) {
+                        quotient32 = (remainder >> 1) * divtable32.table[1].mod_inv;
+                        if (quotient32 <= divtable32.table[1].max_quotients) {
                             remainder = quotient32;
-                            multiplier = (multiplier >> 1) * divtable32.mod_inv[1];
+                            multiplier = (multiplier >> 1) * divtable32.table[1].mod_inv;
                             s |= 0x1;
                         }
                     }
