@@ -1,4 +1,4 @@
-% Copyright 2020 Junekey Jeon
+% Copyright 2020-2021 Junekey Jeon
 %
 % The contents of this file may be used under the terms of
 % the Apache License v2.0 with LLVM Exceptions.
@@ -33,7 +33,7 @@ for algorithm_idx=1:number_of_algorithms
     offset = (algorithm_idx-1) * samples;
     measured_times(algorithm_idx,:) = table{offset+1:offset+samples, 4};
 end
-bit_representations = sscanf(strjoin(string(table{1:samples, 3})', ' '), '%lx');
+bit_representations = sscanf(strjoin(string(table{1:samples, 3})', ' '), '%lu');
 
 color_array = {[.8 .06 .1],[.1 .7 .06],[.06 .1 .8],[.6 .2 .8],[.8 .9 0],[.5 .6 .7],[.8 .2 .6]};
 
