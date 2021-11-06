@@ -29,7 +29,7 @@ set(benchmark_headers include/benchmark.h)
 set(benchmark_sources
         source/dragonbox.cpp
         source/grisu_exact.cpp
-        source/main.cpp
+        source/benchmark.cpp
         source/ryu.cpp
         source/schubfach.cpp)
 
