@@ -39,6 +39,12 @@
     #define JKJ_FORCEINLINE inline
 #endif
 
+#if defined(__has_builtin)
+    #define JKJ_DRAGONBOX_HAS_BUILTIN(x) __has_builtin(x)
+#else
+    #define JKJ_DRAGONBOX_HAS_BUILTIN(x) false
+#endif
+
 #if defined(_MSC_VER)
     #include <intrin.h>
 #endif
@@ -444,11 +450,11 @@ namespace jkj::dragonbox {
                 constexpr std::uint64_t low() const noexcept { return low_; }
 
                 uint128& operator+=(std::uint64_t n) & noexcept {
-#if defined(__has_builtin) && __has_builtin(__builtin_addcll)
+#if JKJ_DRAGONBOX_HAS_BUILTIN(__builtin_addcll)
                     unsigned long long carry;
                     low_ = __builtin_addcll(low_, n, 0, &carry);
                     high_ = __builtin_addcll(high_, 0, carry, &carry);
-#elif defined(__has_builtin) && __has_builtin(__builtin_ia32_addcarryx_u64)
+#elif JKJ_DRAGONBOX_HAS_BUILTIN(__builtin_ia32_addcarryx_u64)
                     unsigned long long result;
                     auto carry = __builtin_ia32_addcarryx_u64(0, low_, n, &result);
                     low_ = result;
@@ -2517,24 +2523,24 @@ namespace jkj::dragonbox {
                     std::uint32_t quotient;
 
                     // Is n divisible by 10^4?
-                    quotient = bits::rotr(remainder * divtable.table[4].mod_inv, 4);
-                    if (quotient <= divtable.table[4].max_quotient) {
+                    quotient = bits::rotr(remainder * divtable32.table[4].mod_inv, 4);
+                    if (quotient <= divtable32.table[4].max_quotient) {
                         remainder = quotient;
                         multiplier = 1'0000;
                         s |= 0x4;
                     }
 
                     // Is n divisible by 10^2?
-                    quotient = bits::rotr(remainder * divtable.table[2].mod_inv, 2);
-                    if (quotient <= divtable.table[2].max_quotient) {
+                    quotient = bits::rotr(remainder * divtable32.table[2].mod_inv, 2);
+                    if (quotient <= divtable32.table[2].max_quotient) {
                         remainder = quotient;
                         multiplier = (s == 4 ? 100 : 100'0000);
                         s |= 0x2;
                     }
 
                     // Is n divisible by 10^1?
-                    quotient = bits::rotr(remainder * divtable.table[1].mod_inv, 1);
-                    if (quotient <= divtable.table[1].max_quotient) {
+                    quotient = bits::rotr(remainder * divtable32.table[1].mod_inv, 1);
+                    if (quotient <= divtable32.table[1].max_quotient) {
                         remainder = quotient;
                         multiplier = (multiplier >> 1) * divtable32.table[1].mod_inv;
                         s |= 0x1;
@@ -2999,5 +3005,6 @@ namespace jkj::dragonbox {
 #undef JKJ_HAS_COUNTR_ZERO_INTRINSIC
 #undef JKJ_FORCEINLINE
 #undef JKJ_SAFEBUFFERS
+#undef JKJ_DRAGONBOX_HAS_BUILTIN
 
 #endif
