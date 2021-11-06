@@ -26,8 +26,8 @@
 #include <type_traits>
 
 // Suppress additional buffer overrun check.
-// I have no idea why MSVC thinks some functions here are vulnerable to the buffer overrun attacks.
-// No, they aren't.
+// I have no idea why MSVC thinks some functions here are vulnerable to the buffer overrun
+// attacks. No, they aren't.
 #if defined(__GNUC__) || defined(__clang__)
     #define JKJ_SAFEBUFFERS
     #define JKJ_FORCEINLINE inline __attribute__((always_inline))
@@ -409,35 +409,25 @@ namespace jkj::dragonbox {
         ////////////////////////////////////////////////////////////////////////////////////////
 
         namespace wuint {
+            // Compilers might support built-in 128-bit integer types. However, it seems that
+            // emulating them with a pair of 64-bit integers actually produces a better code,
+            // so we avoid using those built-in. That said, they are still useful for
+            // implementing 64-bit x 64-bit -> 128-bit multiplication.
+
+            // clang-format off
+    #if defined(__SIZEOF_INT128__)
+                // To silence "error: ISO C++ does not support '__int128' for 'type name'
+                // [-Wpedantic]"
+        #if defined(__GNUC__)
+            __extension__
+        #endif
+                using builtin_uint128_t = unsigned __int128;
+    #endif
+            // clang-format on
+
             struct uint128 {
                 uint128() = default;
 
-                // clang-format off
-#if defined(__SIZEOF_INT128__)
-                // To silence "error: ISO C++ does not support '__int128' for 'type name' [-Wpedantic]"
-    #if defined(__GNUC__)
-                __extension__
-    #endif
-                using uint128_internal = unsigned __int128;
-                // clang-format on
-
-                uint128_internal internal_;
-
-                constexpr uint128(std::uint64_t high, std::uint64_t low) noexcept
-                    : internal_{((uint128_internal)low) | (((uint128_internal)high) << 64)} {}
-
-                constexpr uint128(uint128_internal u) noexcept : internal_{u} {}
-
-                constexpr std::uint64_t high() const noexcept {
-                    return std::uint64_t(internal_ >> 64);
-                }
-                constexpr std::uint64_t low() const noexcept { return std::uint64_t(internal_); }
-
-                uint128& operator+=(std::uint64_t n) & noexcept {
-                    internal_ += n;
-                    return *this;
-                }
-#else
                 std::uint64_t high_;
                 std::uint64_t low_;
 
@@ -448,18 +438,26 @@ namespace jkj::dragonbox {
                 constexpr std::uint64_t low() const noexcept { return low_; }
 
                 uint128& operator+=(std::uint64_t n) & noexcept {
-    #if defined(_MSC_VER) && defined(_M_X64)
+#if defined(__has_builtin) && __has_builtin(__builtin_addcll)
+                    unsigned long long carry;
+                    low_ = __builtin_addcll(low_, n, 0, &carry);
+                    high_ = __builtin_addcll(high_, 0, carry, &carry);
+#elif defined(__has_builtin) && __has_builtin(__builtin_ia32_addcarryx_u64)
+                    unsigned long long result;
+                    auto carry = __builtin_ia32_addcarryx_u64(0, low_, n, &result);
+                    low_ = result;
+                    __builtin_ia32_addcarryx_u64(carry, high_, 0, &result);
+                    high_ = result;
+#elif defined(_MSC_VER) && defined(_M_X64)
                     auto carry = _addcarry_u64(0, low_, n, &low_);
                     _addcarry_u64(carry, high_, 0, &high_);
-                    return *this;
-    #else
+#else
                     auto sum = low_ + n;
                     high_ += (sum < low_ ? 1 : 0);
                     low_ = sum;
-                    return *this;
-    #endif
-                }
 #endif
+                    return *this;
+                }
             };
 
 #if !defined(__SIZEOF_INT128__)
@@ -475,7 +473,8 @@ namespace jkj::dragonbox {
             // Get 128-bit result of multiplication of two 64-bit unsigned integers.
             JKJ_SAFEBUFFERS inline uint128 umul128(std::uint64_t x, std::uint64_t y) noexcept {
 #if defined(__SIZEOF_INT128__)
-                return uint128::uint128_internal(x) * uint128::uint128_internal(y);
+                auto result = builtin_uint128_t(x) * builtin_uint128_t(y);
+                return {std::uint64_t(result >> 64), std::uint64_t(result)};
 #elif defined(_MSC_VER) && defined(_M_X64)
                 uint128 result;
                 result.low_ = _umul128(x, y, &result.high_);
@@ -501,8 +500,8 @@ namespace jkj::dragonbox {
             JKJ_SAFEBUFFERS inline std::uint64_t umul128_upper64(std::uint64_t x,
                                                                  std::uint64_t y) noexcept {
 #if defined(__SIZEOF_INT128__)
-                auto p = uint128::uint128_internal(x) * uint128::uint128_internal(y);
-                return std::uint64_t(p >> 64);
+                auto result = builtin_uint128_t(x) * builtin_uint128_t(y);
+                return std::uint64_t(result >> 64);
 #elif defined(_MSC_VER) && defined(_M_X64)
                 return __umulh(x, y);
 #else
@@ -2863,8 +2862,8 @@ namespace jkj::dragonbox {
                                     return detail::impl<Float, FloatTraits>::
                                         template compute_nearest_shorter<
                                             return_type,
-                                            typename decltype(
-                                                interval_type_provider)::shorter_interval_type,
+                                            typename decltype(interval_type_provider)::
+                                                shorter_interval_type,
                                             typename policy_holder::trailing_zero_policy,
                                             typename policy_holder::
                                                 binary_to_decimal_rounding_policy,
