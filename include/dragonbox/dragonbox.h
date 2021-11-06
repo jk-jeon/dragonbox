@@ -312,6 +312,12 @@ namespace jkj::dragonbox {
         ////////////////////////////////////////////////////////////////////////////////////////
 
         namespace bits {
+            // Most compilers are able to see that this can be optimized into the ROR
+            // instruction.
+            constexpr inline std::uint32_t rotr(std::uint32_t n, std::uint32_t r) noexcept {
+                return (n >> r) | (n << (32 - r));
+            }
+
             template <class UInt>
             inline int countr_zero(UInt n) noexcept {
                 static_assert(std::is_unsigned_v<UInt> && value_bits<UInt> <= 64);
@@ -801,8 +807,7 @@ namespace jkj::dragonbox {
                 // (n & comparison_mask) >> N must be at most threshold.
                 // Dear compiler, please optimize this into ROR instruction.
                 // (And clang refuses to do that, I don't know why.)
-                auto masked = n & comparison_mask;
-                auto c = (masked >> N) | (masked << (32 - N));
+                auto c = bits::rotr(n & comparison_mask, N);
 
                 n >>= info::shift_amount;
                 return c <= info::threshold;
@@ -2345,39 +2350,53 @@ namespace jkj::dragonbox {
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
                     static_assert(max_power == 7, "Assertion failed! Did you change kappa?");
 
+                    // Perform a binary search.
+                    int s = 0;
+
+#if defined(__clang__) || !defined(_MSC_VER)
+                    if (n % 1'0000 == 0) {
+                        n /= 1'0000;
+                        s |= 0x4;
+                    }
+                    if (n % 100 == 0) {
+                        n /= 100;
+                        s |= 0x2;
+                    }
+                    if (n % 10 == 0) {
+                        n /= 10;
+                        s |= 0x1;
+                    }
+#else
+                    // Up to the currently tested version of MSVC (1926), it seems that MSVC is
+                    // not aware of the Granlund-Montgomery style divisibility test. Thus we
+                    // implement it ourselves here.
+
                     constexpr auto const& divtable =
                         div::divisibility_check_table<carrier_uint, 5, decimal_digits>;
 
-                    // Perform a binary search.
-                    carrier_uint quotient;
-                    int s = 0;
+                    std::uint32_t quotient;
 
                     // Is n divisible by 10^4?
-                    if ((n & 0xf) == 0) {
-                        quotient = (n >> 4) * divtable.table[4].mod_inv;
-                        if (quotient <= divtable.table[4].max_quotients) {
-                            n = quotient;
-                            s |= 0x4;
-                        }
+                    quotient = bits::rotr(n * divtable.table[4].mod_inv, 4);
+                    if (quotient <= divtable.table[4].max_quotient) {
+                        n = quotient;
+                        s |= 0x4;
                     }
 
                     // Is n divisible by 10^2?
-                    if ((n & 0x3) == 0) {
-                        quotient = (n >> 2) * divtable.table[2].mod_inv;
-                        if (quotient <= divtable.table[2].max_quotients) {
-                            n = quotient;
-                            s |= 0x2;
-                        }
+                    quotient = bits::rotr(n * divtable.table[2].mod_inv, 2);
+                    if (quotient <= divtable.table[2].max_quotient) {
+                        n = quotient;
+                        s |= 0x2;
                     }
 
                     // Is n divisible by 10^1?
-                    if ((n & 0x1) == 0) {
-                        quotient = (n >> 1) * divtable.table[1].mod_inv;
-                        if (quotient <= divtable.table[1].max_quotients) {
-                            n = quotient;
-                            s |= 0x1;
-                        }
+                    quotient = bits::rotr(n * divtable.table[1].mod_inv, 1);
+                    if (quotient <= divtable.table[1].max_quotient) {
+                        n = quotient;
+                        s |= 0x1;
                     }
+#endif
 
                     return s;
                 }
@@ -2398,48 +2417,71 @@ namespace jkj::dragonbox {
 
                     if (remainder == 0) {
                         auto n32 = quotient_by_pow10_8;
-                        std::uint32_t quotient32;
+
+#if defined(__clang__) || !defined(_MSC_VER)
+                        // Is n divisible by 10^8?
+                        // This branch is extremely unlikely.
+                        // I suspect it is impossible to get into this branch.
+                        if (n32 % 1'0000'0000 == 0) {
+                            n = n32 / 1'0000'0000;
+                            return 16;
+                        }
+
+                        // Otherwise, perform a binary search.
+                        int s = 8;
+
+                        if (n32 % 1'0000 == 0) {
+                            n32 /= 1'0000;
+                            s |= 0x4;
+                        }
+                        if (n32 % 100 == 0) {
+                            n32 /= 100;
+                            s |= 0x2;
+                        }
+                        if (n32 % 10 == 0) {
+                            n32 /= 10;
+                            s |= 0x1;
+                        }
+#else
+                        // Up to the currently tested version of MSVC (1926), it seems that MSVC is
+                        // not aware of the Granlund-Montgomery style divisibility test. Thus we
+                        // implement it ourselves here.
+
+                        std::uint32_t quotient;
 
                         // Is n divisible by 10^8?
                         // This branch is extremely unlikely.
                         // I suspect it is impossible to get into this branch.
-                        if ((n32 & 0xff) == 0) {
-                            quotient32 = (n32 >> 8) * divtable32.table[8].mod_inv;
-                            if (quotient32 <= divtable32.table[8].max_quotients) {
-                                n = quotient32;
-                                return 16;
-                            }
+                        quotient = bits::rotr(n32 * divtable32.table[8].mod_inv, 8);
+                        if (quotient <= divtable32.table[8].max_quotient) {
+                            n = quotient;
+                            return 16;
                         }
 
                         // Otherwise, perform a binary search.
                         int s = 8;
 
                         // Is n divisible by 10^4?
-                        if ((n32 & 0xf) == 0) {
-                            quotient32 = (n32 >> 4) * divtable32.table[4].mod_inv;
-                            if (quotient32 <= divtable32.table[4].max_quotients) {
-                                n32 = quotient32;
-                                s |= 0x4;
-                            }
+                        quotient = bits::rotr(n32 * divtable.table[4].mod_inv, 4);
+                        if (quotient <= divtable.table[4].max_quotient) {
+                            n32 = quotient;
+                            s |= 0x4;
                         }
 
                         // Is n divisible by 10^2?
-                        if ((n32 & 0x3) == 0) {
-                            quotient32 = (n32 >> 2) * divtable32.table[2].mod_inv;
-                            if (quotient32 <= divtable32.table[2].max_quotients) {
-                                n32 = quotient32;
-                                s |= 0x2;
-                            }
+                        quotient = bits::rotr(n32 * divtable.table[2].mod_inv, 2);
+                        if (quotient <= divtable.table[2].max_quotient) {
+                            n32 = quotient;
+                            s |= 0x2;
                         }
 
                         // Is n divisible by 10^1?
-                        if ((n32 & 0x1) == 0) {
-                            quotient32 = (n32 >> 1) * divtable32.table[1].mod_inv;
-                            if (quotient32 <= divtable32.table[1].max_quotients) {
-                                n32 = quotient32;
-                                s |= 0x1;
-                            }
+                        quotient = bits::rotr(n32 * divtable.table[1].mod_inv, 1);
+                        if (quotient <= divtable.table[1].max_quotient) {
+                            n32 = quotient;
+                            s |= 0x1;
                         }
+#endif
 
                         n = n32;
                         return s;
@@ -2448,39 +2490,56 @@ namespace jkj::dragonbox {
                     // If the number is not divisible by 1'0000'0000, work with the remainder.
 
                     // Perform a binary search.
-                    std::uint32_t quotient32;
                     std::uint32_t multiplier = 1'0000'0000;
                     int s = 0;
 
+#if defined(__clang__) || !defined(_MSC_VER)
+                    if (remainder % 1'0000 == 0) {
+                        remainder /= 1'0000;
+                        multiplier = 1'0000;
+                        s |= 0x4;
+                    }
+                    if (remainder % 100 == 0) {
+                        remainder /= 100;
+                        multiplier = (s == 4 ? 100 : 100'0000);
+                        s |= 0x2;
+                    }
+                    if (remainder % 10 == 0) {
+                        remainder /= 10;
+                        multiplier = (multiplier >> 1) * divtable32.table[1].mod_inv;
+                        s |= 0x1;
+                    }
+#else
+                    // Up to the currently tested version of MSVC (1926), it seems that MSVC is
+                    // not aware of the Granlund-Montgomery style divisibility test. Thus we
+                    // implement it ourselves here.
+
+                    std::uint32_t quotient;
+
                     // Is n divisible by 10^4?
-                    if ((remainder & 0xf) == 0) {
-                        quotient32 = (remainder >> 4) * divtable32.table[4].mod_inv;
-                        if (quotient32 <= divtable32.table[4].max_quotients) {
-                            remainder = quotient32;
-                            multiplier = 1'0000;
-                            s |= 0x4;
-                        }
+                    quotient = bits::rotr(remainder * divtable.table[4].mod_inv, 4);
+                    if (quotient <= divtable.table[4].max_quotient) {
+                        remainder = quotient;
+                        multiplier = 1'0000;
+                        s |= 0x4;
                     }
 
                     // Is n divisible by 10^2?
-                    if ((remainder & 0x3) == 0) {
-                        quotient32 = (remainder >> 2) * divtable32.table[2].mod_inv;
-                        if (quotient32 <= divtable32.table[2].max_quotients) {
-                            remainder = quotient32;
-                            multiplier = (s == 4 ? 100 : 100'0000);
-                            s |= 0x2;
-                        }
+                    quotient = bits::rotr(remainder * divtable.table[2].mod_inv, 2);
+                    if (quotient <= divtable.table[2].max_quotient) {
+                        remainder = quotient;
+                        multiplier = (s == 4 ? 100 : 100'0000);
+                        s |= 0x2;
                     }
 
                     // Is n divisible by 10^1?
-                    if ((remainder & 0x1) == 0) {
-                        quotient32 = (remainder >> 1) * divtable32.table[1].mod_inv;
-                        if (quotient32 <= divtable32.table[1].max_quotients) {
-                            remainder = quotient32;
-                            multiplier = (multiplier >> 1) * divtable32.table[1].mod_inv;
-                            s |= 0x1;
-                        }
+                    quotient = bits::rotr(remainder * divtable.table[1].mod_inv, 1);
+                    if (quotient <= divtable.table[1].max_quotient) {
+                        remainder = quotient;
+                        multiplier = (multiplier >> 1) * divtable32.table[1].mod_inv;
+                        s |= 0x1;
                     }
+#endif
 
                     n = remainder + quotient_by_pow10_8 * carrier_uint(multiplier);
                     return s;
