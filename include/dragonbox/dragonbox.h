@@ -2200,6 +2200,9 @@ namespace jkj::dragonbox {
                     exponent <= shorter_interval_tie_upper_threshold) {
                     --ret_value.significand;
                 }
+                else if (ret_value.significand < xi) {
+                    ++ret_value.significand;
+                }
                 return ret_value;
             }
 
