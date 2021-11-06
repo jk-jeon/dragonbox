@@ -792,14 +792,17 @@ namespace jkj::dragonbox {
                 using info = check_divisibility_and_divide_by_pow10_info<N>;
                 n *= info::magic_number;
 
+                // Mask for the lowest (N + bits_for_comparison)-bits.
+                static_assert(info::bits_for_comparison + N < 32);
                 constexpr std::uint32_t comparison_mask =
-                    info::bits_for_comparison >= 32
-                        ? std::numeric_limits<std::uint32_t>::max()
-                        : std::uint32_t((std::uint32_t(1) << info::bits_for_comparison) - 1);
+                    std::uint32_t((std::uint32_t(1) << (N + info::bits_for_comparison)) - 1);
 
-                // The lowest N bits of (n & comparison_mask) must be zero, and
-                // (n >> N) & comparison_mask must be at most threshold.
-                auto c = ((n >> N) | (n << (info::bits_for_comparison - N))) & comparison_mask;
+                // The lowest N bits of n must be zero, and
+                // (n & comparison_mask) >> N must be at most threshold.
+                // Dear compiler, please optimize this into ROR instruction.
+                // (And clang refuses to do that, I don't know why.)
+                auto masked = n & comparison_mask;
+                auto c = (masked >> N) | (masked << (32 - N));
 
                 n >>= info::shift_amount;
                 return c <= info::threshold;
