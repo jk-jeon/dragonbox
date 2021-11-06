@@ -318,9 +318,10 @@ namespace jkj::dragonbox {
         ////////////////////////////////////////////////////////////////////////////////////////
 
         namespace bits {
-            // Most compilers are able to see that this can be optimized into the ROR
-            // instruction.
-            constexpr inline std::uint32_t rotr(std::uint32_t n, std::uint32_t r) noexcept {
+            // Most compilers should be able to optimize this into the ROR
+            // instruction, but apparently clang refuses to do that inside Dragonbox.
+            // Why...?
+            inline std::uint32_t rotr(std::uint32_t n, std::uint32_t r) noexcept {
                 return (n >> r) | (n << (32 - r));
             }
 
@@ -811,8 +812,6 @@ namespace jkj::dragonbox {
 
                 // The lowest N bits of n must be zero, and
                 // (n & comparison_mask) >> N must be at most threshold.
-                // Dear compiler, please optimize this into ROR instruction.
-                // (And clang refuses to do that, I don't know why.)
                 auto c = bits::rotr(n & comparison_mask, N);
 
                 n >>= info::shift_amount;
