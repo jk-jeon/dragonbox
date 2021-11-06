@@ -1720,7 +1720,7 @@ namespace jkj::dragonbox {
                     static constexpr auto tag = tag_t::do_not_care;
 
                     template <class ReturnType>
-                    static constexpr bool prefer_round_down(ReturnType const& r) noexcept {
+                    static constexpr bool prefer_round_down(ReturnType const&) noexcept {
                         return false;
                     }
                 };
@@ -1750,7 +1750,7 @@ namespace jkj::dragonbox {
                     static constexpr auto tag = tag_t::away_from_zero;
 
                     template <class ReturnType>
-                    static constexpr bool prefer_round_down(ReturnType const& r) noexcept {
+                    static constexpr bool prefer_round_down(ReturnType const&) noexcept {
                         return false;
                     }
                 };
@@ -1760,7 +1760,7 @@ namespace jkj::dragonbox {
                     static constexpr auto tag = tag_t::toward_zero;
 
                     template <class ReturnType>
-                    static constexpr bool prefer_round_down(ReturnType const& r) noexcept {
+                    static constexpr bool prefer_round_down(ReturnType const&) noexcept {
                         return true;
                     }
                 };
