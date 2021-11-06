@@ -721,7 +721,7 @@ namespace jkj::dragonbox {
 
                 struct entry {
                     UInt mod_inv;
-                    UInt max_quotients;
+                    UInt max_quotient;
                 };
 
                 entry table[N];
@@ -735,7 +735,7 @@ namespace jkj::dragonbox {
                 UInt pow_of_a = 1;
                 for (std::size_t i = 0; i < N; ++i) {
                     t.table[i].mod_inv = UInt(pow_of_mod_inverse);
-                    t.table[i].max_quotients = UInt(std::numeric_limits<UInt>::max() / pow_of_a);
+                    t.table[i].max_quotient = UInt(std::numeric_limits<UInt>::max() / pow_of_a);
 
                     pow_of_mod_inverse *= mod_inverse;
                     pow_of_a *= a;
@@ -748,7 +748,7 @@ namespace jkj::dragonbox {
             constexpr bool divisible_by_power_of_5(UInt x, unsigned int exp) noexcept {
                 constexpr auto const& divtable = divisibility_check_table<UInt, 5, table_size>;
                 assert(exp < divtable.size);
-                return (x * divtable.table[exp].mod_inv) <= divtable.table[exp].max_quotients;
+                return (x * divtable.table[exp].mod_inv) <= divtable.table[exp].max_quotient;
             }
 
             template <class UInt>
