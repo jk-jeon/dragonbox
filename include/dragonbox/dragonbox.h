@@ -2462,22 +2462,22 @@ namespace jkj::dragonbox {
                         int s = 8;
 
                         // Is n divisible by 10^4?
-                        quotient = bits::rotr(n32 * divtable.table[4].mod_inv, 4);
-                        if (quotient <= divtable.table[4].max_quotient) {
+                        quotient = bits::rotr(n32 * divtable32.table[4].mod_inv, 4);
+                        if (quotient <= divtable32.table[4].max_quotient) {
                             n32 = quotient;
                             s |= 0x4;
                         }
 
                         // Is n divisible by 10^2?
-                        quotient = bits::rotr(n32 * divtable.table[2].mod_inv, 2);
-                        if (quotient <= divtable.table[2].max_quotient) {
+                        quotient = bits::rotr(n32 * divtable32.table[2].mod_inv, 2);
+                        if (quotient <= divtable32.table[2].max_quotient) {
                             n32 = quotient;
                             s |= 0x2;
                         }
 
                         // Is n divisible by 10^1?
-                        quotient = bits::rotr(n32 * divtable.table[1].mod_inv, 1);
-                        if (quotient <= divtable.table[1].max_quotient) {
+                        quotient = bits::rotr(n32 * divtable32.table[1].mod_inv, 1);
+                        if (quotient <= divtable32.table[1].max_quotient) {
                             n32 = quotient;
                             s |= 0x1;
                         }
