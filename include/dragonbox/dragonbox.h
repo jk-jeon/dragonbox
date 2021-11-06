@@ -2509,7 +2509,7 @@ namespace jkj::dragonbox {
                     }
                     if (remainder % 100 == 0) {
                         remainder /= 100;
-                        multiplier = (s == 4 ? 100 : 100'0000);
+                        multiplier = (multiplier >> 2) * divtable32.table[2].mod_inv;
                         s |= 0x2;
                     }
                     if (remainder % 10 == 0) {
