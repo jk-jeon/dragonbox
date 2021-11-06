@@ -1710,7 +1710,9 @@ namespace jkj::dragonbox {
                     static constexpr auto tag = tag_t::do_not_care;
 
                     template <class ReturnType>
-                    static constexpr void break_rounding_tie(ReturnType&) noexcept {}
+                    static constexpr bool prefer_round_down(ReturnType const& r) noexcept {
+                        return false;
+                    }
                 };
 
                 struct to_even : base {
@@ -1718,8 +1720,8 @@ namespace jkj::dragonbox {
                     static constexpr auto tag = tag_t::to_even;
 
                     template <class ReturnType>
-                    static constexpr void break_rounding_tie(ReturnType& r) noexcept {
-                        r.significand = r.significand % 2 == 0 ? r.significand : r.significand - 1;
+                    static constexpr bool prefer_round_down(ReturnType const& r) noexcept {
+                        return r.significand % 2 != 0;
                     }
                 };
 
@@ -1728,8 +1730,8 @@ namespace jkj::dragonbox {
                     static constexpr auto tag = tag_t::to_odd;
 
                     template <class ReturnType>
-                    static constexpr void break_rounding_tie(ReturnType& r) noexcept {
-                        r.significand = r.significand % 2 != 0 ? r.significand : r.significand - 1;
+                    static constexpr bool prefer_round_down(ReturnType const& r) noexcept {
+                        return r.significand % 2 == 0;
                     }
                 };
 
@@ -1738,7 +1740,9 @@ namespace jkj::dragonbox {
                     static constexpr auto tag = tag_t::away_from_zero;
 
                     template <class ReturnType>
-                    static constexpr void break_rounding_tie(ReturnType&) noexcept {}
+                    static constexpr bool prefer_round_down(ReturnType const& r) noexcept {
+                        return false;
+                    }
                 };
 
                 struct toward_zero : base {
@@ -1746,8 +1750,8 @@ namespace jkj::dragonbox {
                     static constexpr auto tag = tag_t::toward_zero;
 
                     template <class ReturnType>
-                    static constexpr void break_rounding_tie(ReturnType& r) noexcept {
-                        --r.significand;
+                    static constexpr bool prefer_round_down(ReturnType const& r) noexcept {
+                        return true;
                     }
                 };
             }
@@ -2120,13 +2124,10 @@ namespace jkj::dragonbox {
                             // If z^(f) >= epsilon^(f), we might have a tie
                             // when z^(f) == epsilon^(f), or equivalently, when y is an integer.
                             // For tie-to-up case, we can just choose the upper one.
-                            if constexpr (BinaryToDecimalRoundingPolicy::tag !=
-                                          policy_impl::binary_to_decimal_rounding::tag_t::
-                                              away_from_zero) {
-                                if (is_product_integer<integer_check_case_id::fc>(two_fc, exponent,
-                                                                                  minus_k)) {
-                                    BinaryToDecimalRoundingPolicy::break_rounding_tie(ret_value);
-                                }
+                            if (BinaryToDecimalRoundingPolicy::prefer_round_down(ret_value) &&
+                                is_product_integer<integer_check_case_id::fc>(two_fc, exponent,
+                                                                              minus_k)) {
+                                --ret_value.significand;
                             }
                         }
                     }
@@ -2183,22 +2184,10 @@ namespace jkj::dragonbox {
                 ret_value.exponent = minus_k;
 
                 // When tie occurs, choose one of them according to the rule.
-                if constexpr (BinaryToDecimalRoundingPolicy::tag !=
-                                  policy_impl::binary_to_decimal_rounding::tag_t::do_not_care &&
-                              BinaryToDecimalRoundingPolicy::tag !=
-                                  policy_impl::binary_to_decimal_rounding::tag_t::away_from_zero) {
-                    if (exponent >= shorter_interval_tie_lower_threshold &&
-                        exponent <= shorter_interval_tie_upper_threshold) {
-                        BinaryToDecimalRoundingPolicy::break_rounding_tie(ret_value);
-                    }
-                    else if (ret_value.significand < xi) {
-                        ++ret_value.significand;
-                    }
-                }
-                else {
-                    if (ret_value.significand < xi) {
-                        ++ret_value.significand;
-                    }
+                if (BinaryToDecimalRoundingPolicy::prefer_round_down(ret_value) &&
+                    exponent >= shorter_interval_tie_lower_threshold &&
+                    exponent <= shorter_interval_tie_upper_threshold) {
+                    --ret_value.significand;
                 }
                 return ret_value;
             }
