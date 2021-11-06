@@ -2387,21 +2387,21 @@ namespace jkj::dragonbox {
 
                     // Is n divisible by 10^4?
                     quotient = bits::rotr(n * divtable.table[4].mod_inv, 4);
-                    if (quotient <= divtable.table[4].max_quotient) {
+                    if (quotient <= (divtable.table[4].max_quotient >> 4)) {
                         n = quotient;
                         s |= 0x4;
                     }
 
                     // Is n divisible by 10^2?
                     quotient = bits::rotr(n * divtable.table[2].mod_inv, 2);
-                    if (quotient <= divtable.table[2].max_quotient) {
+                    if (quotient <= (divtable.table[2].max_quotient >> 2)) {
                         n = quotient;
                         s |= 0x2;
                     }
 
                     // Is n divisible by 10^1?
                     quotient = bits::rotr(n * divtable.table[1].mod_inv, 1);
-                    if (quotient <= divtable.table[1].max_quotient) {
+                    if (quotient <= (divtable.table[1].max_quotient >> 1)) {
                         n = quotient;
                         s |= 0x1;
                     }
@@ -2462,7 +2462,7 @@ namespace jkj::dragonbox {
                         // This branch is extremely unlikely.
                         // I suspect it is impossible to get into this branch.
                         quotient = bits::rotr(n32 * divtable32.table[8].mod_inv, 8);
-                        if (quotient <= divtable32.table[8].max_quotient) {
+                        if (quotient <= (divtable32.table[8].max_quotient >> 8)) {
                             n = quotient;
                             return 16;
                         }
@@ -2472,21 +2472,21 @@ namespace jkj::dragonbox {
 
                         // Is n divisible by 10^4?
                         quotient = bits::rotr(n32 * divtable32.table[4].mod_inv, 4);
-                        if (quotient <= divtable32.table[4].max_quotient) {
+                        if (quotient <= (divtable32.table[4].max_quotient >> 4)) {
                             n32 = quotient;
                             s |= 0x4;
                         }
 
                         // Is n divisible by 10^2?
                         quotient = bits::rotr(n32 * divtable32.table[2].mod_inv, 2);
-                        if (quotient <= divtable32.table[2].max_quotient) {
+                        if (quotient <= (divtable32.table[2].max_quotient >> 2)) {
                             n32 = quotient;
                             s |= 0x2;
                         }
 
                         // Is n divisible by 10^1?
                         quotient = bits::rotr(n32 * divtable32.table[1].mod_inv, 1);
-                        if (quotient <= divtable32.table[1].max_quotient) {
+                        if (quotient <= (divtable32.table[1].max_quotient >> 1)) {
                             n32 = quotient;
                             s |= 0x1;
                         }
@@ -2527,7 +2527,7 @@ namespace jkj::dragonbox {
 
                     // Is n divisible by 10^4?
                     quotient = bits::rotr(remainder * divtable32.table[4].mod_inv, 4);
-                    if (quotient <= divtable32.table[4].max_quotient) {
+                    if (quotient <= (divtable32.table[4].max_quotient >> 4)) {
                         remainder = quotient;
                         multiplier = 1'0000;
                         s |= 0x4;
@@ -2535,7 +2535,7 @@ namespace jkj::dragonbox {
 
                     // Is n divisible by 10^2?
                     quotient = bits::rotr(remainder * divtable32.table[2].mod_inv, 2);
-                    if (quotient <= divtable32.table[2].max_quotient) {
+                    if (quotient <= (divtable32.table[2].max_quotient >> 2)) {
                         remainder = quotient;
                         multiplier = (s == 4 ? 100 : 100'0000);
                         s |= 0x2;
@@ -2543,7 +2543,7 @@ namespace jkj::dragonbox {
 
                     // Is n divisible by 10^1?
                     quotient = bits::rotr(remainder * divtable32.table[1].mod_inv, 1);
-                    if (quotient <= divtable32.table[1].max_quotient) {
+                    if (quotient <= (divtable32.table[1].max_quotient >> 1)) {
                         remainder = quotient;
                         multiplier = (multiplier >> 1) * divtable32.table[1].mod_inv;
                         s |= 0x1;
