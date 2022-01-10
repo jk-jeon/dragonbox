@@ -424,7 +424,7 @@ namespace jkj::dragonbox {
         namespace wuint {
             // Compilers might support built-in 128-bit integer types. However, it seems that
             // emulating them with a pair of 64-bit integers actually produces a better code,
-            // so we avoid using those built-in. That said, they are still useful for
+            // so we avoid using those built-ins. That said, they are still useful for
             // implementing 64-bit x 64-bit -> 128-bit multiplication.
 
             // clang-format off
