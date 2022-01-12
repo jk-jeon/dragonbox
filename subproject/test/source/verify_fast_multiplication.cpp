@@ -49,10 +49,10 @@ static bool verify_fast_multiplication_xz() {
         auto z_fast = impl::compute_right_endpoint_for_shorter_interval_case(cache, beta_minus_1);
 
         // Compute the endpoints using the exact method
-        auto x_exact = beta_minus_2 >= 0 ? impl::compute_mul(fl << beta_minus_2, cache)
-                                         : impl::compute_mul(fl, cache) >> -beta_minus_2;
-        auto z_exact = beta_minus_2 >= 0 ? impl::compute_mul(fr << beta_minus_2, cache)
-                                         : impl::compute_mul(fr, cache) >> -beta_minus_2;
+        auto x_exact = beta_minus_2 >= 0 ? impl::compute_mul(fl << beta_minus_2, cache).result
+                                         : impl::compute_mul(fl, cache).result >> -beta_minus_2;
+        auto z_exact = beta_minus_2 >= 0 ? impl::compute_mul(fr << beta_minus_2, cache).result
+                                         : impl::compute_mul(fr, cache).result >> -beta_minus_2;
 
         if (x_fast != x_exact) {
             std::cout << "(e = " << e << ") left endpoint is not correct; computed = " << x_fast
