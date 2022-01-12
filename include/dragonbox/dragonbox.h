@@ -1,4 +1,4 @@
-// Copyright 2020-2021 Junekey Jeon
+// Copyright 2020-2022 Junekey Jeon
 //
 // The contents of this file may be used under the terms of
 // the Apache License v2.0 with LLVM Exceptions.
@@ -323,97 +323,6 @@ namespace jkj::dragonbox {
             // Why...?
             inline std::uint32_t rotr(std::uint32_t n, std::uint32_t r) noexcept {
                 return (n >> r) | (n << (32 - r));
-            }
-
-            template <class UInt>
-            inline int countr_zero(UInt n) noexcept {
-                static_assert(std::is_unsigned_v<UInt> && value_bits<UInt> <= 64);
-#if defined(__GNUC__) || defined(__clang__)
-    #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 1
-                if constexpr (std::is_same_v<UInt, unsigned long>) {
-                    return __builtin_ctzl(n);
-                }
-                else if constexpr (std::is_same_v<UInt, unsigned long long>) {
-                    return __builtin_ctzll(n);
-                }
-                else {
-                    static_assert(sizeof(UInt) <= sizeof(unsigned int));
-                    return __builtin_ctz((unsigned int)n);
-                }
-#elif defined(_MSC_VER)
-    #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 1
-                if constexpr (std::is_same_v<UInt, unsigned __int64>) {
-    #if defined(_M_X64)
-                    return int(_tzcnt_u64(n));
-    #else
-                    return ((unsigned int)(n) == 0) ? (32 + (_tzcnt_u32((unsigned int)(n >> 32))))
-                                                    : (_tzcnt_u32((unsigned int)n));
-    #endif
-                }
-                else {
-                    static_assert(sizeof(UInt) <= sizeof(unsigned int));
-                    return int(_tzcnt_u32((unsigned int)n));
-                }
-#else
-    #define JKJ_HAS_COUNTR_ZERO_INTRINSIC 0
-                int count;
-                auto n32 = std::uint32_t(n);
-
-                // clang-format off
-                // clang-format tries to chang the next line into:
-                // if constexpr (value_bits < UInt >> 32) {
-                if constexpr (value_bits<UInt> > 32) {
-                    if (n32 != 0) {
-                        count = 31;
-                    }
-                    else {
-                        n32 = std::uint32_t(n >> 32);
-                        if constexpr (value_bits<UInt> == 64) {
-                            if (n32 != 0) {
-                                count = 63;
-                            }
-                            else {
-                                return 64;
-                            }
-                        }
-                        else {
-                            count = value_bits<UInt>;
-                        }
-                    }
-                }
-                else {
-                    if constexpr (value_bits<UInt> == 32) {
-                        if (n32 != 0) {
-                            count = 31;
-                        }
-                        else {
-                            return 32;
-                        }
-                    }
-                    else {
-                        count = value_bits<UInt>;
-                    }
-                }
-
-                n32 &= (0 - n32);
-                if constexpr (value_bits<UInt> > 16) {
-                    if ((n32 & 0x0000ffff) != 0)
-                        count -= 16;
-                }
-                if constexpr (value_bits<UInt> > 8) {
-                    if ((n32 & 0x00ff00ff) != 0)
-                        count -= 8;
-                }
-                // clang-format on
-                if ((n32 & 0x0f0f0f0f) != 0)
-                    count -= 4;
-                if ((n32 & 0x33333333) != 0)
-                    count -= 2;
-                if ((n32 & 0x55555555) != 0)
-                    count -= 1;
-
-                return count;
-#endif
             }
         }
 
@@ -743,28 +652,6 @@ namespace jkj::dragonbox {
 
                 return t;
             }();
-
-            template <std::size_t table_size, class UInt>
-            constexpr bool divisible_by_power_of_5(UInt x, unsigned int exp) noexcept {
-                constexpr auto const& divtable = divisibility_check_table<UInt, 5, table_size>;
-                assert(exp < divtable.size);
-                return (x * divtable.table[exp].mod_inv) <= divtable.table[exp].max_quotient;
-            }
-
-            template <class UInt>
-            constexpr bool divisible_by_power_of_2(UInt x, unsigned int exp) noexcept {
-                assert(exp >= 1);
-                assert(x != 0);
-#if JKJ_HAS_COUNTR_ZERO_INTRINSIC
-                return bits::countr_zero(x) >= int(exp);
-#else
-                if (exp >= value_bits<UInt>) {
-                    return false;
-                }
-                auto mask = UInt((UInt(1) << exp) - 1);
-                return (x & mask) == 0;
-#endif
-            }
 
             // Replace n by floor(n / 10^N).
             // Returns true if and only if n is divisible by 10^N.
@@ -1959,11 +1846,6 @@ namespace jkj::dragonbox {
 
             static constexpr int case_fc_pm_half_lower_threshold =
                 -kappa - log::floor_log5_pow2(kappa);
-            static constexpr int case_fc_pm_half_upper_threshold = log::floor_log2_pow10(kappa + 1);
-
-            static constexpr int case_fc_lower_threshold =
-                -kappa - 1 - log::floor_log5_pow2(kappa + 1);
-            static constexpr int case_fc_upper_threshold = log::floor_log2_pow10(kappa + 1);
 
             static constexpr int case_shorter_interval_left_endpoint_lower_threshold = 2;
             static constexpr int case_shorter_interval_left_endpoint_upper_threshold =
@@ -2056,10 +1938,25 @@ namespace jkj::dragonbox {
                 }
                 else {
                     auto const two_fl = two_fc - 1;
-                    auto const [xi_parity, is_x_integer] =
-                        compute_mul_parity(two_fl, cache, beta_minus_1);
-                    if (!xi_parity && (!interval_type.include_left_endpoint() || !is_x_integer)) {
-                        goto small_divisor_case_label;
+
+                    if (!interval_type.include_left_endpoint() ||
+                        exponent < case_fc_pm_half_lower_threshold ||
+                        exponent > divisibility_check_by_5_threshold) {
+                        // If the left endpoint is not included, the condition for
+                        // success is z^(f) < delta^(f) (odd parity).
+                        // Otherwise, the inequalities on exponent ensure that
+                        // x is not an integer, so if z^(f) >= delta^(f) (even parity), we in fact
+                        // have strict inequality.
+                        if (!compute_mul_parity(two_fl, cache, beta_minus_1).parity) {
+                            goto small_divisor_case_label;
+                        }
+                    }
+                    else {
+                        auto [xi_parity, x_is_integer] =
+                            compute_mul_parity(two_fl, cache, beta_minus_1);
+                        if (!xi_parity && !x_is_integer) {
+                            goto small_divisor_case_label;
+                        }
                     }
                 }
                 ret_value.exponent = minus_k + kappa + 1;
@@ -2307,7 +2204,8 @@ namespace jkj::dragonbox {
                 else if (r == deltai) {
                     // Compare the fractional parts.
                     if (!compute_mul_parity(two_fc - (shorter_interval ? 1 : 2), cache,
-                                            beta_minus_1).parity) {
+                                            beta_minus_1)
+                             .parity) {
                         goto small_divisor_case_label;
                     }
                 }
@@ -2958,7 +2856,6 @@ namespace jkj::dragonbox {
     }
 }
 
-#undef JKJ_HAS_COUNTR_ZERO_INTRINSIC
 #undef JKJ_FORCEINLINE
 #undef JKJ_SAFEBUFFERS
 #undef JKJ_DRAGONBOX_HAS_BUILTIN
