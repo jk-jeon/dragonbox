@@ -25,34 +25,17 @@
 #include <vector>
 
 template <class FloatTraits>
-auto verify_sufficiency_of_cache_precision() {
-    using float_type = typename FloatTraits::type;
-    using impl = jkj::dragonbox::detail::impl<float_type, FloatTraits>;
-
-    using namespace jkj::dragonbox::detail::log;
-
-    constexpr auto k_min = std::min(
-        impl::kappa - floor_log10_pow2(impl::max_exponent - impl::significand_bits),
-        -floor_log10_pow2_minus_log10_4_over_3(impl::max_exponent - impl::significand_bits));
-    constexpr auto k_max = std::max(
-        impl::kappa - floor_log10_pow2(impl::min_exponent - impl::significand_bits),
-        -floor_log10_pow2_minus_log10_4_over_3(impl::min_exponent - impl::significand_bits));
+bool verify_sufficiency_of_cache_precision() {
+    using impl = jkj::dragonbox::detail::impl<typename FloatTraits::type, FloatTraits>;
 
     auto n_max = jkj::big_uint::power_of_2(impl::significand_bits + 2) - 1;
 
-    struct interval {
-        jkj::unsigned_rational<jkj::big_uint> below;
-        jkj::unsigned_rational<jkj::big_uint> center;
-        jkj::unsigned_rational<jkj::big_uint> above;
-    };
-    std::vector<interval> intervals;
-
     jkj::unsigned_rational<jkj::big_uint> target_number;
-    for (int k = k_min; k <= k_max; ++k) {
+    for (int k = impl::min_k; k <= impl::max_k; ++k) {
         // (2f_c +- 1) * 2^(beta - 1) * (2^(k - e_k - Q) * 5^k)
         // e_k = floor(k log2(10)) - Q + 1, so
         // k - e_k - Q = k - floor(k log2(10)) - 1.
-        int exp_2 = k - floor_log2_pow10(k) - 1;
+        int exp_2 = k - jkj::dragonbox::detail::log::floor_log2_pow10(k) - 1;
 
         target_number.numerator = 1;
         target_number.denominator = 1;
@@ -163,4 +146,6 @@ int main() {
                   << "-bits are not sufficient.\n\n";
         success = false;
     }
+
+    return success ? 0 : -1;
 }
