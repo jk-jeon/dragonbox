@@ -258,7 +258,14 @@ Some executable files require the correct working directory to be set. For examp
 
 
 # Notes
-Besides the uniformly random tests against Ryu, I also ran a joint test of Dragonbox with a binary-to-decimal floating-point conversion routine I developed, and confirmed correct roundtrip for all possible IEEE-754 binary32-encoded floating-point numbers (aka `float`) with the round-to-nearest, tie-to-even rounding mode. Therefore, I am currently pretty confident about the correctness of both of the algorithms. I will make a separate repository for the reverse algorithm in a near future.
+
+## Correctness of the algorithm
+
+The [paper](other_files/Dragonbox.pdf) provides a mathematical proof of the correctness of the algorithm, with the aid of verification programs in [`test`](test) and [`meta`](meta) directories. In addition to that, I did a fair amount of uniformly random tests against Ryu (which is extremely heavily tested in its own), and I also ran a joint test of Dragonbox with a binary-to-decimal floating-point conversion routine I developed, and confirmed correct roundtrip for all possible IEEE-754 binary32-encoded floating-point numbers (aka `float`) with the round-to-nearest, tie-to-even rounding mode. Therefore, I am pretty confident about the correctness of both of the algorithms.
+
+## Precise meaning of roundtrip gurantee
+
+The precise meaning of roundtrip guarantee might be tricky, as it depends on the notion of "correct parsers". For example, given that `significand` and `exponent` are the outputs of Dragonbox with respect to an input floating-point number `x` of, say, type `double`, then things like `x == significand * pow(10.0, exponent)` might or might not be the case, because each of the floating-point operations in the expression `significand * pow(10.0, exponent)` can introduce rounding errors that can accumulate to a bigger error. What a correct parser should do is to precisely compute the floating-point number from the given expression according to the assumed rounding rule, and the result must be "correctly rounded" in the sense that only the minimum possible rounding error is allowed. Implementing a correct parser is indeed a very nontrivial job, so you may need additional libraries (like [Ryu](https://github.com/ulfjack/ryu) or [double-conversion](https://github.com/google/double-conversion)) if you want to check this roundtrip guarantee by yourself.
 
 # License
 All code, except for those belong to third-party libraries (code in [`subproject/3rdparty`](subproject/3rdparty)), is licensed under either of
