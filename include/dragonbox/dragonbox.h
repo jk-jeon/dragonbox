@@ -16,8 +16,8 @@
 // KIND, either express or implied.
 
 
-#ifndef JKJ_DRAGONBOX
-#define JKJ_DRAGONBOX
+#ifndef JKJ_HEADER_DRAGONBOX
+#define JKJ_HEADER_DRAGONBOX
 
 #include <cassert>
 #include <cstdint>

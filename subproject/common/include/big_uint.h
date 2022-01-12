@@ -15,8 +15,8 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
 
-#ifndef JKJ_DRAGONBOX_BIG_UINT
-#define JKJ_DRAGONBOX_BIG_UINT
+#ifndef JKJ_HEADER_BIG_UINT
+#define JKJ_HEADER_BIG_UINT
 
 #include <cstddef>
 #include <cstdint>
