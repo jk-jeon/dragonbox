@@ -534,43 +534,36 @@ namespace jkj::dragonbox {
 #endif
             }
 
-            // Get upper 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit
+            // Get upper 128-bits of multiplication of a 64-bit unsigned integer and a 128-bit
             // unsigned integer.
-            JKJ_SAFEBUFFERS inline std::uint64_t umul192_upper64(std::uint64_t x,
-                                                                 uint128 y) noexcept {
-                auto g0 = umul128(x, y.high());
-                g0 += umul128_upper64(x, y.low());
-                return g0.high();
+            JKJ_SAFEBUFFERS inline uint128 umul192_upper128(std::uint64_t x, uint128 y) noexcept {
+                auto r = umul128(x, y.high());
+                r += umul128_upper64(x, y.low());
+                return r;
             }
 
-            // Get upper 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit
+            // Get upper 64-bits of multiplication of a 32-bit unsigned integer and a 64-bit
             // unsigned integer.
-            inline std::uint32_t umul96_upper32(std::uint32_t x, std::uint64_t y) noexcept {
+            inline std::uint64_t umul96_upper64(std::uint32_t x, std::uint64_t y) noexcept {
 #if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
-                return std::uint32_t(umul128_upper64(x, y));
+                return umul128_upper64(std::uint64_t(x) << 32, y);
 #else
-                // std::uint32_t a = 0;
-                auto b = x;
-                auto c = std::uint32_t(y >> 32);
-                auto d = std::uint32_t(y);
+                auto yh = std::uint32_t(y >> 32);
+                auto yl = std::uint32_t(y);
 
-                // std::uint64_t ac = 0;
-                auto bc = umul64(b, c);
-                // std::uint64_t ad = 0;
-                auto bd = umul64(b, d);
+                auto xyh = umul64(x, yh);
+                auto xyl = umul64(x, yl);
 
-                auto intermediate = (bd >> 32) + bc;
-                return std::uint32_t(intermediate >> 32);
+                return xyh + (xyl >> 32);
 #endif
             }
 
             // Get middle 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit
             // unsigned integer.
-            JKJ_SAFEBUFFERS inline std::uint64_t umul192_middle64(std::uint64_t x,
-                                                                  uint128 y) noexcept {
-                auto g01 = x * y.high();
-                auto g10 = umul128_upper64(x, y.low());
-                return g01 + g10;
+            JKJ_SAFEBUFFERS inline uint128 umul192_lower128(std::uint64_t x, uint128 y) noexcept {
+                auto high = x * y.high();
+                auto high_low = umul128(x, y.low());
+                return {high + high_low.high(), high_low.low()};
             }
 
             // Get middle 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit
@@ -1993,6 +1986,15 @@ namespace jkj::dragonbox {
             static constexpr int shorter_interval_tie_upper_threshold =
                 -log::floor_log5_pow2(significand_bits + 2) - 2 - significand_bits;
 
+            struct compute_mul_result {
+                carrier_uint result;
+                bool is_integer;
+            };
+            struct compute_mul_parity_result {
+                bool parity;
+                bool is_integer;
+            };
+
             //// The main algorithm assumes the input is a normal/subnormal finite number
 
             template <class ReturnType, class IntervalType, class TrailingZeroPolicy,
@@ -2016,8 +2018,7 @@ namespace jkj::dragonbox {
                 // Compute zi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
                 auto const deltai = compute_delta(cache, beta_minus_1);
-                carrier_uint const two_fr = two_fc | 1;
-                carrier_uint const zi = compute_mul(two_fr << beta_minus_1, cache);
+                auto const [zi, is_z_integer] = compute_mul((two_fc | 1) << beta_minus_1, cache);
 
 
                 //////////////////////////////////////////////////////////////////////
@@ -2038,9 +2039,7 @@ namespace jkj::dragonbox {
                 }
                 else if (r < deltai) {
                     // Exclude the right endpoint if necessary.
-                    if (r == 0 && !interval_type.include_right_endpoint() &&
-                        is_product_integer<integer_check_case_id::fc_pm_half>(two_fr, exponent,
-                                                                              minus_k)) {
+                    if (r == 0 && is_z_integer && !interval_type.include_right_endpoint()) {
                         if constexpr (BinaryToDecimalRoundingPolicy::tag ==
                                       policy_impl::binary_to_decimal_rounding::tag_t::do_not_care) {
                             ret_value.significand *= 10;
@@ -2056,14 +2055,10 @@ namespace jkj::dragonbox {
                     }
                 }
                 else {
-                    // r == deltai; compare fractional parts.
-                    // Check conditions in the order different from the paper
-                    // to take advantage of short-circuiting.
                     auto const two_fl = two_fc - 1;
-                    if ((!interval_type.include_left_endpoint() ||
-                         !is_product_integer<integer_check_case_id::fc_pm_half>(two_fl, exponent,
-                                                                                minus_k)) &&
-                        !compute_mul_parity(two_fl, cache, beta_minus_1)) {
+                    auto const [xi_parity, is_x_integer] =
+                        compute_mul_parity(two_fl, cache, beta_minus_1);
+                    if (!xi_parity && (!interval_type.include_left_endpoint() || !is_x_integer)) {
                         goto small_divisor_case_label;
                     }
                 }
@@ -2092,9 +2087,7 @@ namespace jkj::dragonbox {
                     // interval.
                     if (!interval_type.include_right_endpoint()) {
                         // Is r divisible by 10^kappa?
-                        if (div::check_divisibility_and_divide_by_pow10<kappa>(r) &&
-                            is_product_integer<integer_check_case_id::fc_pm_half>(two_fr, exponent,
-                                                                                  minus_k)) {
+                        if (div::check_divisibility_and_divide_by_pow10<kappa>(r) && is_z_integer) {
                             // This should be in the interval.
                             ret_value.significand += r - 1;
                         }
@@ -2124,7 +2117,9 @@ namespace jkj::dragonbox {
                         // Since there are only 2 possibilities, we only need to care about the
                         // parity. Also, zi and r should have the same parity since the divisor is
                         // an even number.
-                        if (compute_mul_parity(two_fc, cache, beta_minus_1) != approx_y_parity) {
+                        auto const [yi_parity, is_y_integer] =
+                            compute_mul_parity(two_fc, cache, beta_minus_1);
+                        if (yi_parity != approx_y_parity) {
                             --ret_value.significand;
                         }
                         else {
@@ -2132,8 +2127,7 @@ namespace jkj::dragonbox {
                             // when z^(f) == epsilon^(f), or equivalently, when y is an integer.
                             // For tie-to-up case, we can just choose the upper one.
                             if (BinaryToDecimalRoundingPolicy::prefer_round_down(ret_value) &&
-                                is_product_integer<integer_check_case_id::fc>(two_fc, exponent,
-                                                                              minus_k)) {
+                                is_y_integer) {
                                 --ret_value.significand;
                             }
                         }
@@ -2219,9 +2213,9 @@ namespace jkj::dragonbox {
                 // Compute xi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
                 auto const deltai = compute_delta(cache, beta_minus_1);
-                carrier_uint xi = compute_mul(two_fc << beta_minus_1, cache);
+                auto [xi, is_x_integer] = compute_mul(two_fc << beta_minus_1, cache);
 
-                if (!is_product_integer<integer_check_case_id::fc>(two_fc, exponent, minus_k)) {
+                if (!is_x_integer) {
                     ++xi;
                 }
 
@@ -2247,9 +2241,9 @@ namespace jkj::dragonbox {
                 }
                 else if (r == deltai) {
                     // Compare the fractional parts.
-                    if (compute_mul_parity(two_fc + 2, cache, beta_minus_1) ||
-                        is_product_integer<integer_check_case_id::fc>(two_fc + 2, exponent,
-                                                                      minus_k)) {
+                    auto const [zi_parity, is_z_integer] =
+                        compute_mul_parity(two_fc + 2, cache, beta_minus_1);
+                    if (zi_parity || is_z_integer) {
                         goto small_divisor_case_label;
                     }
                 }
@@ -2292,7 +2286,7 @@ namespace jkj::dragonbox {
                 // 10^kappa <= deltai < 10^(kappa + 1)
                 auto const deltai = shorter_interval ? compute_delta(cache, beta_minus_1 - 1)
                                                      : compute_delta(cache, beta_minus_1);
-                carrier_uint const zi = compute_mul(two_fc << beta_minus_1, cache);
+                carrier_uint const zi = compute_mul(two_fc << beta_minus_1, cache).result;
 
 
                 //////////////////////////////////////////////////////////////////////
@@ -2313,7 +2307,7 @@ namespace jkj::dragonbox {
                 else if (r == deltai) {
                     // Compare the fractional parts.
                     if (!compute_mul_parity(two_fc - (shorter_interval ? 1 : 2), cache,
-                                            beta_minus_1)) {
+                                            beta_minus_1).parity) {
                         goto small_divisor_case_label;
                     }
                 }
@@ -2551,14 +2545,16 @@ namespace jkj::dragonbox {
                 }
             }
 
-            static carrier_uint compute_mul(carrier_uint u,
-                                            cache_entry_type const& cache) noexcept {
+            static compute_mul_result compute_mul(carrier_uint u,
+                                                  cache_entry_type const& cache) noexcept {
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
-                    return wuint::umul96_upper32(u, cache);
+                    auto r = wuint::umul96_upper64(u, cache);
+                    return {carrier_uint(r >> 32), carrier_uint(r) == 0};
                 }
                 else {
                     static_assert(std::is_same_v<format, ieee754_binary64>);
-                    return wuint::umul192_upper64(u, cache);
+                    auto r = wuint::umul192_upper128(u, cache);
+                    return {r.high(), r.low() == 0};
                 }
             }
 
@@ -2573,18 +2569,22 @@ namespace jkj::dragonbox {
                 }
             }
 
-            static bool compute_mul_parity(carrier_uint two_f, cache_entry_type const& cache,
-                                           int beta_minus_1) noexcept {
+            static compute_mul_parity_result compute_mul_parity(carrier_uint two_f,
+                                                                cache_entry_type const& cache,
+                                                                int beta_minus_1) noexcept {
                 assert(beta_minus_1 >= 1);
                 assert(beta_minus_1 < 64);
 
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
-                    return ((wuint::umul96_lower64(two_f, cache) >> (64 - beta_minus_1)) & 1) != 0;
+                    auto r = wuint::umul96_lower64(two_f, cache);
+                    return {((r >> (64 - beta_minus_1)) & 1) != 0,
+                            std::uint32_t(r >> (32 - beta_minus_1)) == 0};
                 }
                 else {
                     static_assert(std::is_same_v<format, ieee754_binary64>);
-                    return ((wuint::umul192_middle64(two_f, cache) >> (64 - beta_minus_1)) & 1) !=
-                           0;
+                    auto r = wuint::umul192_lower128(two_f, cache);
+                    return {((r.high() >> (64 - beta_minus_1)) & 1) != 0,
+                            ((r.high() << beta_minus_1) | (r.low() >> (64 - beta_minus_1))) == 0};
                 }
             }
 
@@ -2642,49 +2642,6 @@ namespace jkj::dragonbox {
             static constexpr bool is_left_endpoint_integer_shorter_interval(int exponent) noexcept {
                 return exponent >= case_shorter_interval_left_endpoint_lower_threshold &&
                        exponent <= case_shorter_interval_left_endpoint_upper_threshold;
-            }
-
-            enum class integer_check_case_id { fc_pm_half, fc };
-            template <integer_check_case_id case_id>
-            static bool is_product_integer(carrier_uint two_f, int exponent, int minus_k) noexcept {
-                // Case I: f = fc +- 1/2
-                if constexpr (case_id == integer_check_case_id::fc_pm_half) {
-                    if (exponent < case_fc_pm_half_lower_threshold) {
-                        return false;
-                    }
-                    // For k >= 0
-                    else if (exponent <= case_fc_pm_half_upper_threshold) {
-                        return true;
-                    }
-                    // For k < 0
-                    else if (exponent > divisibility_check_by_5_threshold) {
-                        return false;
-                    }
-                    else {
-                        return div::divisible_by_power_of_5<max_power_of_factor_of_5 + 1>(two_f,
-                                                                                          minus_k);
-                    }
-                }
-                // Case II: f = fc + 1
-                // Case III: f = fc
-                else {
-                    // Exponent for 5 is negative:
-                    if (exponent > divisibility_check_by_5_threshold) {
-                        return false;
-                    }
-                    else if (exponent > case_fc_upper_threshold) {
-                        return div::divisible_by_power_of_5<max_power_of_factor_of_5 + 1>(two_f,
-                                                                                          minus_k);
-                    }
-                    // Both exponents are nonnegative:
-                    else if (exponent >= case_fc_lower_threshold) {
-                        return true;
-                    }
-                    // Exponent for 2 is negative:
-                    else {
-                        return div::divisible_by_power_of_2(two_f, minus_k - exponent + 1);
-                    }
-                }
             }
         };
 
