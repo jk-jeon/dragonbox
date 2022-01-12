@@ -20,11 +20,8 @@
 
 namespace {
 #if 1
-	auto dummy = []() -> register_function_for_benchmark {
-		return { "Ryu",
-			f2s_buffered,
-			d2s_buffered
-		};
-	}();
+    auto dummy = []() -> register_function_for_benchmark {
+        return {"Ryu", f2s_buffered, d2s_buffered};
+    }();
 #endif
 }
