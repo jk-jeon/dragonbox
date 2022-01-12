@@ -512,6 +512,8 @@ namespace jkj::dragonbox {
         ////////////////////////////////////////////////////////////////////////////////////////
 
         namespace log {
+            static_assert((-1 >> 1) == -1, "right-shift for signed integers must be arithmetic");
+
             constexpr std::int32_t floor_shift(std::uint32_t integer_part,
                                                std::uint64_t fractional_digits,
                                                std::size_t shift_amount) noexcept {
