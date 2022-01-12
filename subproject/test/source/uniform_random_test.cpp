@@ -22,64 +22,62 @@
 #include <string_view>
 
 template <class Float, class TypenameString>
-static bool uniform_random_test(std::size_t number_of_tests, TypenameString&& type_name_string)
-{
-	char buffer1[64];
-	char buffer2[64];
-	auto rg = generate_correctly_seeded_mt19937_64();
-	bool success = true;
-	for (std::size_t test_idx = 0; test_idx < number_of_tests; ++test_idx) {
-		auto x = uniformly_randomly_generate_general_float<Float>(rg);
+static bool uniform_random_test(std::size_t number_of_tests, TypenameString&& type_name_string) {
+    char buffer1[64];
+    char buffer2[64];
+    auto rg = generate_correctly_seeded_mt19937_64();
+    bool success = true;
+    for (std::size_t test_idx = 0; test_idx < number_of_tests; ++test_idx) {
+        auto x = uniformly_randomly_generate_general_float<Float>(rg);
 
-		// Check if the output is identical to that of Ryu
-		jkj::dragonbox::to_chars(x, buffer1);
-		if constexpr (std::is_same_v<Float, float>) {
-			f2s_buffered(x, buffer2);
-		}
-		else {
-			d2s_buffered(x, buffer2);
-		}
+        // Check if the output is identical to that of Ryu
+        jkj::dragonbox::to_chars(x, buffer1);
+        if constexpr (std::is_same_v<Float, float>) {
+            f2s_buffered(x, buffer2);
+        }
+        else {
+            d2s_buffered(x, buffer2);
+        }
 
-		std::string_view view1(buffer1);
-		std::string_view view2(buffer2);
+        std::string_view view1(buffer1);
+        std::string_view view2(buffer2);
 
-		if (view1 != view2) {
-			std::cout << "Error detected! [Ryu = " << buffer2
-				<< ", Dragonbox = " << buffer1 << "]\n";
-			success = false;
-		}
-	}
+        if (view1 != view2) {
+            std::cout << "Error detected! [Ryu = " << buffer2 << ", Dragonbox = " << buffer1
+                      << "]\n";
+            success = false;
+        }
+    }
 
-	if (success) {
-		std::cout << "Uniform random test for " << type_name_string
-			<< " with " << number_of_tests << " examples succeeded.\n";
-	}
+    if (success) {
+        std::cout << "Uniform random test for " << type_name_string << " with " << number_of_tests
+                  << " examples succeeded.\n";
+    }
 
-	return success;
+    return success;
 }
 
-int main()
-{
-	constexpr bool run_float = true;
-	constexpr std::size_t number_of_uniform_random_tests_float = 10000000;
+int main() {
+    constexpr bool run_float = true;
+    constexpr std::size_t number_of_uniform_random_tests_float = 10000000;
 
-	constexpr bool run_double = true;
-	constexpr std::size_t number_of_uniform_random_tests_double = 10000000;
+    constexpr bool run_double = true;
+    constexpr std::size_t number_of_uniform_random_tests_double = 10000000;
 
-	bool success = true;
+    bool success = true;
 
-	if constexpr (run_float) {
-		std::cout << "[Testing uniformly randomly generated float inputs...]\n";
-		success &= uniform_random_test<float>(number_of_uniform_random_tests_float, "float");
-		std::cout << "Done.\n\n\n";
-	}
-	if constexpr (run_double) {
-		std::cout << "[Testing uniformly randomly generated double inputs...]\n";
-		success &= uniform_random_test<double>(number_of_uniform_random_tests_double, "double");
-		std::cout << "Done.\n\n\n";
-	}
+    if constexpr (run_float) {
+        std::cout << "[Testing uniformly randomly generated float inputs...]\n";
+        success &= uniform_random_test<float>(number_of_uniform_random_tests_float, "float");
+        std::cout << "Done.\n\n\n";
+    }
+    if constexpr (run_double) {
+        std::cout << "[Testing uniformly randomly generated double inputs...]\n";
+        success &= uniform_random_test<double>(number_of_uniform_random_tests_double, "double");
+        std::cout << "Done.\n\n\n";
+    }
 
-	if (!success) {
-		return -1;
-	}
+    if (!success) {
+        return -1;
+    }
 }
