@@ -1,4 +1,4 @@
-// Copyright 2020 Junekey Jeon
+// Copyright 2020-2022 Junekey Jeon
 //
 // The contents of this file may be used under the terms of
 // the Apache License v2.0 with LLVM Exceptions.
@@ -19,39 +19,36 @@
 
 #include <iostream>
 
-int main()
-{
-	using namespace jkj::dragonbox::detail;
+int main() {
+    using namespace jkj::dragonbox::detail;
 
-	std::cout << "[Verifying recovery from compressed cache...]\n";
+    std::cout << "[Verifying recovery from compressed cache...]\n";
 
-	bool success = true;
-	for (int k = impl<double>::min_k; k <= impl<double>::max_k; ++k)
-	{
-		using jkj::dragonbox::policy::cache::full;
-		using jkj::dragonbox::policy::cache::compact;
+    bool success = true;
+    for (int k = impl<double>::min_k; k <= impl<double>::max_k; ++k) {
+        using jkj::dragonbox::policy::cache::full;
+        using jkj::dragonbox::policy::cache::compact;
 
-		auto real_cache = full.get_cache<jkj::dragonbox::ieee754_binary64>(k);
-		auto recovered_cache = compact.get_cache<jkj::dragonbox::ieee754_binary64>(k);
+        auto real_cache = full.get_cache<jkj::dragonbox::ieee754_binary64>(k);
+        auto recovered_cache = compact.get_cache<jkj::dragonbox::ieee754_binary64>(k);
 
-		if (real_cache.high() != recovered_cache.high() ||
-			real_cache.low() != recovered_cache.low())
-		{
-			std::cout << "Mismatch! (k = " << k << ")\n";
-			success = false;
-		}
-	}
+        if (real_cache.high() != recovered_cache.high() ||
+            real_cache.low() != recovered_cache.low()) {
+            std::cout << "Mismatch! (k = " << k << ")\n";
+            success = false;
+        }
+    }
 
-	if (success) {
-		std::cout << "Recovered cache is the same as the original cache.\n";
-	}
-	else {
-		std::cout << "Error detected.\n";
-	}
+    if (success) {
+        std::cout << "Recovered cache is the same as the original cache.\n";
+    }
+    else {
+        std::cout << "Error detected.\n";
+    }
 
-	std::cout << "Done.\n\n\n";
+    std::cout << "Done.\n\n\n";
 
-	if (!success) {
-		return -1;
-	}
+    if (!success) {
+        return -1;
+    }
 }
