@@ -664,18 +664,16 @@ namespace jkj::dragonbox {
 
             template <>
             struct check_divisibility_and_divide_by_pow10_info<1> {
-                static constexpr std::uint32_t magic_number = 0xcccd;
-                static constexpr int bits_for_comparison = 16;
-                static constexpr std::uint32_t threshold = 0x3333;
-                static constexpr int shift_amount = 19;
+                static constexpr std::uint32_t magic_number = 0x199a;
+                static constexpr int margin_bits = 8;
+                static constexpr int divisibility_check_bits = 8;
             };
 
             template <>
             struct check_divisibility_and_divide_by_pow10_info<2> {
-                static constexpr std::uint32_t magic_number = 0x147c29;
-                static constexpr int bits_for_comparison = 12;
-                static constexpr std::uint32_t threshold = 0xa3;
-                static constexpr int shift_amount = 27;
+                static constexpr std::uint32_t magic_number = 0xa3d71;
+                static constexpr int margin_bits = 10;
+                static constexpr int divisibility_check_bits = 16;
             };
 
             template <int N>
@@ -686,18 +684,16 @@ namespace jkj::dragonbox {
 
                 using info = check_divisibility_and_divide_by_pow10_info<N>;
                 n *= info::magic_number;
+                n >>= info::margin_bits;
 
-                // Mask for the lowest (N + bits_for_comparison)-bits.
-                static_assert(info::bits_for_comparison + N < 32);
+                // Mask for the lowest (divisibility_check_bits)-bits.
+                static_assert(info::divisibility_check_bits < 32);
                 constexpr std::uint32_t comparison_mask =
-                    std::uint32_t((std::uint32_t(1) << (N + info::bits_for_comparison)) - 1);
-
-                // The lowest N bits of n must be zero, and
-                // (n & comparison_mask) >> N must be at most threshold.
-                auto c = bits::rotr(n & comparison_mask, N);
-
-                n >>= info::shift_amount;
-                return c <= info::threshold;
+                    std::uint32_t((std::uint32_t(1) << info::divisibility_check_bits) - 1);
+                
+                bool result = (n & comparison_mask) == 0;
+                n >>= info::divisibility_check_bits;
+                return result;
             }
 
             // Compute floor(n / 10^N) for small n and N.
