@@ -27,10 +27,12 @@ namespace {
 		*schubfach::Dtoa(buf, x) = '\0';
 	}
 
+#if 1
 	auto dummy = []() -> register_function_for_benchmark {
 		return { "Schubfach",
 			schubfach_32,
 			schubfach_64
 		};
 	}();
+#endif
 }

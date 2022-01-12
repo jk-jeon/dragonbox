@@ -32,10 +32,12 @@ namespace {
 			jkj::grisu_exact_correct_rounding::tie_to_even{});
 	}
 
+#if 1
 	auto dummy = []() -> register_function_for_benchmark {
 		return { "Grisu-Exact",
 			grisu_exact_float_to_chars,
 			grisu_exact_double_to_chars
 		};
 	}();
+#endif
 }

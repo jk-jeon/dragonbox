@@ -28,10 +28,12 @@ namespace {
 		jkj::dragonbox::to_chars(x, buffer);
 	}
 
+#if 1
 	auto dummy = []() -> register_function_for_benchmark {
 		return { "Dragonbox",
 			dragonbox_float_to_chars,
 			dragonbox_double_to_chars
 		};
 	}();
+#endif
 }
