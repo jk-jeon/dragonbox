@@ -61,7 +61,7 @@ function(add_test NAME)
   endif()
 endfunction()
 
-add_test(compute_required_cache_length)
+add_test(verify_cache_precision)
 add_test(test_all_shorter_interval_cases TO_CHARS RYU)
 add_test(uniform_random_test TO_CHARS RYU)
 add_test(verify_compressed_cache)
