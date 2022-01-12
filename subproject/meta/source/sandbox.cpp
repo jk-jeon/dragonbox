@@ -1,4 +1,4 @@
-// Copyright 2020 Junekey Jeon
+// Copyright 2020-2022 Junekey Jeon
 //
 // The contents of this file may be used under the terms of
 // the Apache License v2.0 with LLVM Exceptions.
@@ -17,6 +17,4 @@
 
 #include "dragonbox/dragonbox.h"
 
-int main()
-{
-}
+int main() {}
