@@ -467,7 +467,7 @@ namespace jkj::dragonbox {
 #endif
             }
 
-            // Get middle 64-bits of multiplication of a 64-bit unsigned integer and a 128-bit
+            // Get lower 128-bits of multiplication of a 64-bit unsigned integer and a 128-bit
             // unsigned integer.
             JKJ_SAFEBUFFERS inline uint128 umul192_lower128(std::uint64_t x, uint128 y) noexcept {
                 auto high = x * y.high();
@@ -475,7 +475,7 @@ namespace jkj::dragonbox {
                 return {high + high_low.high(), high_low.low()};
             }
 
-            // Get middle 32-bits of multiplication of a 32-bit unsigned integer and a 64-bit
+            // Get lower 64-bits of multiplication of a 32-bit unsigned integer and a 64-bit
             // unsigned integer.
             inline std::uint64_t umul96_lower64(std::uint32_t x, std::uint64_t y) noexcept {
                 return x * y;
@@ -1912,7 +1912,7 @@ namespace jkj::dragonbox {
                 // better than the compiler; we are computing zi / big_divisor here.
                 ret_value.significand =
                     div::divide_by_pow10<kappa + 1, significand_bits + kappa + 2, kappa + 1>(zi);
-                auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
+                auto const r = std::uint32_t(zi - big_divisor * ret_value.significand);
 
                 if (r > deltai) {
                     goto small_divisor_case_label;
@@ -1935,6 +1935,7 @@ namespace jkj::dragonbox {
                     }
                 }
                 else {
+                    // r == deltai; compare fractional parts.
                     auto const two_fl = two_fc - 1;
 
                     if (!interval_type.include_left_endpoint() ||
@@ -1950,7 +1951,7 @@ namespace jkj::dragonbox {
                         }
                     }
                     else {
-                        auto [xi_parity, x_is_integer] =
+                        auto const [xi_parity, x_is_integer] =
                             compute_mul_parity(two_fl, cache, beta_minus_1);
                         if (!xi_parity && !x_is_integer) {
                             goto small_divisor_case_label;
@@ -1999,14 +2000,14 @@ namespace jkj::dragonbox {
                     bool const approx_y_parity = ((dist ^ (small_divisor / 2)) & 1) != 0;
 
                     // Is dist divisible by 10^kappa?
-                    bool divisible_by_10_to_the_kappa =
+                    bool const divisible_by_small_divisor =
                         div::check_divisibility_and_divide_by_pow10<kappa>(dist);
 
                     // Add dist / 10^kappa to the significand.
                     ret_value.significand += dist;
 
-                    if (divisible_by_10_to_the_kappa) {
-                        // Check z^(f) >= epsilon^(f)
+                    if (divisible_by_small_divisor) {
+                        // Check z^(f) >= epsilon^(f).
                         // We have either yi == zi - epsiloni or yi == (zi - epsiloni) - 1,
                         // where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f).
                         // Since there are only 2 possibilities, we only need to care about the
