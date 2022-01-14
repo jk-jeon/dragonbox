@@ -63,6 +63,14 @@ namespace jkj {
         element_type operator[](std::size_t idx) const { return elements[idx]; }
 
         bool is_zero() const noexcept { return elements.empty(); }
+        bool is_even() const noexcept {
+            if (elements.empty()) {
+                return true;
+            }
+            else {
+                return elements[0] % 2 == 0;
+            }
+        }
 
         friend std::size_t log2p1(big_uint const& n) noexcept;
 
