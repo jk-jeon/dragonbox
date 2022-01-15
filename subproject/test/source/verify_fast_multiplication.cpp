@@ -44,7 +44,7 @@ static bool verify_fast_multiplication_xz(CachePolicy&& cache_policy) {
         int const beta_minus_2 = beta_minus_1 - 1;
 
         // Load cache.
-        auto const cache = cache_policy.get_cache<format>(k);
+        auto const cache = cache_policy.template get_cache<format>(k);
 
         // Compute the endpoints using the fast method.
         auto x_fast = impl::compute_left_endpoint_for_shorter_interval_case(cache, beta_minus_1);
@@ -95,10 +95,11 @@ static bool verify_fast_multiplication_xz(CachePolicy&& cache_policy) {
 template <class Float, class CachePolicy>
 static bool verify_fast_multiplication_yru(CachePolicy&& cache_policy) {
     using impl = jkj::dragonbox::detail::impl<Float>;
+    using format = typename impl::format;
     bool success = true;
 
     for (int k = impl::min_k; k <= impl::max_k; ++k) {
-        auto const cache = cache_policy.get_cache<typename impl::format>(k);
+        auto const cache = cache_policy.template get_cache<format>(k);
 
         // Since p + beta + 1 <= q, suffices to check that the lower half of the cache is not 0
         auto const lower_half = [cache] {
