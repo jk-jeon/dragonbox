@@ -229,7 +229,7 @@ bool analyze() {
             results_for_k.distance_to_upper_bound = std::move(distance);
         }
         else if (results_for_k.distance_to_upper_bound.numerator * distance.denominator >
-            distance.numerator * results_for_k.distance_to_upper_bound.denominator) {
+                 distance.numerator * results_for_k.distance_to_upper_bound.denominator) {
             results_for_k.distance_to_upper_bound = distance;
         }
     }
@@ -351,18 +351,18 @@ bool analyze() {
 
     auto sufficient_bits_for_multiplication =
         std::max_element(result.results.cbegin(), result.results.cend(),
-                          [](auto const& a, auto const& b) {
-                              return a.sufficient_bits_for_multiplication <
-                                     b.sufficient_bits_for_multiplication;
-                          })
-             ->sufficient_bits_for_multiplication;
+                         [](auto const& a, auto const& b) {
+                             return a.sufficient_bits_for_multiplication <
+                                    b.sufficient_bits_for_multiplication;
+                         })
+            ->sufficient_bits_for_multiplication;
     auto sufficient_bits_for_integer_checks =
         std::max_element(result.results.cbegin(), result.results.cend(),
-                          [](auto const& a, auto const& b) {
-                              return a.sufficient_bits_for_integer_checks <
-                                     b.sufficient_bits_for_integer_checks;
-                          })
-             ->sufficient_bits_for_integer_checks;
+                         [](auto const& a, auto const& b) {
+                             return a.sufficient_bits_for_integer_checks <
+                                    b.sufficient_bits_for_integer_checks;
+                         })
+            ->sufficient_bits_for_integer_checks;
     auto larger = std::max(sufficient_bits_for_multiplication, sufficient_bits_for_integer_checks);
 
     auto distance_to_upper_bound =
@@ -383,7 +383,8 @@ bool analyze() {
     // Reduce the fraction.
     distance_to_upper_bound =
         jkj::find_best_rational_approx<jkj::rational_continued_fractions<jkj::big_uint>>(
-            distance_to_upper_bound, distance_to_upper_bound.denominator).below;
+            distance_to_upper_bound, distance_to_upper_bound.denominator)
+            .below;
 
     std::cout << "An upper bound on the minimum required bits for successful multiplication is "
               << sufficient_bits_for_multiplication
@@ -405,10 +406,12 @@ bool analyze() {
                 std::cout << "  e: " << ec.e << "  k: " << ec.k << "  n: ";
                 print_big_uint(std::cout, n);
 
-                // When e != min_e, n must be at least 2^(p+1)-2, otherwise this is a false
+                // When e != min_e and n != 1, 2, then
+                // n must be at least 2^(p+1)-2, otherwise this is a false
                 // positive.
 
-                if (ec.e != impl::min_exponent - impl::significand_bits && n < threshold) {
+                if (ec.e != impl::min_exponent - impl::significand_bits && n != 1 && n != 2 &&
+                    n < threshold) {
                     std::cout << "\n    n is smaller than ";
                     print_big_uint(std::cout, threshold);
                     std::cout << ", so this case is a false positive.";
