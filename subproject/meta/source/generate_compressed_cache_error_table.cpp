@@ -23,9 +23,30 @@
 #include <vector>
 
 int main() {
+    // For correct multiplication, the margin for binary32 is at least
+    // 2^64 * 5091154818982829 / 12349290596248284087255008291061760 = 7.60...,
+    // so the recovered cache can be larger than the original cache up to by 7.
+    // The margin for binary64 is at least
+    // 2^128 * 723173431431821867556830303887 /
+    // 18550103527668669801949286474444582643081334006759269899933694558208
+    // = 13.26..., so the recovered cache can be larger than the original cache up to by 7.
+    // For correct integer checks, we need to ensure
+    // m < 2^Q * a/b + 2^(q-beta+1)/b1 when b1 <= n_max.
+    // As b1 is either a power of 2 or a power of 5, the maximum possible value
+    // for b1 is 2^24 for binary32 and 5^23 for binary64.
+    // With kappa = 1 for binary32, beta is at most floor((kappa+1)log2(10))+1 = 7,
+    // so 2^(q-beta+1) is at least 2^26, so 2^(q-beta+1)/b1 >= 4.
+    // Hence, the recovered cache can be larger than the original cache up to by 4
+    // in this case.
+    // With kappa = 2 for binary64, beta is at most floor((kappa+1)log2(10))+1 = 10,
+    // so 2^(q-beta+1) is at least 2^55, so 2^(q-beta+1)/b1 >= 2^55/5^23 > 3.
+    // Hence, the recovered cache can be larger than the original cache up to by 3
+    // in this case.
+
+
     using namespace jkj::dragonbox::detail;
 
-    std::cout << "[Generating error table for compressed cache...]\n";
+    std::cout << "[Verifying cache recovery for compressed cache...]\n";
 
     std::vector<std::uint32_t> results;
 
@@ -70,48 +91,25 @@ int main() {
                                              ((middle_low.low() >> alpha) | middle_to_low)};
 
             if (recovered_cache.low() + 1 == 0) {
-                recovered_cache = {recovered_cache.high() + 1, 0};
+                std::cout << "Overflow detected.\n";
+                return -1;
             }
             else {
                 recovered_cache = {recovered_cache.high(), recovered_cache.low() + 1};
             }
 
             // Measure the difference
-            assert(real_cache.high() == recovered_cache.high());
-            assert(real_cache.low() <= recovered_cache.low());
+            if (real_cache.high() != recovered_cache.high() ||
+                real_cache.low() > recovered_cache.low()) {
+                std::cout << "Overflow detected.\n";
+                return -1;
+            }
             auto diff = std::uint32_t(recovered_cache.low() - real_cache.low());
 
-            assert((diff >> 2) == 0);
-
-            error |= std::uint32_t(diff << (error_count * 2));
-        }
-
-        if (++error_count == 16) {
-            results.push_back(error);
-            error = 0;
-            error_count = 0;
-        }
-    }
-
-    if (error_count != 0) {
-        results.push_back(error);
-    }
-
-    // Print out
-    std::ofstream out{"results/binary64_compressed_cache_error_table.txt"};
-    out << "static constexpr std::uint32_t errors[] = {\n\t";
-    for (std::size_t i = 0; i < results.size(); ++i) {
-        if (i != 0) {
-            if (i % 5 == 0) {
-                out << ",\n\t";
-            }
-            else {
-                out << ", ";
+            if (diff > 3) {
+                std::cout << "Recovery error is too big.\n";
+                return -1;
             }
         }
-        out << std::hex << std::setfill('0') << "0x" << std::setw(8) << results[i];
     }
-    out << "\n};";
-
-    std::cout << "Done.\n\n\n";
 }
