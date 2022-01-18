@@ -1882,11 +1882,14 @@ namespace jkj::dragonbox {
                 // Compute zi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
                 auto const deltai = compute_delta(cache, beta_minus_1);
-                // The exceptional case 29711844 * 2^-81
-                // (~1.2288530660000000001731007559513386695471126586198806762695... * 10^-17)
+                // The unique exceptional cases
+                // 29711844 * 2^-82
+                // = 6.1442653300000000008655037797566933477355632930994033813476... * 10^-18
+                // and 29711844 * 2^-81
+                // = 1.2288530660000000001731007559513386695471126586198806762695... * 10^-17
                 // for binary32 will not cause any problem here, because (two_fc | 1) is
-                // always an odd integer. Also, for the exceptional case above
-                // r = 7 and deltai = 82, so integer checks are never performed,
+                // always an odd integer. Also, for the exceptional cases above,
+                // branches containing integer checks for x and y are never taken,
                 // so there is no problem.
                 auto const [zi, is_z_integer] = compute_mul((two_fc | 1) << beta_minus_1, cache);
 
@@ -2101,11 +2104,14 @@ namespace jkj::dragonbox {
                 auto const deltai = compute_delta(cache, beta_minus_1);
                 auto [xi, is_x_integer] = compute_mul(two_fc << beta_minus_1, cache);
 
-                // Deal with the exceptional case 29711844 * 2^-81
-                // (~1.2288530660000000001731007559513386695471126586198806762695... * 10^-17)
+                // Deal with the unique exceptional cases
+                // 29711844 * 2^-82
+                // = 6.1442653300000000008655037797566933477355632930994033813476... * 10^-18
+                // and 29711844 * 2^-81
+                // = 1.2288530660000000001731007559513386695471126586198806762695... * 10^-17
                 // for binary32.
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
-                    if (exponent == -80) {
+                    if (exponent <= -80) {
                         is_x_integer = false;
                     }
                 }
@@ -2136,9 +2142,7 @@ namespace jkj::dragonbox {
                 }
                 else if (r == deltai) {
                     // Compare the fractional parts.
-                    // This branch is never taken for the exceptional case 29711842 * 2^-81
-                    // (~1.2288529832819387448703332688104694625508273020386695861816... * 10^-17)
-                    // for binary32, because in that case r = 89 and deltai = 11.
+                    // This branch is never taken for the exceptional cases mentioned above.
                     auto const [zi_parity, is_z_integer] =
                         compute_mul_parity(two_fc + 2, cache, beta_minus_1);
                     if (zi_parity || is_z_integer) {
