@@ -234,17 +234,14 @@ bool analyze() {
         }
     }
 
-    // Compute the distances to upper bounds.
-
-
     // Analyze all error cases.
     auto reciprocal_error_threshold =
         jkj::big_uint::power_of_2(impl::cache_bits - impl::carrier_bits);
     for (auto& ec : result.error_cases) {
         // We want to find all n such that
         // d:= n * a1/b1 - floor(n * a1/b1) < 2^(q-Q).
-        // To do so, we first find the last even convergent p/q of x:=a1/b1 such that
-        // qx - p >= 2^(q-Q).
+        // To do so, we first find the last even convergent u/v of x:=a1/b1 such that
+        // vx - u >= 2^(q-Q).
         jkj::rational_continued_fractions<jkj::big_uint> cf{ec.unit};
         jkj::unsigned_rational<jkj::big_uint> previous_convergent, current_convergent;
         while (true) {
@@ -264,7 +261,7 @@ bool analyze() {
             }
 
             // Odd index again.
-            // Check if qx - p >= 2^(q-Q) is violated.
+            // Check if vx - u >= 2^(q-Q) is violated.
             if (reciprocal_error_threshold *
                     (cf.previous_convergent().denominator * ec.unit.numerator -
                      cf.previous_convergent().numerator * ec.unit.denominator) <
@@ -273,8 +270,8 @@ bool analyze() {
             }
         }
 
-        // Find the last semiconvergent p/q such that qx - p >= 2^(q-Q).
-        // Then the next semiconvergent is the smallest rational number violating qx - p >= 2^(q-Q).
+        // Find the last semiconvergent u/v such that vx - u >= 2^(q-Q).
+        // Then the next semiconvergent is the smallest rational number violating vx - u >= 2^(q-Q).
         auto s =
             (reciprocal_error_threshold * (previous_convergent.denominator * ec.unit.numerator -
                                            previous_convergent.numerator * ec.unit.denominator) -
@@ -288,6 +285,24 @@ bool analyze() {
         jkj::big_uint k;
 
         auto loop_over_semiconvergents = [&]() {
+            // Given u/v with vx - u < 2^(q-Q), find all g such that
+            // gvx - floor(gvx) < 2^(q-Q).
+            auto loop_over_equivalent_representations = [&](auto const& denominator) {
+                auto g = n_max / denominator;
+                while (!g.is_zero()) {
+                    auto new_denominator = g * denominator;
+                    auto gva1 = new_denominator * ec.unit.numerator;
+                    auto new_numerator = gva1 / ec.unit.denominator;
+
+                    if ((gva1 - ec.unit.denominator * new_numerator) * reciprocal_error_threshold <
+                        ec.unit.denominator) {
+                        ec.candidate_multipliers.push_back(new_denominator);
+                    }
+
+                    g -= 1;
+                }
+            };
+
             while (true) {
                 semiconvergent.numerator =
                     previous_convergent.numerator + s * current_convergent.numerator;
@@ -304,7 +319,8 @@ bool analyze() {
                     break;
                 }
 
-                ec.candidate_multipliers.push_back(semiconvergent.denominator);
+                // Find all equivalent rational numbers and record all actual error cases.
+                loop_over_equivalent_representations(semiconvergent.denominator);
 
                 // Enumerate all numbers of the form
                 // (kp_{n-1} + (ks+1)p_{n}) / (kq_{n-1} + (ks+1)q_{n}),
@@ -312,9 +328,9 @@ bool analyze() {
                 if (n_max > current_convergent.denominator) {
                     k = (n_max - current_convergent.denominator) / semiconvergent.denominator;
                     while (!k.is_zero()) {
-                        ec.candidate_multipliers.push_back(k * previous_convergent.denominator +
-                                                           (k * s + 1) *
-                                                               current_convergent.denominator);
+                        loop_over_equivalent_representations(k * previous_convergent.denominator +
+                                                             (k * s + 1) *
+                                                                 current_convergent.denominator);
                         k -= 1;
                     }
                 }
@@ -416,14 +432,14 @@ bool analyze() {
                     print_big_uint(std::cout, threshold);
                     std::cout << ", so this case is a false positive.";
                 }
-                else if (ec.e == -81 && n == 29711844) {
+                else if (ec.e == -81 && n == 29711844 || ec.e == -80 && n == 29711844) {
                     std::cout << "\n    This case has been carefully addressed.";
                 }
                 else {
                     success = false;
                 }
 
-                std::cout << "\n";
+                std::cout << "\n\n";
             }
         }
 
