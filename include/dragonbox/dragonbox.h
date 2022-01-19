@@ -2142,7 +2142,11 @@ namespace jkj::dragonbox {
                 }
                 else if (r == deltai) {
                     // Compare the fractional parts.
-                    // This branch is never taken for the exceptional cases mentioned above.
+                    // This branch is never taken for the exceptional cases
+                    // 2f_c = 29711482, e = -81
+                    // (6.1442649164096937243516663440523473127541365101933479309082... * 10^-18)
+                    // and 2f_c = 29711482, e = -80
+                    // (1.2288529832819387448703332688104694625508273020386695861816... * 10^-17).
                     auto const [zi_parity, is_z_integer] =
                         compute_mul_parity(two_fc + 2, cache, beta_minus_1);
                     if (zi_parity || is_z_integer) {
