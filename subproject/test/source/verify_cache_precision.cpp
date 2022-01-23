@@ -16,6 +16,7 @@
 // KIND, either express or implied.
 
 #include "best_rational_approx.h"
+#include "good_rational_approx.h"
 #include "big_uint.h"
 #include "rational_continued_fractions.h"
 #include "dragonbox/dragonbox.h"
@@ -240,129 +241,10 @@ bool analyze() {
     for (auto& ec : result.error_cases) {
         // We want to find all n such that
         // d:= n * a1/b1 - floor(n * a1/b1) < 2^(q-Q).
-        // To do so, we first find the last even convergent u/v of x:=a1/b1 such that
-        // vx - u >= 2^(q-Q).
-        jkj::rational_continued_fractions<jkj::big_uint> cf{ec.unit};
-        jkj::unsigned_rational<jkj::big_uint> previous_convergent, current_convergent;
-        while (true) {
-            // Odd index.
-            previous_convergent = cf.previous_convergent();
-            current_convergent = cf.current_convergent();
 
-            if (!cf.update()) {
-                // This must not happen.
-                assert(false);
-            }
-
-            // Even index.
-            if (!cf.update()) {
-                // This must not happen.
-                assert(false);
-            }
-
-            // Odd index again.
-            // Check if vx - u >= 2^(q-Q) is violated.
-            if (reciprocal_error_threshold *
-                    (cf.previous_convergent().denominator * ec.unit.numerator -
-                     cf.previous_convergent().numerator * ec.unit.denominator) <
-                ec.unit.denominator) {
-                break;
-            }
-        }
-
-        // Find the last semiconvergent u/v such that vx - u >= 2^(q-Q).
-        // Then the next semiconvergent is the smallest rational number violating vx - u >= 2^(q-Q).
-        auto s =
-            (reciprocal_error_threshold * (previous_convergent.denominator * ec.unit.numerator -
-                                           previous_convergent.numerator * ec.unit.denominator) -
-             ec.unit.denominator) /
-            (reciprocal_error_threshold * (current_convergent.numerator * ec.unit.denominator -
-                                           current_convergent.denominator * ec.unit.numerator));
-        s += 1;
-
-        // For each following semiconvergents,
-        jkj::unsigned_rational<jkj::big_uint> semiconvergent;
-        jkj::big_uint k;
-
-        auto loop_over_semiconvergents = [&]() {
-            // Given u/v with vx - u < 2^(q-Q), find all g such that
-            // gvx - floor(gvx) < 2^(q-Q).
-            auto loop_over_equivalent_representations = [&](auto const& denominator) {
-                auto g = n_max / denominator;
-                while (!g.is_zero()) {
-                    auto new_denominator = g * denominator;
-                    auto gva1 = new_denominator * ec.unit.numerator;
-                    auto new_numerator = gva1 / ec.unit.denominator;
-
-                    if ((gva1 - ec.unit.denominator * new_numerator) * reciprocal_error_threshold <
-                        ec.unit.denominator) {
-                        ec.candidate_multipliers.push_back(new_denominator);
-                    }
-
-                    g -= 1;
-                }
-            };
-
-            while (true) {
-                semiconvergent.numerator =
-                    previous_convergent.numerator + s * current_convergent.numerator;
-                semiconvergent.denominator =
-                    previous_convergent.denominator + s * current_convergent.denominator;
-
-                // If its denominator is more than n_max, we are done.
-                if (semiconvergent.denominator > n_max) {
-                    return true;
-                }
-
-                // Or, if it is in fact a convergent, break.
-                if (semiconvergent.denominator == cf.previous_convergent().denominator) {
-                    break;
-                }
-
-                // Find all equivalent rational numbers and record all actual error cases.
-                loop_over_equivalent_representations(semiconvergent.denominator);
-
-                // Enumerate all numbers of the form
-                // (kp_{n-1} + (ks+1)p_{n}) / (kq_{n-1} + (ks+1)q_{n}),
-                // where k is any positive integer making the denominator of the above <= n_max.
-                if (n_max > current_convergent.denominator) {
-                    k = (n_max - current_convergent.denominator) / semiconvergent.denominator;
-                    while (!k.is_zero()) {
-                        loop_over_equivalent_representations(k * previous_convergent.denominator +
-                                                             (k * s + 1) *
-                                                                 current_convergent.denominator);
-                        k -= 1;
-                    }
-                }
-
-                // Move to the next semiconvergent.
-                s += 1;
-            }
-            return false;
-        };
-
-        if (loop_over_semiconvergents()) {
-            goto case_ended;
-        }
-
-        // For each following convergents,
-        while (true) {
-            // Move to the next convergent.
-            previous_convergent = cf.previous_convergent();
-            current_convergent = cf.current_convergent();
-
-            if (!cf.update()) {
-                // This must not happen.
-                assert(false);
-            }
-
-            // For each semiconvergents,
-            s = 0;
-            if (loop_over_semiconvergents()) {
-                goto case_ended;
-            }
-        }
-    case_ended:;
+        ec.candidate_multipliers = jkj::find_all_good_rational_approx_from_below_denoms<
+            jkj::rational_continued_fractions<jkj::big_uint>>(
+            ec.unit, n_max, jkj::unsigned_rational<jkj::big_uint>{1, reciprocal_error_threshold});
     }
 
     auto sufficient_bits_for_multiplication =
