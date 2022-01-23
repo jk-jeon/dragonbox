@@ -23,8 +23,86 @@ namespace jkj {
 
     template <class UInt>
     struct unsigned_rational {
-        UInt numerator;
-        UInt denominator;
+        UInt numerator = 0;
+        UInt denominator = 0;
+
+        unsigned_rational() = default;
+        unsigned_rational(UInt const& numerator) : numerator{numerator}, denominator{1} {}
+        unsigned_rational(UInt&& numerator)
+            : numerator{static_cast<UInt&&>(numerator)}, denominator{1} {}
+        unsigned_rational(UInt const& numerator, UInt const& denominator)
+            : numerator{numerator}, denominator{denominator} {}
+        unsigned_rational(UInt&& numerator, UInt const& denominator)
+            : numerator{static_cast<UInt&&>(numerator)}, denominator{denominator} {}
+        unsigned_rational(UInt const& numerator, UInt&& denominator)
+            : numerator{numerator}, denominator{static_cast<UInt&&>(denominator)} {}
+        unsigned_rational(UInt&& numerator, UInt&& denominator)
+            : numerator{static_cast<UInt&&>(numerator)}, denominator{
+                                                             static_cast<UInt&&>(denominator)} {}
+
+        friend bool operator<(unsigned_rational const& x, unsigned_rational const& y) {
+            return x.numerator * y.denominator < y.numerator * x.denominator;
+        }
+        friend bool operator<=(unsigned_rational const& x, unsigned_rational const& y) {
+            return x.numerator * y.denominator <= y.numerator * x.denominator;
+        }
+        friend bool operator>(unsigned_rational const& x, unsigned_rational const& y) {
+            return x.numerator * y.denominator > y.numerator * x.denominator;
+        }
+        friend bool operator>=(unsigned_rational const& x, unsigned_rational const& y) {
+            return x.numerator * y.denominator >= y.numerator * x.denominator;
+        }
+        friend bool operator==(unsigned_rational const& x, unsigned_rational const& y) {
+            return x.numerator * y.denominator == y.numerator * x.denominator;
+        }
+        friend bool operator!=(unsigned_rational const& x, unsigned_rational const& y) {
+            return x.numerator * y.denominator != y.numerator * x.denominator;
+        }
+
+        // Performs no reduction.
+        friend unsigned_rational operator+(unsigned_rational const& x, unsigned_rational const& y) {
+            return {x.numerator * y.denominator + y.numerator * x.denominator,
+                    x.denominator * y.denominator};
+        }
+        // Performs no reduction.
+        unsigned_rational& operator+=(unsigned_rational const& y) & {
+            numerator *= y.denominator;
+            numerator += y.numerator * denominator;
+            denominator *= y.denominator;
+            return *this;
+        }
+        // Performs no reduction.
+        friend unsigned_rational operator-(unsigned_rational const& x, unsigned_rational const& y) {
+            return {x.numerator * y.denominator - y.numerator * x.denominator,
+                    x.denominator * y.denominator};
+        }
+        // Performs no reduction.
+        unsigned_rational& operator-=(unsigned_rational const& y) & {
+            numerator *= y.denominator;
+            numerator -= y.numerator * denominator;
+            denominator *= y.denominator;
+            return *this;
+        }
+        // Performs no reduction.
+        friend unsigned_rational operator*(unsigned_rational const& x, unsigned_rational const& y) {
+            return {x.numerator * y.numerator, x.denominator * y.denominator};
+        }
+        // Performs no reduction.
+        unsigned_rational& operator*=(unsigned_rational const& y) & {
+            numerator *= y.numerator;
+            denominator *= y.denominator;
+            return *this;
+        }
+        // Performs no reduction.
+        friend unsigned_rational operator/(unsigned_rational const& x, unsigned_rational const& y) {
+            return {x.numerator * y.denominator, x.denominator * y.numerator};
+        }
+        // Performs no reduction.
+        unsigned_rational& operator/=(unsigned_rational const& y) & {
+            numerator *= y.denominator;
+            denominator *= y.numerator;
+            return *this;
+        }
     };
 
     template <class Impl, class UInt>
