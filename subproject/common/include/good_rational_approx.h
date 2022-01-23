@@ -31,7 +31,7 @@ namespace jkj {
     template <class ContinuedFractionsImpl, class UInt, class PositiveNumberX,
               class PositiveNumberEpsilon>
     std::vector<typename ContinuedFractionsImpl::uint_type>
-    find_all_good_rational_approx_denoms(PositiveNumberX const& x,
+    find_all_good_rational_approx_from_below_denoms(PositiveNumberX const& x,
                                          UInt const& denominator_upper_bound,
                                          PositiveNumberEpsilon const& error_threshold) {
         assert(denominator_upper_bound > 0);
