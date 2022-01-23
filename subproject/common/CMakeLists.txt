@@ -13,6 +13,7 @@ set(dragonbox_common_headers
 	include/continued_fractions.h
 	include/rational_continued_fractions.h
 	include/best_rational_approx.h
+	include/good_rational_approx.h
         include/random_float.h)
 
 set(dragonbox_common_sources source/big_uint.cpp)
