@@ -133,6 +133,15 @@ namespace jkj {
             return r += n;
         }
         friend big_uint operator+(element_type n, big_uint const& m) { return m + n; }
+        big_uint& operator++() & {
+            *this += 1;
+            return *this;
+        }
+        big_uint operator++(int) & {
+            auto temp = *this;
+            *this += 1;
+            return temp;
+        }
 
         // Precondition: n should be strictly smaller than or equal to the current number
         big_uint& operator-=(big_uint const& n) &;
