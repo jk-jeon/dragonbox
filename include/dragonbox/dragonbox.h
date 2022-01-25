@@ -664,16 +664,16 @@ namespace jkj::dragonbox {
 
             template <>
             struct check_divisibility_and_divide_by_pow10_info<1> {
-                static constexpr std::uint32_t magic_number = 0x199a;
-                static constexpr int margin_bits = 8;
-                static constexpr int divisibility_check_bits = 8;
+                static constexpr std::uint32_t magic_number = 6554;
+                static constexpr int divisibility_check_bits = 16;
+                static constexpr std::uint32_t threshold = 6553;
             };
 
             template <>
             struct check_divisibility_and_divide_by_pow10_info<2> {
-                static constexpr std::uint32_t magic_number = 0xa3d71;
-                static constexpr int margin_bits = 10;
+                static constexpr std::uint32_t magic_number = 656;
                 static constexpr int divisibility_check_bits = 16;
+                static constexpr std::uint32_t threshold = 655;
             };
 
             template <int N>
@@ -684,14 +684,12 @@ namespace jkj::dragonbox {
 
                 using info = check_divisibility_and_divide_by_pow10_info<N>;
                 n *= info::magic_number;
-                n >>= info::margin_bits;
 
-                // Mask for the lowest (divisibility_check_bits)-bits.
                 static_assert(info::divisibility_check_bits < 32);
-                constexpr std::uint32_t comparison_mask =
-                    std::uint32_t((std::uint32_t(1) << info::divisibility_check_bits) - 1);
+                constexpr auto mask =
+                    std::uint32_t(std::uint32_t(1) << info::divisibility_check_bits) - 1;
+                bool result = ((n & mask) < info::threshold);
 
-                bool result = (n & comparison_mask) == 0;
                 n >>= info::divisibility_check_bits;
                 return result;
             }
