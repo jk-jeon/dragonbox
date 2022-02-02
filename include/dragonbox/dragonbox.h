@@ -666,14 +666,12 @@ namespace jkj::dragonbox {
             struct check_divisibility_and_divide_by_pow10_info<1> {
                 static constexpr std::uint32_t magic_number = 6554;
                 static constexpr int divisibility_check_bits = 16;
-                static constexpr std::uint32_t threshold = 6553;
             };
 
             template <>
             struct check_divisibility_and_divide_by_pow10_info<2> {
                 static constexpr std::uint32_t magic_number = 656;
                 static constexpr int divisibility_check_bits = 16;
-                static constexpr std::uint32_t threshold = 655;
             };
 
             template <int N>
@@ -688,7 +686,7 @@ namespace jkj::dragonbox {
                 static_assert(info::divisibility_check_bits < 32);
                 constexpr auto mask =
                     std::uint32_t(std::uint32_t(1) << info::divisibility_check_bits) - 1;
-                bool result = ((n & mask) < info::threshold);
+                bool result = ((n & mask) < info::magic_number);
 
                 n >>= info::divisibility_check_bits;
                 return result;
@@ -1808,8 +1806,10 @@ namespace jkj::dragonbox {
             static_assert(min_k >= cache_holder<format>::min_k);
 
             static constexpr int max_k = [] {
+                // We do invoke shorter_interval_case for exponent == min_exponent case,
+                // so we should not add 1 here.
                 constexpr auto a = -log::floor_log10_pow2_minus_log10_4_over_3(
-                    int(min_exponent - significand_bits + 1));
+                    int(min_exponent - significand_bits /*+ 1*/));
                 constexpr auto b =
                     -log::floor_log10_pow2(int(min_exponent - significand_bits)) + kappa;
                 return a > b ? a : b;
