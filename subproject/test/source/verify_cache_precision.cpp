@@ -69,7 +69,7 @@ bool analyze() {
     using impl = jkj::dragonbox::detail::impl<typename FloatTraits::type, FloatTraits>;
     using namespace jkj::dragonbox::detail::log;
 
-    auto n_max = jkj::big_uint::power_of_2(impl::significand_bits + 2) - 1;
+    auto n_max = jkj::big_uint::power_of_2(impl::significand_bits + 2);
 
     analysis_result result;
     result.results.resize(impl::max_k - impl::min_k + 1);
@@ -298,7 +298,7 @@ bool analyze() {
     if (impl::cache_bits < larger) {
         auto success = true;
         std::cout << "Error cases:\n";
-        auto threshold = jkj::big_uint::power_of_2(impl::significand_bits + 1) - 2;
+        auto threshold = jkj::big_uint::power_of_2(impl::significand_bits + 1) - 1;
         for (auto const& ec : result.error_cases) {
             for (auto const& n : ec.candidate_multipliers) {
                 std::cout << "  e: " << ec.e << "  k: " << ec.k << "  n: ";
