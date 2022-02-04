@@ -21,10 +21,8 @@
 #include <functional>
 #include <iostream>
 
-static int floor_log10_pow2_precise(int e) {
+int floor_log10_pow2_precise(int e) {
     using namespace jkj::dragonbox::detail::log;
-    constexpr auto c = floor_shift(0, log10_2_fractional_digits, floor_log10_pow2_shift_amount);
-
     bool is_negative;
     if (e < 0) {
         is_negative = true;
@@ -46,10 +44,7 @@ static int floor_log10_pow2_precise(int e) {
     return is_negative ? -k : k - 1;
 }
 
-static int floor_log10_pow2_minus_log10_4_over_3_precise(int e) {
-    using namespace jkj::dragonbox::detail::log;
-    constexpr auto c = floor_shift(0, log10_2_fractional_digits, floor_log10_pow2_shift_amount);
-
+int floor_log10_pow2_minus_log10_4_over_3_precise(int e) {
     e -= 2;
 
     if (e < 0) {
@@ -77,10 +72,7 @@ static int floor_log10_pow2_minus_log10_4_over_3_precise(int e) {
     }
 }
 
-static int floor_log2_pow10_precise(int e) {
-    using namespace jkj::dragonbox::detail::log;
-    constexpr auto c = floor_shift(0, log2_10_fractional_digits, floor_log2_pow10_shift_amount);
-
+int floor_log2_pow10_precise(int e) {
     bool is_negative;
     if (e < 0) {
         is_negative = true;
@@ -101,10 +93,7 @@ static int floor_log2_pow10_precise(int e) {
     return is_negative ? -k : k - 1;
 }
 
-static int floor_log5_pow2_precise(int e) {
-    using namespace jkj::dragonbox::detail::log;
-    constexpr auto c = floor_shift(0, log5_2_fractional_digits, floor_log5_pow2_shift_amount);
-
+int floor_log5_pow2_precise(int e) {
     bool is_negative;
     if (e < 0) {
         is_negative = true;
@@ -125,113 +114,88 @@ static int floor_log5_pow2_precise(int e) {
     return is_negative ? -k : k - 1;
 }
 
-static int floor_log5_pow2_minus_log5_3_precise(int e) {
-    using namespace jkj::dragonbox::detail::log;
-    constexpr auto c = floor_shift(0, log5_2_fractional_digits, floor_log5_pow2_shift_amount);
-
-    if (e < 0) {
-        e = -e;
+int floor_log5_pow2_minus_log5_3_precise(int e) {
+    if (e >= 0) {
         auto power_of_2 = jkj::big_uint::power_of_2(std::size_t(e));
         auto power_of_5_times_3 = jkj::big_uint(3);
         int k = 0;
-        while (power_of_5_times_3 < power_of_2) {
+        while (power_of_5_times_3 <= power_of_2) {
             power_of_5_times_3.multiply_5();
-            ++k;
-        }
-        return -k;
-    }
-    else {
-        auto power_of_2_times_3 = jkj::big_uint::power_of_2(std::size_t(e)) * 3;
-        auto power_of_5 = jkj::big_uint(1);
-        int k = 0;
-        while (power_of_5 <= power_of_2_times_3) {
-            power_of_5.multiply_5();
             ++k;
         }
         return k - 1;
     }
+    else {
+        e = -e;
+        auto power_of_2_times_3 = jkj::big_uint::power_of_2(std::size_t(e)) * 3;
+        auto power_of_5 = jkj::big_uint(1);
+        int k = 0;
+        while (power_of_5 < power_of_2_times_3) {
+            power_of_5.multiply_5();
+            ++k;
+        }
+        return -k;
+    }
 }
 
-template <std::int32_t c_integer_part, std::uint64_t c_fractional_digits,
-          std::int32_t s_integer_part, std::uint64_t s_fractional_digits, std::size_t shift_amount>
-static int verify(std::string_view name, std::function<int(int)> precise_calculator = nullptr) {
-    // Compute the constants
-    using jkj::dragonbox::detail::log::floor_shift;
-    constexpr auto c = floor_shift(c_integer_part, c_fractional_digits, shift_amount);
-    constexpr auto s = floor_shift(s_integer_part, s_fractional_digits, shift_amount);
+struct verify_result {
+    int min_exponent;
+    int max_exponent;
+};
 
+template <jkj::dragonbox::detail::log::multiply m, jkj::dragonbox::detail::log::subtract f,
+          jkj::dragonbox::detail::log::shift k>
+verify_result verify(std::string_view name, std::function<int(int)> precise_calculator = nullptr) {
     // Compute the maximum possible e
     constexpr auto max_exponent_upper_bound =
-        std::uint32_t(std::numeric_limits<std::int32_t>::max() / c);
-    static_assert(max_exponent_upper_bound > 1);
+        std::numeric_limits<std::int32_t>::max() / std::int32_t(m);
+    constexpr auto min_exponent_lower_bound =
+        -(std::int32_t(-std::int64_t(std::numeric_limits<std::int32_t>::min()) - std::int32_t(f)) /
+          std::int32_t(m));
 
-    // Compute a conservative upper bound on bits needed for the fractional part
-    constexpr int ceil_log2_max_exponent_upper_bound = [] {
-        int c = 0;
-        std::uint32_t u = 1;
-        while (u < max_exponent_upper_bound) {
-            u <<= 1;
-            ++c;
+    verify_result result{int(min_exponent_lower_bound), int(max_exponent_upper_bound)};
+
+    bool reach_upper_bound = false;
+    bool reach_lower_bound = false;
+    for (std::int32_t e = 0; e <= std::max(-min_exponent_lower_bound, max_exponent_upper_bound);
+         ++e) {
+        if (!reach_upper_bound) {
+            auto true_value = precise_calculator(int(e));
+            auto computed_value =
+                int((e * std::int32_t(m) - std::int32_t(f)) >> std::size_t(k));
+            if (computed_value != true_value) {
+                std::cout << "  - error with positive e ("
+                          << "e: " << e << ", true value: " << true_value
+                          << ", computed value: " << computed_value << ")\n";
+
+                reach_upper_bound = true;
+                result.max_exponent = int(e) - 1;
+            }
         }
-        return c;
-    }();
 
-    // Compute the bits for the fractional part
-    constexpr auto frac_bits = std::uint32_t(
-        ((c_fractional_digits << shift_amount) >> (64 - ceil_log2_max_exponent_upper_bound)) + 1);
+        if (!reach_lower_bound) {
+            auto true_value = precise_calculator(-int(e));
+            auto computed_value =
+                int((-e * std::int32_t(m) - std::int32_t(f)) >> std::size_t(k));
+            if (computed_value != true_value) {
+                std::cout << "  - error with negative e ("
+                          << "e: " << (-int(e)) << ", true value: " << true_value
+                          << ", computed value: " << computed_value << ")\n";
 
-    // To extract the lower bits
-    constexpr auto lower_bits_mask = std::uint32_t((std::uint32_t(1) << shift_amount) - 1);
-
-    auto max_exponent = int(max_exponent_upper_bound);
-    for (std::uint32_t e = 0; e <= max_exponent_upper_bound; ++e) {
-        // Detect overflow
-        auto frac_part = std::uint32_t(((frac_bits * e) >> ceil_log2_max_exponent_upper_bound) + 1);
-        auto lower_bits = std::uint32_t(lower_bits_mask & (e * c - s));
-
-        if (frac_part + lower_bits >= std::uint32_t(std::uint32_t(1) << shift_amount)) {
-            std::cout << name << ": overflow detected at e = " << e << std::endl;
-
-            if (precise_calculator) {
-                bool actual_error = false;
-
-                auto true_value = precise_calculator(int(e));
-                auto computed_value = int((std::int32_t(e) * c - s) >> shift_amount);
-                if (computed_value != true_value) {
-                    std::cout << "  - actual error with positive e ("
-                              << "true value: " << true_value
-                              << ", computed value: " << computed_value << ")\n";
-
-                    actual_error = true;
-                }
-
-                true_value = precise_calculator(-int(e));
-                computed_value = int((-std::int32_t(e) * c - s) >> shift_amount);
-                if (computed_value != true_value) {
-                    std::cout << "  - actual error with negative e ("
-                              << "true value: " << true_value
-                              << ", computed value: " << computed_value << ")\n";
-
-                    actual_error = true;
-                }
-
-                if (actual_error) {
-                    max_exponent = int(e) - 1;
-                    break;
-                }
-                else {
-                    std::cout << "  - turned out to be okay\n";
-                }
+                reach_lower_bound = true;
+                result.min_exponent = -int(e) + 1;
             }
-            else {
-                max_exponent = int(e) - 1;
-                break;
-            }
+        }
+
+        if (reach_upper_bound && reach_lower_bound) {
+            break;
         }
     }
 
-    std::cout << name << " is correct up to |e| <= " << max_exponent << std::endl;
-    return max_exponent;
+    std::cout << name << " is correct for e in [" << result.min_exponent << ", "
+              << result.max_exponent << "]\n\n";
+
+    return result;
 }
 
 int main() {
@@ -240,25 +204,46 @@ int main() {
     bool success = true;
     std::cout << "[Verifying log computation...]\n";
 
-    success &= (verify<0, log10_2_fractional_digits, 0, 0, floor_log10_pow2_shift_amount>(
-                    "floor_log10_pow2", floor_log10_pow2_precise) == floor_log10_pow2_input_limit);
-
-    success &=
-        (verify<0, log10_2_fractional_digits, 0, log10_4_over_3_fractional_digits,
-                floor_log10_pow2_shift_amount>("floor_log10_pow2_minus_log10_4_over_3",
-                                               floor_log10_pow2_minus_log10_4_over_3_precise) ==
-         floor_log10_pow2_minus_log10_4_over_3_input_limit);
-
-    success &= (verify<3, log2_10_fractional_digits, 0, 0, floor_log2_pow10_shift_amount>(
-                    "floor_log2_pow10", floor_log2_pow10_precise) == floor_log2_pow10_input_limit);
-
-    success &= (verify<0, log5_2_fractional_digits, 0, 0, floor_log5_pow2_shift_amount>(
-                    "floor_log5_pow2", floor_log5_pow2_precise) == floor_log5_pow2_input_limit);
-
-    success &= (verify<0, log5_2_fractional_digits, 0, log5_3_fractional_digits,
-                       floor_log5_pow2_shift_amount>("floor_log5_pow2_minus_log5_3",
-                                                     floor_log5_pow2_minus_log5_3_precise) ==
-                floor_log5_pow2_minus_log5_3_input_limit);
+    {
+        auto result = verify<multiply(315653), subtract(0), shift(20)>("floor_log10_pow2",
+                                                                       floor_log10_pow2_precise);
+        if (result.min_exponent > floor_log10_pow2_min_exponent ||
+            result.max_exponent < floor_log10_pow2_max_exponent) {
+            success = false;
+        }
+    }
+    {
+        auto result = verify<multiply(1741647), subtract(0), shift(19)>("floor_log2_pow10",
+                                                                        floor_log2_pow10_precise);
+        if (result.min_exponent > floor_log2_pow10_min_exponent ||
+            result.max_exponent < floor_log2_pow10_max_exponent) {
+            success = false;
+        }
+    }
+    {
+        auto result = verify<multiply(631305), subtract(261663), shift(21)>(
+            "floor_log10_pow2_minus_log10_4_over_3", floor_log10_pow2_minus_log10_4_over_3_precise);
+        if (result.min_exponent > floor_log10_pow2_minus_log10_4_over_3_min_exponent ||
+            result.max_exponent < floor_log10_pow2_minus_log10_4_over_3_max_exponent) {
+            success = false;
+        }
+    }
+    {
+        auto result = verify<multiply(225799), subtract(0), shift(19)>("floor_log5_pow2",
+                                                                        floor_log5_pow2_precise);
+        if (result.min_exponent > floor_log5_pow2_min_exponent ||
+            result.max_exponent < floor_log5_pow2_max_exponent) {
+            success = false;
+        }
+    }
+    {
+        auto result = verify<multiply(451597), subtract(715764), shift(20)>(
+            "floor_log5_pow2_minus_log5_3", floor_log5_pow2_minus_log5_3_precise);
+        if (result.min_exponent > floor_log5_pow2_minus_log5_3_min_exponent ||
+            result.max_exponent < floor_log5_pow2_minus_log5_3_max_exponent) {
+            success = false;
+        }
+    }
 
     std::cout << "Done.\n\n\n";
 
