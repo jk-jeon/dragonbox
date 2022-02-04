@@ -51,19 +51,7 @@ namespace jkj::dragonbox {
             if (br.is_nonzero()) {
                 auto result = to_decimal<Float, FloatTraits>(
                     s, exponent_bits, policy::sign::ignore,
-                    [] {
-                        // For binary32, trailing zero removal procedure is very fast, so it's
-                        // better to do it in to_decimal rather than in to_chars.
-                        if constexpr (std::is_same_v<typename FloatTraits::format,
-                                                     ieee754_binary32>) {
-                            return policy::trailing_zero::remove;
-                        }
-                        // For binary64, the additional cost is too big, so it's better to do it in
-                        // to_chars.
-                        else {
-                            return policy::trailing_zero::ignore;
-                        }
-                    }(),
+                    policy::trailing_zero::remove,
                     typename policy_holder::decimal_to_binary_rounding_policy{},
                     typename policy_holder::binary_to_decimal_rounding_policy{},
                     typename policy_holder::cache_policy{});
