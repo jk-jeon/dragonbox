@@ -318,11 +318,14 @@ namespace jkj::dragonbox {
         ////////////////////////////////////////////////////////////////////////////////////////
 
         namespace bits {
-            // Most compilers should be able to optimize this into the ROR
-            // instruction, but apparently clang refuses to do that inside Dragonbox.
-            // Why...?
+            // Most compilers should be able to optimize this into the ROR instruction.
             inline std::uint32_t rotr(std::uint32_t n, std::uint32_t r) noexcept {
+                r &= 31;
                 return (n >> r) | (n << (32 - r));
+            }
+            inline std::uint64_t rotr(std::uint64_t n, std::uint32_t r) noexcept {
+                r &= 63;
+                return (n >> r) | (n << (64 - r));
             }
         }
 
@@ -382,15 +385,13 @@ namespace jkj::dragonbox {
                 }
             };
 
-#if !defined(__SIZEOF_INT128__)
             static inline std::uint64_t umul64(std::uint32_t x, std::uint32_t y) noexcept {
-    #if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86)
                 return __emulu(x, y);
-    #else
+#else
                 return x * std::uint64_t(y);
-    #endif
-            }
 #endif
+            }
 
             // Get 128-bit result of multiplication of two 64-bit unsigned integers.
             JKJ_SAFEBUFFERS inline uint128 umul128(std::uint64_t x, std::uint64_t y) noexcept {
@@ -514,45 +515,18 @@ namespace jkj::dragonbox {
         namespace log {
             static_assert((-1 >> 1) == -1, "right-shift for signed integers must be arithmetic");
 
-            constexpr std::int32_t floor_shift(std::uint32_t integer_part,
-                                               std::uint64_t fractional_digits,
-                                               std::size_t shift_amount) noexcept {
-                assert(shift_amount < 32);
-                // Ensure no overflow
-                assert(shift_amount == 0 ||
-                       integer_part < (std::uint32_t(1) << (32 - shift_amount)));
-
-                return shift_amount == 0 ? std::int32_t(integer_part)
-                                         : std::int32_t((integer_part << shift_amount) |
-                                                        (fractional_digits >> (64 - shift_amount)));
-            }
-
             // Compute floor(e * c - s).
-            template <std::uint32_t c_integer_part, std::uint64_t c_fractional_digits,
-                      std::size_t shift_amount, std::int32_t max_exponent,
-                      std::uint32_t s_integer_part = 0, std::uint64_t s_fractional_digits = 0>
+            enum class multiply : std::uint32_t {};
+            enum class subtract : std::uint32_t {};
+            enum class shift : std::size_t {};
+            enum class min_exponent : std::int32_t {};
+            enum class max_exponent : std::int32_t {};
+
+            template <multiply m, subtract f, shift k, min_exponent e_min, max_exponent e_max>
             constexpr int compute(int e) noexcept {
-                assert(e <= max_exponent && e >= -max_exponent);
-                constexpr auto c = floor_shift(c_integer_part, c_fractional_digits, shift_amount);
-                constexpr auto s = floor_shift(s_integer_part, s_fractional_digits, shift_amount);
-                return int((std::int32_t(e) * c - s) >> shift_amount);
+                assert(std::int32_t(e_min) <= e && e <= std::int32_t(e_max));
+                return int((std::int32_t(e) * std::int32_t(m) - std::int32_t(f)) >> std::size_t(k));
             }
-
-            inline constexpr std::uint64_t log10_2_fractional_digits{0x4d10'4d42'7de7'fbcc};
-            inline constexpr std::uint64_t log10_4_over_3_fractional_digits{0x1ffb'fc2b'bc78'0375};
-            inline constexpr std::size_t floor_log10_pow2_shift_amount = 22;
-            inline constexpr int floor_log10_pow2_input_limit = 1700;
-            inline constexpr int floor_log10_pow2_minus_log10_4_over_3_input_limit = 1700;
-
-            inline constexpr std::uint64_t log2_10_fractional_digits{0x5269'e12f'346e'2bf9};
-            inline constexpr std::size_t floor_log2_pow10_shift_amount = 19;
-            inline constexpr int floor_log2_pow10_input_limit = 1233;
-
-            inline constexpr std::uint64_t log5_2_fractional_digits{0x6e40'd1a4'143d'cb94};
-            inline constexpr std::uint64_t log5_3_fractional_digits{0xaebf'4791'5d44'3b24};
-            inline constexpr std::size_t floor_log5_pow2_shift_amount = 20;
-            inline constexpr int floor_log5_pow2_input_limit = 1492;
-            inline constexpr int floor_log5_pow2_minus_log5_3_input_limit = 2427;
 
             // For constexpr computation.
             // Returns -1 when n = 0.
@@ -566,36 +540,49 @@ namespace jkj::dragonbox {
                 return count;
             }
 
+            static constexpr int floor_log10_pow2_min_exponent = -2620;
+            static constexpr int floor_log10_pow2_max_exponent = 2620;
             constexpr int floor_log10_pow2(int e) noexcept {
                 using namespace log;
-                return compute<0, log10_2_fractional_digits, floor_log10_pow2_shift_amount,
-                               floor_log10_pow2_input_limit>(e);
+                return compute<multiply(315653), subtract(0), shift(20),
+                               min_exponent(floor_log10_pow2_min_exponent),
+                               max_exponent(floor_log10_pow2_max_exponent)>(e);
             }
 
+            static constexpr int floor_log2_pow10_min_exponent = -1233;
+            static constexpr int floor_log2_pow10_max_exponent = 1233;
             constexpr int floor_log2_pow10(int e) noexcept {
                 using namespace log;
-                return compute<3, log2_10_fractional_digits, floor_log2_pow10_shift_amount,
-                               floor_log2_pow10_input_limit>(e);
+                return compute<multiply(1741647), subtract(0), shift(19),
+                               min_exponent(floor_log2_pow10_min_exponent),
+                               max_exponent(floor_log2_pow10_max_exponent)>(e);
             }
 
-            constexpr int floor_log5_pow2(int e) noexcept {
-                using namespace log;
-                return compute<0, log5_2_fractional_digits, floor_log5_pow2_shift_amount,
-                               floor_log5_pow2_input_limit>(e);
-            }
-
-            constexpr int floor_log5_pow2_minus_log5_3(int e) noexcept {
-                using namespace log;
-                return compute<0, log5_2_fractional_digits, floor_log5_pow2_shift_amount,
-                               floor_log5_pow2_minus_log5_3_input_limit, 0,
-                               log5_3_fractional_digits>(e);
-            }
-
+            static constexpr int floor_log10_pow2_minus_log10_4_over_3_min_exponent = -2985;
+            static constexpr int floor_log10_pow2_minus_log10_4_over_3_max_exponent = 2936;
             constexpr int floor_log10_pow2_minus_log10_4_over_3(int e) noexcept {
                 using namespace log;
-                return compute<0, log10_2_fractional_digits, floor_log10_pow2_shift_amount,
-                               floor_log10_pow2_minus_log10_4_over_3_input_limit, 0,
-                               log10_4_over_3_fractional_digits>(e);
+                return compute<multiply(631305), subtract(261663), shift(21),
+                               min_exponent(floor_log10_pow2_minus_log10_4_over_3_min_exponent),
+                               max_exponent(floor_log10_pow2_minus_log10_4_over_3_max_exponent)>(e);
+            }
+
+            static constexpr int floor_log5_pow2_min_exponent = -1831;
+            static constexpr int floor_log5_pow2_max_exponent = 1831;
+            constexpr int floor_log5_pow2(int e) noexcept {
+                using namespace log;
+                return compute<multiply(225799), subtract(0), shift(19),
+                               min_exponent(floor_log5_pow2_min_exponent),
+                               max_exponent(floor_log5_pow2_max_exponent)>(e);
+            }
+
+            static constexpr int floor_log5_pow2_minus_log5_3_min_exponent = -3543;
+            static constexpr int floor_log5_pow2_minus_log5_3_max_exponent = 2427;
+            constexpr int floor_log5_pow2_minus_log5_3(int e) noexcept {
+                using namespace log;
+                return compute<multiply(451597), subtract(715764), shift(20),
+                               min_exponent(floor_log5_pow2_minus_log5_3_min_exponent),
+                               max_exponent(floor_log5_pow2_minus_log5_3_max_exponent)>(e);
             }
         }
 
@@ -604,74 +591,23 @@ namespace jkj::dragonbox {
         ////////////////////////////////////////////////////////////////////////////////////////
 
         namespace div {
-            template <class UInt, UInt a>
-            constexpr UInt
-            modular_inverse(unsigned int bit_width = unsigned(value_bits<UInt>)) noexcept {
-                // By Euler's theorem, a^phi(2^n) == 1 (mod 2^n), where phi(2^n) = 2^(n-1), so the
-                // modular inverse of a is a^(2^(n-1) - 1) = a^(1 + 2 + 2^2 + ... + 2^(n-2)).
-                std::common_type_t<UInt, unsigned int> mod_inverse = 1;
-                for (unsigned int i = 1; i < bit_width; ++i) {
-                    mod_inverse = mod_inverse * mod_inverse * a;
-                }
-                if (bit_width < value_bits<UInt>) {
-                    auto mask = UInt((UInt(1) << bit_width) - 1);
-                    return UInt(mod_inverse & mask);
-                }
-                else {
-                    return UInt(mod_inverse);
-                }
-            }
-
-            template <class UInt, UInt a, std::size_t N>
-            struct table_holder {
-                static_assert(std::is_unsigned_v<UInt>);
-                static_assert(a % 2 != 0);
-                static_assert(N > 0);
-
-                static constexpr std::size_t size = N;
-
-                struct entry {
-                    UInt mod_inv;
-                    UInt max_quotient;
-                };
-
-                entry table[N];
-            };
-
-            template <class UInt, UInt a, std::size_t N>
-            constexpr table_holder<UInt, a, N> divisibility_check_table = [] {
-                constexpr auto mod_inverse = modular_inverse<UInt, a>();
-                table_holder<UInt, a, N> t{};
-                std::common_type_t<UInt, unsigned int> pow_of_mod_inverse = 1;
-                UInt pow_of_a = 1;
-                for (std::size_t i = 0; i < N; ++i) {
-                    t.table[i].mod_inv = UInt(pow_of_mod_inverse);
-                    t.table[i].max_quotient = UInt(std::numeric_limits<UInt>::max() / pow_of_a);
-
-                    pow_of_mod_inverse *= mod_inverse;
-                    pow_of_a *= a;
-                }
-
-                return t;
-            }();
-
             // Replace n by floor(n / 10^N).
             // Returns true if and only if n is divisible by 10^N.
             // Precondition: n <= 10^(N+1)
             // !!It takes an in-out parameter!!
             template <int N>
-            struct check_divisibility_and_divide_by_pow10_info;
+            struct divide_by_pow10_info;
 
             template <>
-            struct check_divisibility_and_divide_by_pow10_info<1> {
+            struct divide_by_pow10_info<1> {
                 static constexpr std::uint32_t magic_number = 6554;
-                static constexpr int divisibility_check_bits = 16;
+                static constexpr int shift_amount = 16;
             };
 
             template <>
-            struct check_divisibility_and_divide_by_pow10_info<2> {
+            struct divide_by_pow10_info<2> {
                 static constexpr std::uint32_t magic_number = 656;
-                static constexpr int divisibility_check_bits = 16;
+                static constexpr int shift_amount = 16;
             };
 
             template <int N>
@@ -680,58 +616,47 @@ namespace jkj::dragonbox {
                 static_assert(N + 1 <= log::floor_log10_pow2(31));
                 assert(n <= compute_power<N + 1>(std::uint32_t(10)));
 
-                using info = check_divisibility_and_divide_by_pow10_info<N>;
+                using info = divide_by_pow10_info<N>;
                 n *= info::magic_number;
 
-                static_assert(info::divisibility_check_bits < 32);
-                constexpr auto mask =
-                    std::uint32_t(std::uint32_t(1) << info::divisibility_check_bits) - 1;
+                constexpr auto mask = std::uint32_t(std::uint32_t(1) << info::shift_amount) - 1;
                 bool result = ((n & mask) < info::magic_number);
 
-                n >>= info::divisibility_check_bits;
+                n >>= info::shift_amount;
                 return result;
             }
 
             // Compute floor(n / 10^N) for small n and N.
             // Precondition: n <= 10^(N+1)
             template <int N>
-            struct small_division_by_pow10_info;
-
-            template <>
-            struct small_division_by_pow10_info<1> {
-                static constexpr std::uint32_t magic_number = 0xcccd;
-                static constexpr int shift_amount = 19;
-            };
-
-            template <>
-            struct small_division_by_pow10_info<2> {
-                static constexpr std::uint32_t magic_number = 0xa3d8;
-                static constexpr int shift_amount = 22;
-            };
-
-            template <int N>
             constexpr std::uint32_t small_division_by_pow10(std::uint32_t n) noexcept {
+                // Make sure the computation for max_n does not overflow.
+                static_assert(N + 1 <= log::floor_log10_pow2(31));
                 assert(n <= compute_power<N + 1>(std::uint32_t(10)));
-                return (n * small_division_by_pow10_info<N>::magic_number) >>
-                       small_division_by_pow10_info<N>::shift_amount;
+
+                return (n * divide_by_pow10_info<N>::magic_number) >>
+                       divide_by_pow10_info<N>::shift_amount;
             }
 
             // Compute floor(n / 10^N) for small N.
-            // Precondition: n <= 2^a * 5^b (a = max_pow2, b = max_pow5)
-            template <int N, int max_pow2, int max_pow5, class UInt>
+            // Precondition: n <= n_max
+            template <int N, class UInt, UInt n_max>
             constexpr UInt divide_by_pow10(UInt n) noexcept {
                 static_assert(N >= 0);
 
-                // Ensure no overflow.
-                static_assert(max_pow2 + (log::floor_log2_pow10(max_pow5) - max_pow5) <
-                              value_bits<UInt>);
-
+                // Specialize for 32-bit division by 100.
+                // Compiler is supposed to generate the identical code for just writing
+                // "n / 100", but for some reason MSVC generates an inefficient code
+                // (mul + mov for no apparent reason, instead of single imul),
+                // so we does this manually.
+                if constexpr (std::is_same_v<UInt, std::uint32_t> && N == 2) {
+                    return std::uint32_t(wuint::umul64(n, std::uint32_t(1374389535)) >> 37);
+                }
                 // Specialize for 64-bit division by 1000.
                 // Ensure that the correctness condition is met.
                 if constexpr (std::is_same_v<UInt, std::uint64_t> && N == 3 &&
-                              max_pow2 + (log::floor_log2_pow10(N + max_pow5) - (N + max_pow5)) <
-                                  70) {
-                    return wuint::umul128_upper64(n, 0x8312'6e97'8d4f'df3c) >> 9;
+                              n_max <= std::uint64_t(15534100272597517998ull)) {
+                    return wuint::umul128_upper64(n, std::uint64_t(2361183241434822607ull)) >> 7;
                 }
                 else {
                     constexpr auto divisor = compute_power<N>(UInt(10));
@@ -1902,7 +1827,9 @@ namespace jkj::dragonbox {
                 // Using an upper bound on zi, we might be able to optimize the division
                 // better than the compiler; we are computing zi / big_divisor here.
                 ret_value.significand =
-                    div::divide_by_pow10<kappa + 1, significand_bits + kappa + 2, kappa + 1>(zi);
+                    div::divide_by_pow10<kappa + 1, carrier_uint,
+                                         (carrier_uint(1) << (significand_bits + 1)) * big_divisor -
+                                             1>(zi);
                 auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
 
                 if (r > deltai) {
@@ -2237,215 +2164,93 @@ namespace jkj::dragonbox {
 
             // Remove trailing zeros from n and return the number of zeros removed.
             JKJ_FORCEINLINE static int remove_trailing_zeros(carrier_uint& n) noexcept {
-                constexpr auto max_power = [] {
-                    constexpr auto max_possible_significand =
-                        std::numeric_limits<carrier_uint>::max() /
-                        compute_power<kappa + 1>(std::uint32_t(10));
-
-                    int k = 0;
-                    carrier_uint p = 1;
-                    while (p < max_possible_significand / 10) {
-                        p *= 10;
-                        ++k;
-                    }
-                    return k;
-                }();
+                assert(n != 0);
 
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
-                    static_assert(max_power == 7, "Assertion failed! Did you change kappa?");
+                    constexpr auto mod_inv_5 = std::uint32_t(0xcccc'cccd);
+                    constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
 
-                    // Perform a binary search.
                     int s = 0;
-
-#if defined(__clang__) || !defined(_MSC_VER)
-                    if (n % 1'0000 == 0) {
-                        n /= 1'0000;
-                        s |= 0x4;
+                    while (true) {
+                        auto q = bits::rotr(n * mod_inv_25, 2);
+                        if (q <= std::numeric_limits<std::uint32_t>::max() / 100) {
+                            n = q;
+                            s += 2;
+                        }
+                        else {
+                            break;
+                        }
                     }
-                    if (n % 100 == 0) {
-                        n /= 100;
-                        s |= 0x2;
+                    auto q = bits::rotr(n * mod_inv_5, 1);
+                    if (q <= std::numeric_limits<std::uint32_t>::max() / 10) {
+                        n = q;
+                        s |= 1;
                     }
-                    if (n % 10 == 0) {
-                        n /= 10;
-                        s |= 0x1;
-                    }
-#else
-                    // Up to the currently tested version of MSVC (1926), it seems that MSVC is
-                    // not aware of the Granlund-Montgomery style divisibility test. Thus we
-                    // implement it ourselves here.
-
-                    constexpr auto const& divtable =
-                        div::divisibility_check_table<carrier_uint, 5, decimal_digits>;
-
-                    std::uint32_t quotient;
-
-                    // Is n divisible by 10^4?
-                    quotient = bits::rotr(n * divtable.table[4].mod_inv, 4);
-                    if (quotient <= (divtable.table[4].max_quotient >> 4)) {
-                        n = quotient;
-                        s |= 0x4;
-                    }
-
-                    // Is n divisible by 10^2?
-                    quotient = bits::rotr(n * divtable.table[2].mod_inv, 2);
-                    if (quotient <= (divtable.table[2].max_quotient >> 2)) {
-                        n = quotient;
-                        s |= 0x2;
-                    }
-
-                    // Is n divisible by 10^1?
-                    quotient = bits::rotr(n * divtable.table[1].mod_inv, 1);
-                    if (quotient <= (divtable.table[1].max_quotient >> 1)) {
-                        n = quotient;
-                        s |= 0x1;
-                    }
-#endif
 
                     return s;
                 }
                 else {
                     static_assert(std::is_same_v<format, ieee754_binary64>);
-                    static_assert(max_power == 16, "Assertion failed! Did you change kappa?");
 
-                    // Divide by 10^8 and reduce to 32-bits.
-                    // Since ret_value.significand <= (2^64 - 1) / 1000 < 10^17, both of the
-                    // quotient and the r should fit in 32-bits.
+                    // Divide by 10^8 and reduce to 32-bits if divisible.
+                    // Since ret_value.significand <= (2^53 * 1000 - 1) / 1000 < 10^16,
+                    // n is at most of 16 digits.
 
-                    constexpr auto const& divtable32 =
-                        div::divisibility_check_table<std::uint32_t, 5, 9>;
+                    // This magic number is ceil(2^90 / 10^8).
+                    constexpr auto magic_number = std::uint64_t(12379400392853802749ull);
+                    auto nm = wuint::umul128(n, magic_number);
 
-                    // If the number is divisible by 1'0000'0000, work with the quotient.
-                    auto quotient_by_pow10_8 = std::uint32_t(div::divide_by_pow10<8, 54, 0>(n));
-                    auto remainder = std::uint32_t(n - 1'0000'0000 * quotient_by_pow10_8);
+                    // Is n is divisible by 10^8?
+                    if ((nm.high() & ((std::uint64_t(1) << (90 - 64)) - 1)) == 0 &&
+                        nm.low() < magic_number) {
+                        // If yes, work with the quotient.
+                        auto n32 = std::uint32_t(nm.high() >> (90 - 64));
 
-                    if (remainder == 0) {
-                        auto n32 = quotient_by_pow10_8;
+                        constexpr auto mod_inv_5 = std::uint32_t(0xcccc'cccd);
+                        constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
 
-#if defined(__clang__) || !defined(_MSC_VER)
-                        // Is n divisible by 10^8?
-                        // This branch is extremely unlikely.
-                        // I suspect it is impossible to get into this branch.
-                        if (n32 % 1'0000'0000 == 0) {
-                            n = n32 / 1'0000'0000;
-                            return 16;
-                        }
-
-                        // Otherwise, perform a binary search.
                         int s = 8;
-
-                        if (n32 % 1'0000 == 0) {
-                            n32 /= 1'0000;
-                            s |= 0x4;
+                        while (true) {
+                            auto q = bits::rotr(n32 * mod_inv_25, 2);
+                            if (q <= std::numeric_limits<std::uint32_t>::max() / 100) {
+                                n32 = q;
+                                s += 2;
+                            }
+                            else {
+                                break;
+                            }
                         }
-                        if (n32 % 100 == 0) {
-                            n32 /= 100;
-                            s |= 0x2;
+                        auto q = bits::rotr(n32 * mod_inv_5, 1);
+                        if (q <= std::numeric_limits<std::uint32_t>::max() / 10) {
+                            n32 = q;
+                            s |= 1;
                         }
-                        if (n32 % 10 == 0) {
-                            n32 /= 10;
-                            s |= 0x1;
-                        }
-#else
-                        // Up to the currently tested version of MSVC (1926), it seems that MSVC is
-                        // not aware of the Granlund-Montgomery style divisibility test. Thus we
-                        // implement it ourselves here.
-
-                        std::uint32_t quotient;
-
-                        // Is n divisible by 10^8?
-                        // This branch is extremely unlikely.
-                        // I suspect it is impossible to get into this branch.
-                        quotient = bits::rotr(n32 * divtable32.table[8].mod_inv, 8);
-                        if (quotient <= (divtable32.table[8].max_quotient >> 8)) {
-                            n = quotient;
-                            return 16;
-                        }
-
-                        // Otherwise, perform a binary search.
-                        int s = 8;
-
-                        // Is n divisible by 10^4?
-                        quotient = bits::rotr(n32 * divtable32.table[4].mod_inv, 4);
-                        if (quotient <= (divtable32.table[4].max_quotient >> 4)) {
-                            n32 = quotient;
-                            s |= 0x4;
-                        }
-
-                        // Is n divisible by 10^2?
-                        quotient = bits::rotr(n32 * divtable32.table[2].mod_inv, 2);
-                        if (quotient <= (divtable32.table[2].max_quotient >> 2)) {
-                            n32 = quotient;
-                            s |= 0x2;
-                        }
-
-                        // Is n divisible by 10^1?
-                        quotient = bits::rotr(n32 * divtable32.table[1].mod_inv, 1);
-                        if (quotient <= (divtable32.table[1].max_quotient >> 1)) {
-                            n32 = quotient;
-                            s |= 0x1;
-                        }
-#endif
 
                         n = n32;
                         return s;
                     }
 
-                    // If the number is not divisible by 1'0000'0000, work with the remainder.
+                    // If n is not divisible by 10^8, work with n itself.
+                    constexpr auto mod_inv_5 = std::uint64_t(0xcccc'cccc'cccc'cccd);
+                    constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
 
-                    // Perform a binary search.
-                    std::uint32_t multiplier = 1'0000'0000;
                     int s = 0;
-
-#if defined(__clang__) || !defined(_MSC_VER)
-                    if (remainder % 1'0000 == 0) {
-                        remainder /= 1'0000;
-                        multiplier = 1'0000;
-                        s |= 0x4;
+                    while (true) {
+                        auto q = bits::rotr(n * mod_inv_25, 2);
+                        if (q <= std::numeric_limits<std::uint64_t>::max() / 100) {
+                            n = q;
+                            s += 2;
+                        }
+                        else {
+                            break;
+                        }
                     }
-                    if (remainder % 100 == 0) {
-                        remainder /= 100;
-                        multiplier = (multiplier >> 2) * divtable32.table[2].mod_inv;
-                        s |= 0x2;
-                    }
-                    if (remainder % 10 == 0) {
-                        remainder /= 10;
-                        multiplier = (multiplier >> 1) * divtable32.table[1].mod_inv;
-                        s |= 0x1;
-                    }
-#else
-                    // Up to the currently tested version of MSVC (1926), it seems that MSVC is
-                    // not aware of the Granlund-Montgomery style divisibility test. Thus we
-                    // implement it ourselves here.
-
-                    std::uint32_t quotient;
-
-                    // Is n divisible by 10^4?
-                    quotient = bits::rotr(remainder * divtable32.table[4].mod_inv, 4);
-                    if (quotient <= (divtable32.table[4].max_quotient >> 4)) {
-                        remainder = quotient;
-                        multiplier = 1'0000;
-                        s |= 0x4;
+                    auto q = bits::rotr(n * mod_inv_5, 1);
+                    if (q <= std::numeric_limits<std::uint64_t>::max() / 10) {
+                        n = q;
+                        s |= 1;
                     }
 
-                    // Is n divisible by 10^2?
-                    quotient = bits::rotr(remainder * divtable32.table[2].mod_inv, 2);
-                    if (quotient <= (divtable32.table[2].max_quotient >> 2)) {
-                        remainder = quotient;
-                        multiplier = (s == 4 ? 100 : 100'0000);
-                        s |= 0x2;
-                    }
-
-                    // Is n divisible by 10^1?
-                    quotient = bits::rotr(remainder * divtable32.table[1].mod_inv, 1);
-                    if (quotient <= (divtable32.table[1].max_quotient >> 1)) {
-                        remainder = quotient;
-                        multiplier = (multiplier >> 1) * divtable32.table[1].mod_inv;
-                        s |= 0x1;
-                    }
-#endif
-
-                    n = remainder + quotient_by_pow10_8 * carrier_uint(multiplier);
                     return s;
                 }
             }
