@@ -150,8 +150,8 @@ verify_result verify(std::string_view name, std::function<int(int)> precise_calc
     constexpr auto max_exponent_upper_bound =
         std::numeric_limits<std::int32_t>::max() / std::int32_t(m);
     constexpr auto min_exponent_lower_bound =
-        -(std::int32_t(-std::int64_t(std::numeric_limits<std::int32_t>::min()) - std::int32_t(f)) /
-          std::int32_t(m));
+        -std::int32_t(-std::int64_t(std::numeric_limits<std::int32_t>::min() + std::int32_t(f)) /
+                      std::int32_t(m));
 
     verify_result result{int(min_exponent_lower_bound), int(max_exponent_upper_bound)};
 
@@ -161,8 +161,7 @@ verify_result verify(std::string_view name, std::function<int(int)> precise_calc
          ++e) {
         if (!reach_upper_bound) {
             auto true_value = precise_calculator(int(e));
-            auto computed_value =
-                int((e * std::int32_t(m) - std::int32_t(f)) >> std::size_t(k));
+            auto computed_value = int((e * std::int32_t(m) - std::int32_t(f)) >> std::size_t(k));
             if (computed_value != true_value) {
                 std::cout << "  - error with positive e ("
                           << "e: " << e << ", true value: " << true_value
@@ -175,8 +174,7 @@ verify_result verify(std::string_view name, std::function<int(int)> precise_calc
 
         if (!reach_lower_bound) {
             auto true_value = precise_calculator(-int(e));
-            auto computed_value =
-                int((-e * std::int32_t(m) - std::int32_t(f)) >> std::size_t(k));
+            auto computed_value = int((-e * std::int32_t(m) - std::int32_t(f)) >> std::size_t(k));
             if (computed_value != true_value) {
                 std::cout << "  - error with negative e ("
                           << "e: " << (-int(e)) << ", true value: " << true_value
@@ -230,7 +228,7 @@ int main() {
     }
     {
         auto result = verify<multiply(225799), subtract(0), shift(19)>("floor_log5_pow2",
-                                                                        floor_log5_pow2_precise);
+                                                                       floor_log5_pow2_precise);
         if (result.min_exponent > floor_log5_pow2_min_exponent ||
             result.max_exponent < floor_log5_pow2_max_exponent) {
             success = false;
