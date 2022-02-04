@@ -164,12 +164,14 @@ Float randomly_generate_float_with_given_digits(unsigned int digits, RandGen& rg
 
         // Discard if a shorter representation exists
         // We don't need to care about sign and correct rounding here
-        auto roundtrip = jkj::dragonbox::to_decimal(
-            result, jkj::dragonbox::policy::sign::ignore,
-            jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even,
-            jkj::dragonbox::policy::binary_to_decimal_rounding::do_not_care);
-        if (from != 0 && roundtrip.significand <= carrier_uint(from * 10)) {
-            continue;
+        if (from != 0) {
+            auto roundtrip = jkj::dragonbox::to_decimal(
+                result, jkj::dragonbox::policy::sign::ignore,
+                jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even,
+                jkj::dragonbox::policy::binary_to_decimal_rounding::do_not_care);
+            if (roundtrip.significand <= carrier_uint(from * 10)) {
+                continue;
+            }
         }
         break;
     }
