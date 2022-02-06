@@ -8,7 +8,7 @@ Dragonbox generates a pair of integers from a floating-point number: the decimal
 
 The algorithm guarantees three things:
 
-1) It has the roundtrip guarantee; that is, a correct parser interprets the generated output string as the original input floating-point number.
+1) It has the roundtrip guarantee; that is, a correct parser interprets the generated output string as the original input floating-point number. (See [here](https://github.com/jk-jeon/dragonbox/blob/master/README.md#precise-meaning-of-roundtrip-gurantee) for some explanation on this.)
 
 2) The output is of the shortest length; that is, no other output strings that are interpreted as the input number can contain less number of significand digits than the output of Dragonbox.
 
