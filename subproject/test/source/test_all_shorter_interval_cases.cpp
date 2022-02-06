@@ -21,9 +21,10 @@
 #include <iostream>
 #include <iomanip>
 #include <string_view>
+#include <utility>
 
-template <class Float>
-static bool test_all_shorter_interval_cases_impl() {
+template <class Float, class...Args>
+static bool test_all_shorter_interval_cases_impl(Args&&... args) {
     using ieee754_traits = jkj::dragonbox::default_float_traits<Float>;
     using ieee754_format_info = typename ieee754_traits::format;
     using carrier_uint = typename ieee754_traits::carrier_uint;
@@ -38,7 +39,7 @@ static bool test_all_shorter_interval_cases_impl() {
                           << ieee754_format_info::significand_bits;
         auto x = jkj::dragonbox::float_bits<Float>{br}.to_float();
 
-        jkj::dragonbox::to_chars(x, buffer1);
+        jkj::dragonbox::to_chars(x, buffer1, std::forward<Args>(args)...);
         if constexpr (std::is_same_v<Float, float>) {
             f2s_buffered(x, buffer2);
         }
@@ -74,6 +75,11 @@ int main() {
 
     std::cout << "[Testing all shorter interval cases for binary64...]\n";
     success &= test_all_shorter_interval_cases_impl<double>();
+    std::cout << "Done.\n\n\n";
+
+    std::cout << "[Testing all shorter interval cases for binary64 with compressed cache...]\n";
+    success &= test_all_shorter_interval_cases_impl<double>(
+        jkj::dragonbox::policy::cache::compact);
     std::cout << "Done.\n\n\n";
 
     if (!success) {

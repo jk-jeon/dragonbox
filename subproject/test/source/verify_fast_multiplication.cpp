@@ -158,6 +158,11 @@ int main() {
     success &= verify_fast_multiplication_yru<double>(jkj::dragonbox::policy::cache::full);
     std::cout << "Done.\n\n\n";
 
+    std::cout << "[Verifying fast computation of yru for the shorter interval case "
+                 "with compressed cache (binary64)...]\n";
+    success &= verify_fast_multiplication_yru<double>(jkj::dragonbox::policy::cache::compact);
+    std::cout << "Done.\n\n\n";
+
     if (!success) {
         return -1;
     }
