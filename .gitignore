@@ -465,3 +465,5 @@ MigrationBackup/
 /subproject/benchmark/results/digits_benchmark_binary64.csv
 /subproject/benchmark/results/digits_benchmark_binary32.pdf
 /subproject/benchmark/results/digits_benchmark_binary32.csv
+/subproject/test/results/binary64_required_bits.pdf
+/subproject/test/results/binary32_required_bits.pdf
