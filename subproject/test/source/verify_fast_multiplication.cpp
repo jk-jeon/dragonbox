@@ -101,7 +101,7 @@ static bool verify_fast_multiplication_yru(CachePolicy&& cache_policy) {
     for (int k = impl::min_k; k <= impl::max_k; ++k) {
         auto const cache = cache_policy.template get_cache<format>(k);
 
-        // Since p + beta + 1 <= q, suffices to check that the lower half of the cache is not 0
+        // Since Q - p - beta - 2 >= q, it suffices to check that the lower half of the cache is not 0.
         auto const lower_half = [cache] {
             if constexpr (std::is_same_v<typename impl::format, jkj::dragonbox::ieee754_binary32>) {
                 return std::uint32_t(cache);
