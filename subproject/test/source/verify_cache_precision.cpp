@@ -22,15 +22,15 @@
 #include "dragonbox/dragonbox.h"
 #include <algorithm>
 #include <cstddef>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
-#include <iomanip>
-
-void print_big_uint(std::ostream& out, jkj::big_uint const& n) {
+std::ostream& operator<<(std::ostream& out, jkj::big_uint const& n) {
     auto dec = n.to_decimal();
     assert(!dec.empty());
 
@@ -44,6 +44,7 @@ void print_big_uint(std::ostream& out, jkj::big_uint const& n) {
     }
 
     out << std::setfill(cur_fill);
+    return out;
 }
 
 struct analysis_result {
@@ -65,7 +66,9 @@ struct analysis_result {
 };
 
 template <class FloatTraits>
-bool analyze() {
+bool analyze(std::ostream& out) {
+    out << "e,bits_for_multiplication,bits_for_integer_check\n";
+
     using impl = jkj::dragonbox::detail::impl<typename FloatTraits::type, FloatTraits>;
     using namespace jkj::dragonbox::detail::log;
 
@@ -80,11 +83,11 @@ bool analyze() {
          e <= impl::max_exponent - impl::significand_bits; ++e) {
         int k = impl::kappa - floor_log10_pow2(e);
         auto exp_2 = k - floor_log2_pow10(k) - 1;
-        int beta = e + floor_log2_pow10(k) + 1;
+        int beta = e + floor_log2_pow10(k);
 
         auto& results_for_k = result.results[k - impl::min_k];
 
-        // target = 2^(k - klog2(10) - 1) * 5^k = a/b in [1/2, 1).
+        // target = 2^(k - klog2(10) - 1) * 5^k = phi_k / 2^Q in [1/2, 1).
         if (k != prev_k) {
             target.numerator = 1;
             target.denominator = 1;
@@ -102,7 +105,7 @@ bool analyze() {
             }
         }
 
-        // unit = 2^(e + k - 1) * 5^k = a1/b1.
+        // unit = 2^(e + k - 1) * 5^k = a/b.
         unit.numerator = 1;
         unit.denominator = 1;
         if (k >= 0) {
@@ -122,62 +125,39 @@ bool analyze() {
         jkj::unsigned_rational<jkj::big_uint> upper_bound;
         int sufficient_bits_for_integer_checks;
         if (unit.denominator <= n_max) {
-            // We must have
-            // m/2^Q < (floor(na1 / b1) + 1)/(2^(beta-1) * n) ... (*)
-            // so obtain the minimizer of the right-hand side.
-
             if (unit.denominator == 1) {
-                // In this case, (*) is simply
-                // m/2^Q < a1/2^(beta-1) + 1/(2^(beta-1) * n), so the minimizer is the biggest n.
-                upper_bound = {unit.numerator * n_max + 1,
-                               n_max * jkj::big_uint::power_of_2(beta - 1)};
+                upper_bound = {unit.numerator * n_max + 1, n_max * jkj::big_uint::power_of_2(beta)};
             }
             else {
-                // We want to find the largest u <= n_max such that u*a1 == -1 (mod b1).
-                // To obtain such u, we first optimize (*) for n < unit.denominator
-                // and let the optimizer u0. Then u is u0 + floor((n_max - u0)/b1) * b1.
-                auto u0 = jkj::find_best_rational_approx<
+                // We want to find the largest v <= n_max such that va == -1 (mod b).
+                // To obtain such v, we first find the smallest positive v0 such that
+                // v0 * a == -1 (mod b). Then v = v0 + floor((n_max - v0)/b) * b.
+                auto v0 = jkj::find_best_rational_approx<
                               jkj::rational_continued_fractions<jkj::big_uint>>(
                               unit, unit.denominator - 1)
                               .above.denominator;
-                auto u = u0 + ((n_max - u0) / unit.denominator) * unit.denominator;
+                auto v = v0 + ((n_max - v0) / unit.denominator) * unit.denominator;
 
-                auto div_result = div(u * unit.numerator + 1, unit.denominator);
+                auto div_result = div(v * unit.numerator + 1, unit.denominator);
                 assert(div_result.rem.is_zero());
                 upper_bound = jkj::unsigned_rational<jkj::big_uint>{
-                    div_result.quot, u * jkj::big_uint::power_of_2(beta - 1)};
+                    div_result.quot, v * jkj::big_uint::power_of_2(beta)};
             }
 
-            // A sufficient condition for having successful integer checks is
-            // m < 2^Q * a/b + 2^(q-beta+1)/b1 and
-            // m >= 2^Q * a/b + (2^q - 2^Q * r/b1)/(2^(beta-1) * n)
-            // for any n <= n_max and r = n * a1 - floor(n * a1/b1) * b1 with r != 0.
-            // Hence a sufficient condition is:
-            // 2^q >= 2^(beta-1) * b1 and 2^Q >= 2^q b1.
-            // The first condition is automatically true because of how beta is chosen
-            // and that b1 <= n_max.
             sufficient_bits_for_integer_checks =
                 impl::carrier_bits + int(jkj::big_uint(1).multiply_2_until(unit.denominator));
         }
         else {
-            // m/2^Q < (floor(na1 / b1) + 1)/(2^(beta-1) * n) ... (*)
-            // The optimizer is the best rational approximation from above.
             auto [below, above] =
                 jkj::find_best_rational_approx<jkj::rational_continued_fractions<jkj::big_uint>>(
                     unit, n_max);
 
             upper_bound = std::move(above);
-            upper_bound.denominator *= jkj::big_uint::power_of_2(beta - 1);
+            upper_bound.denominator *= jkj::big_uint::power_of_2(beta);
 
-            // A sufficient condition for having successful integer checks is
-            // m >= 2^Q * a/b + (2^q - 2^Q * (n * a1/b1 - floor(n * a1/b1))) / (2^(beta-1) * n)
-            // for any n <= n_max. Hence, a sufficient condition is
-            // m >= 2^Q * a/b + (2^q - 2^Q * d) / 2^(beta-1)
-            // where d is the minimum value of n * a1/b1 - floor(n * a1/b1).
-            // Or, even more leniently, 2^q <= 2^Q * d is sufficient.
             sufficient_bits_for_integer_checks =
                 impl::carrier_bits +
-                int((below.denominator * unit.numerator - below.numerator * unit.denominator)
+                int((unit.numerator * below.denominator - below.numerator * unit.denominator)
                         .multiply_2_until(unit.denominator));
 
             // Collect all cases where cache_bits seems insufficient.
@@ -216,6 +196,9 @@ bool analyze() {
             --sufficient_bits_for_multiplication;
         }
 
+        out << e << "," << sufficient_bits_for_multiplication << ","
+            << sufficient_bits_for_integer_checks << "\n";
+
         // Update.
         if (results_for_k.sufficient_bits_for_multiplication < sufficient_bits_for_multiplication) {
             results_for_k.sufficient_bits_for_multiplication = sufficient_bits_for_multiplication;
@@ -240,7 +223,7 @@ bool analyze() {
         jkj::big_uint::power_of_2(impl::cache_bits - impl::carrier_bits);
     for (auto& ec : result.error_cases) {
         // We want to find all n such that
-        // d:= n * a1/b1 - floor(n * a1/b1) < 2^(q-Q).
+        // d:= na/b - floor(na/b) < 2^(q-Q).
 
         ec.candidate_multipliers = jkj::find_all_good_rational_approx_from_below_denoms<
             jkj::rational_continued_fractions<jkj::big_uint>>(
@@ -289,11 +272,8 @@ bool analyze() {
               << "-bits.\nAn upper bound on the minimum required bits for successful integer "
                  "checks is "
               << sufficient_bits_for_integer_checks << "-bits.\n";
-    std::cout << "A lower bound on the margin is ";
-    print_big_uint(std::cout, distance_to_upper_bound.numerator);
-    std::cout << " / ";
-    print_big_uint(std::cout, distance_to_upper_bound.denominator);
-    std::cout << ".\n";
+    std::cout << "A lower bound on the margin is " << distance_to_upper_bound.numerator << " / "
+              << distance_to_upper_bound.denominator << ".\n";
 
     if (impl::cache_bits < larger) {
         auto success = true;
@@ -301,8 +281,7 @@ bool analyze() {
         auto threshold = jkj::big_uint::power_of_2(impl::significand_bits + 1) - 1;
         for (auto const& ec : result.error_cases) {
             for (auto const& n : ec.candidate_multipliers) {
-                std::cout << "  e: " << ec.e << "  k: " << ec.k << "  n: ";
-                print_big_uint(std::cout, n);
+                std::cout << "  e: " << ec.e << "  k: " << ec.k << "  n: " << n;
 
                 // When e != min_e and n != 1, 2, then
                 // n must be at least 2^(p+1)-2, otherwise this is a false
@@ -310,9 +289,8 @@ bool analyze() {
 
                 if (ec.e != impl::min_exponent - impl::significand_bits && n != 1 && n != 2 &&
                     n < threshold) {
-                    std::cout << "\n    n is smaller than ";
-                    print_big_uint(std::cout, threshold);
-                    std::cout << ", so this case is a false positive.";
+                    std::cout << "\n    n is smaller than " << threshold
+                              << ", so this case is a false positive.";
                 }
                 else if (ec.e == -81 && n == 29711844 || ec.e == -80 && n == 29711844) {
                     std::cout << "\n    This case has been carefully addressed.";
@@ -340,16 +318,21 @@ bool analyze() {
 
 int main() {
     bool success = true;
+    std::ofstream out;
 
     std::cout << "[Verifying sufficiency of cache precision for binary32...]\n";
-    if (!analyze<jkj::dragonbox::default_float_traits<float>>()) {
+    out.open("results/binary32.csv");
+    if (!analyze<jkj::dragonbox::default_float_traits<float>>(out)) {
         success = false;
     }
+    out.close();
 
     std::cout << "[Verifying sufficiency of cache precision for binary64...]\n";
-    if (!analyze<jkj::dragonbox::default_float_traits<double>>()) {
+    out.open("results/binary64.csv");
+    if (!analyze<jkj::dragonbox::default_float_traits<double>>(out)) {
         success = false;
     }
+    out.close();
 
     return success ? 0 : -1;
 }
