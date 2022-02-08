@@ -1800,11 +1800,11 @@ namespace jkj::dragonbox {
                 // Compute k and beta.
                 int const minus_k = log::floor_log10_pow2(exponent) - kappa;
                 auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-                int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
+                int const beta = exponent + log::floor_log2_pow10(-minus_k);
 
                 // Compute zi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
-                auto const deltai = compute_delta(cache, beta_minus_1);
+                auto const deltai = compute_delta(cache, beta);
                 // For the case of binary32, the result of integer check is not correct for
                 // 29711844 * 2^-82
                 // = 6.1442653300000000008655037797566933477355632930994033813476... * 10^-18
@@ -1814,7 +1814,7 @@ namespace jkj::dragonbox {
                 // this does not cause any problem for the endpoints calculations; it can only
                 // cause a problem when we need to perform integer check for the center.
                 // Fortunately, with these inputs, that branch is never executed, so we are fine.
-                auto const [zi, is_z_integer] = compute_mul((two_fc | 1) << beta_minus_1, cache);
+                auto const [zi, is_z_integer] = compute_mul((two_fc | 1) << beta, cache);
 
 
                 //////////////////////////////////////////////////////////////////////
@@ -1864,13 +1864,13 @@ namespace jkj::dragonbox {
                         // Otherwise, the inequalities on exponent ensure that
                         // x is not an integer, so if z^(f) >= delta^(f) (even parity), we in fact
                         // have strict inequality.
-                        if (!compute_mul_parity(two_fl, cache, beta_minus_1).parity) {
+                        if (!compute_mul_parity(two_fl, cache, beta).parity) {
                             goto small_divisor_case_label;
                         }
                     }
                     else {
                         auto const [xi_parity, x_is_integer] =
-                            compute_mul_parity(two_fl, cache, beta_minus_1);
+                            compute_mul_parity(two_fl, cache, beta);
                         if (!xi_parity && !x_is_integer) {
                             goto small_divisor_case_label;
                         }
@@ -1932,7 +1932,7 @@ namespace jkj::dragonbox {
                         // parity. Also, zi and r should have the same parity since the divisor is
                         // an even number.
                         auto const [yi_parity, is_y_integer] =
-                            compute_mul_parity(two_fc, cache, beta_minus_1);
+                            compute_mul_parity(two_fc, cache, beta);
                         if (yi_parity != approx_y_parity) {
                             --ret_value.significand;
                         }
@@ -1961,13 +1961,13 @@ namespace jkj::dragonbox {
 
                 // Compute k and beta.
                 int const minus_k = log::floor_log10_pow2_minus_log10_4_over_3(exponent);
-                int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
+                int const beta = exponent + log::floor_log2_pow10(-minus_k);
 
                 // Compute xi and zi.
                 auto const cache = CachePolicy::template get_cache<format>(-minus_k);
 
-                auto xi = compute_left_endpoint_for_shorter_interval_case(cache, beta_minus_1);
-                auto zi = compute_right_endpoint_for_shorter_interval_case(cache, beta_minus_1);
+                auto xi = compute_left_endpoint_for_shorter_interval_case(cache, beta);
+                auto zi = compute_right_endpoint_for_shorter_interval_case(cache, beta);
 
                 // If we don't accept the right endpoint and
                 // if the right endpoint is an integer, decrease it.
@@ -1995,7 +1995,7 @@ namespace jkj::dragonbox {
                 // Otherwise, compute the round-up of y.
                 TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
                 ret_value.significand =
-                    compute_round_up_for_shorter_interval_case(cache, beta_minus_1);
+                    compute_round_up_for_shorter_interval_case(cache, beta);
                 ret_value.exponent = minus_k;
 
                 // When tie occurs, choose one of them according to the rule.
@@ -2022,12 +2022,12 @@ namespace jkj::dragonbox {
                 // Compute k and beta.
                 int const minus_k = log::floor_log10_pow2(exponent) - kappa;
                 auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-                int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
+                int const beta = exponent + log::floor_log2_pow10(-minus_k);
 
                 // Compute xi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
-                auto const deltai = compute_delta(cache, beta_minus_1);
-                auto [xi, is_x_integer] = compute_mul(two_fc << beta_minus_1, cache);
+                auto const deltai = compute_delta(cache, beta);
+                auto [xi, is_x_integer] = compute_mul(two_fc << beta, cache);
 
                 // Deal with the unique exceptional cases
                 // 29711844 * 2^-82
@@ -2073,7 +2073,7 @@ namespace jkj::dragonbox {
                     // and 2f_c = 29711482, e = -80
                     // (1.2288529832819387448703332688104694625508273020386695861816... * 10^-17).
                     auto const [zi_parity, is_z_integer] =
-                        compute_mul_parity(two_fc + 2, cache, beta_minus_1);
+                        compute_mul_parity(two_fc + 2, cache, beta);
                     if (zi_parity || is_z_integer) {
                         goto small_divisor_case_label;
                     }
@@ -2111,13 +2111,13 @@ namespace jkj::dragonbox {
                 int const minus_k =
                     log::floor_log10_pow2(exponent - (shorter_interval ? 1 : 0)) - kappa;
                 auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-                int const beta_minus_1 = exponent + log::floor_log2_pow10(-minus_k);
+                int const beta = exponent + log::floor_log2_pow10(-minus_k);
 
                 // Compute zi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
-                auto const deltai = shorter_interval ? compute_delta(cache, beta_minus_1 - 1)
-                                                     : compute_delta(cache, beta_minus_1);
-                carrier_uint const zi = compute_mul(two_fc << beta_minus_1, cache).result;
+                auto const deltai = shorter_interval ? compute_delta(cache, beta - 1)
+                                                     : compute_delta(cache, beta);
+                carrier_uint const zi = compute_mul(two_fc << beta, cache).result;
 
 
                 //////////////////////////////////////////////////////////////////////
@@ -2138,7 +2138,7 @@ namespace jkj::dragonbox {
                 else if (r == deltai) {
                     // Compare the fractional parts.
                     if (!compute_mul_parity(two_fc - (shorter_interval ? 1 : 2), cache,
-                                            beta_minus_1)
+                                            beta)
                              .parity) {
                         goto small_divisor_case_label;
                     }
@@ -2269,75 +2269,75 @@ namespace jkj::dragonbox {
             }
 
             static constexpr std::uint32_t compute_delta(cache_entry_type const& cache,
-                                                         int beta_minus_1) noexcept {
+                                                         int beta) noexcept {
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
-                    return std::uint32_t(cache >> (cache_bits - 1 - beta_minus_1));
+                    return std::uint32_t(cache >> (cache_bits - 1 - beta));
                 }
                 else {
                     static_assert(std::is_same_v<format, ieee754_binary64>);
-                    return std::uint32_t(cache.high() >> (carrier_bits - 1 - beta_minus_1));
+                    return std::uint32_t(cache.high() >> (carrier_bits - 1 - beta));
                 }
             }
 
             static compute_mul_parity_result compute_mul_parity(carrier_uint two_f,
                                                                 cache_entry_type const& cache,
-                                                                int beta_minus_1) noexcept {
-                assert(beta_minus_1 >= 1);
-                assert(beta_minus_1 < 64);
+                                                                int beta) noexcept {
+                assert(beta >= 1);
+                assert(beta < 64);
 
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
                     auto r = wuint::umul96_lower64(two_f, cache);
-                    return {((r >> (64 - beta_minus_1)) & 1) != 0,
-                            std::uint32_t(r >> (32 - beta_minus_1)) == 0};
+                    return {((r >> (64 - beta)) & 1) != 0,
+                            std::uint32_t(r >> (32 - beta)) == 0};
                 }
                 else {
                     static_assert(std::is_same_v<format, ieee754_binary64>);
                     auto r = wuint::umul192_lower128(two_f, cache);
-                    return {((r.high() >> (64 - beta_minus_1)) & 1) != 0,
-                            ((r.high() << beta_minus_1) | (r.low() >> (64 - beta_minus_1))) == 0};
+                    return {((r.high() >> (64 - beta)) & 1) != 0,
+                            ((r.high() << beta) | (r.low() >> (64 - beta))) == 0};
                 }
             }
 
             static constexpr carrier_uint
             compute_left_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
-                                                            int beta_minus_1) noexcept {
+                                                            int beta) noexcept {
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
                     return carrier_uint((cache - (cache >> (significand_bits + 2))) >>
-                                        (cache_bits - significand_bits - 1 - beta_minus_1));
+                                        (cache_bits - significand_bits - 1 - beta));
                 }
                 else {
                     static_assert(std::is_same_v<format, ieee754_binary64>);
                     return (cache.high() - (cache.high() >> (significand_bits + 2))) >>
-                           (carrier_bits - significand_bits - 1 - beta_minus_1);
+                           (carrier_bits - significand_bits - 1 - beta);
                 }
             }
 
             static constexpr carrier_uint
             compute_right_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
-                                                             int beta_minus_1) noexcept {
+                                                             int beta) noexcept {
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
                     return carrier_uint((cache + (cache >> (significand_bits + 1))) >>
-                                        (cache_bits - significand_bits - 1 - beta_minus_1));
+                                        (cache_bits - significand_bits - 1 - beta));
                 }
                 else {
                     static_assert(std::is_same_v<format, ieee754_binary64>);
                     return (cache.high() + (cache.high() >> (significand_bits + 1))) >>
-                           (carrier_bits - significand_bits - 1 - beta_minus_1);
+                           (carrier_bits - significand_bits - 1 - beta);
                 }
             }
 
             static constexpr carrier_uint
             compute_round_up_for_shorter_interval_case(cache_entry_type const& cache,
-                                                       int beta_minus_1) noexcept {
+                                                       int beta) noexcept {
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
                     return (carrier_uint(cache >>
-                                         (cache_bits - significand_bits - 2 - beta_minus_1)) +
+                                         (cache_bits - significand_bits - 2 - beta)) +
                             1) /
                            2;
                 }
                 else {
                     static_assert(std::is_same_v<format, ieee754_binary64>);
-                    return ((cache.high() >> (carrier_bits - significand_bits - 2 - beta_minus_1)) +
+                    return ((cache.high() >> (carrier_bits - significand_bits - 2 - beta)) +
                             1) /
                            2;
                 }

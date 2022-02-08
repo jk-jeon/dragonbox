@@ -30,7 +30,7 @@ auto generate_cache() {
     std::vector<jkj::big_uint> results;
     jkj::unsigned_rational<jkj::big_uint> target_number;
     for (int k = impl::min_k; k <= impl::max_k; ++k) {
-        // (2f_c +- 1) * 2^(beta - 1) * (2^(k - e_k - Q) * 5^k)
+        // (2f_c +- 1) * 2^beta * (2^(k - e_k - Q) * 5^k)
         // e_k = floor(k log2(10)) - Q + 1, so
         // k - e_k - Q = k - floor(k log2(10)) - 1.
         int exp_2 = k - jkj::dragonbox::detail::log::floor_log2_pow10(k) - 1;

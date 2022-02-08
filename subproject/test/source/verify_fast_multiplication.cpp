@@ -40,15 +40,14 @@ static bool verify_fast_multiplication_xz(CachePolicy&& cache_policy) {
 
         // Compute k and beta.
         int const k = -floor_log10_pow2_minus_log10_4_over_3(e);
-        int const beta_minus_1 = e + floor_log2_pow10(k);
-        int const beta_minus_2 = beta_minus_1 - 1;
+        int const beta = e + floor_log2_pow10(k);
 
         // Load cache.
         auto const cache = cache_policy.template get_cache<format>(k);
 
         // Compute the endpoints using the fast method.
-        auto x_fast = impl::compute_left_endpoint_for_shorter_interval_case(cache, beta_minus_1);
-        auto z_fast = impl::compute_right_endpoint_for_shorter_interval_case(cache, beta_minus_1);
+        auto x_fast = impl::compute_left_endpoint_for_shorter_interval_case(cache, beta);
+        auto z_fast = impl::compute_right_endpoint_for_shorter_interval_case(cache, beta);
 
         // Precisely compute the endpoints.
         jkj::unsigned_rational<jkj::big_uint> precise_multiplier{1, 1};
