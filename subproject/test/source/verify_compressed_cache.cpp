@@ -16,6 +16,8 @@
 // KIND, either express or implied.
 
 #include "dragonbox/dragonbox.h"
+#include "big_uint.h"
+#include "rational_continued_fractions.h"
 
 #include <fstream>
 #include <iomanip>
@@ -23,72 +25,70 @@
 #include <vector>
 
 int main() {
+    // We are trying to verify that an appropriate shift of phi_k * 5^a
+    // can be used instead of phi_(a+k). Since phi_k is defined in terms of ceiling,
+    // the shift of phi_k * 5^a will be phi_(a+k) + (error) for some nonnegative error.
+    //
     // For correct multiplication, the margin for binary32 is at least
     // 2^64 * 5091154818982829 / 12349290596248284087255008291061760 = 7.60...,
-    // so the recovered cache can be larger than the original cache up to by 7.
+    // so we are safe if the error is up to 7.
     // The margin for binary64 is at least
     // 2^128 * 723173431431821867556830303887 /
     // 18550103527668669801949286474444582643081334006759269899933694558208
-    // = 13.26..., so the recovered cache can be larger than the original cache up to by 7.
-    // For correct integer checks, we need to ensure
-    // m < 2^Q * a/b + 2^(q-beta+1)/b1 when b1 <= n_max.
-    // As b1 is either a power of 2 or a power of 5, the maximum possible value
-    // for b1 is 2^24 for binary32 and 5^23 for binary64.
-    // With kappa = 1 for binary32, beta is at most floor((kappa+1)log2(10))+1 = 7,
-    // so 2^(q-beta+1) is at least 2^26, so 2^(q-beta+1)/b1 >= 4.
-    // Hence, the recovered cache can be larger than the original cache up to by 4
-    // in this case.
-    // With kappa = 2 for binary64, beta is at most floor((kappa+1)log2(10))+1 = 10,
-    // so 2^(q-beta+1) is at least 2^55, so 2^(q-beta+1)/b1 >= 2^55/5^23 > 3.
-    // Hence, the recovered cache can be larger than the original cache up to by 3
-    // in this case.
+    // = 13.26..., so we are safe if the error is up to 13.
+    //
+    // For correct integer checks, the case b > n_max is fine because the only condition on the
+    // recovered cache is a lower bound which must be already true for phi_k.
+    // For the case b <= n_max, we only need to check the upper bound
+    // (recovered_cache) < 2^(Q-beta) * a/b + 2^(q-beta)/(floor(nmax/b) * b),
+    // so we check it manually for each e.
 
-
-    using namespace jkj::dragonbox::detail;
+    using namespace jkj::dragonbox::detail::log;
+    using namespace jkj::dragonbox::detail::wuint;
+    using info = jkj::dragonbox::detail::compressed_cache_detail;
+    using impl = jkj::dragonbox::detail::impl<double>;
 
     std::cout << "[Verifying cache recovery for compressed cache...]\n";
 
-    std::vector<std::uint32_t> results;
+    jkj::unsigned_rational<jkj::big_uint> unit;
+    auto n_max = jkj::big_uint::power_of_2(impl::significand_bits + 2);
+    int prev_k = impl::max_k + 1;
+    for (int e = impl::min_exponent - impl::significand_bits;
+         e <= impl::max_exponent - impl::significand_bits; ++e) {
+        int const k = impl::kappa - floor_log10_pow2(e);
 
-    constexpr int recov_size = 27;
-
-    std::uint32_t error = 0;
-    int error_count = 0;
-    for (int k = impl<double>::min_k; k <= impl<double>::max_k; ++k) {
         using jkj::dragonbox::policy::cache::full;
-        auto real_cache = full.get_cache<jkj::dragonbox::ieee754_binary64>(k);
+        auto const real_cache = full.get_cache<jkj::dragonbox::ieee754_binary64>(k);
 
-        // Compute base index
-        int kb = ((k - impl<double>::min_k) / recov_size) * recov_size + impl<double>::min_k;
+        // Compute the base index.
+        int const kb =
+            ((k - impl::min_k) / info::compression_ratio) * info::compression_ratio + impl::min_k;
 
-        // Get base cache
-        auto base_cache = full.get_cache<jkj::dragonbox::ieee754_binary64>(kb);
+        // Get the base cache.
+        auto const base_cache = full.get_cache<jkj::dragonbox::ieee754_binary64>(kb);
 
-        // Get index offset
-        auto offset = k - kb;
+        // Get the index offset.
+        auto const offset = k - kb;
 
         if (offset != 0) {
-            // Compute corresponding power of 5
-            std::uint64_t pow5 = 1;
-            for (int i = 0; i < offset; ++i) {
-                pow5 *= 5;
-            }
+            // Obtain the corresponding power of 5.
+            auto const pow5 = info::pow5.table[offset];
 
-            // Compute the required amount of bit-shift
-            auto alpha = log::floor_log2_pow10(kb + offset) - log::floor_log2_pow10(kb) - offset;
+            // Compute the required amount of bit-shifts.
+            auto const alpha = floor_log2_pow10(kb + offset) - floor_log2_pow10(kb) - offset;
             assert(alpha > 0 && alpha < 64);
 
-            // Try to recover the real cache
-            auto recovered_cache = wuint::umul128(base_cache.high(), pow5);
-            auto middle_low = wuint::umul128(base_cache.low(), pow5);
+            // Try to recover the real cache.
+            auto recovered_cache = umul128(base_cache.high(), pow5);
+            auto const middle_low = umul128(base_cache.low(), pow5);
 
             recovered_cache += middle_low.high();
 
-            auto high_to_middle = recovered_cache.high() << (64 - alpha);
-            auto middle_to_low = recovered_cache.low() << (64 - alpha);
+            auto const high_to_middle = recovered_cache.high() << (64 - alpha);
+            auto const middle_to_low = recovered_cache.low() << (64 - alpha);
 
-            recovered_cache = wuint::uint128{(recovered_cache.low() >> alpha) | high_to_middle,
-                                             ((middle_low.low() >> alpha) | middle_to_low)};
+            recovered_cache = uint128{(recovered_cache.low() >> alpha) | high_to_middle,
+                                      ((middle_low.low() >> alpha) | middle_to_low)};
 
             if (recovered_cache.low() + 1 == 0) {
                 std::cout << "Overflow detected.\n";
@@ -104,12 +104,51 @@ int main() {
                 std::cout << "Overflow detected.\n";
                 return -1;
             }
-            auto diff = std::uint32_t(recovered_cache.low() - real_cache.low());
+            auto const diff = std::uint32_t(recovered_cache.low() - real_cache.low());
 
-            if (diff > 3) {
-                std::cout << "Recovery error is too big.\n";
-                return -1;
+            if (diff != 0) {
+                if (diff > 13) {
+                    // Multiplication might be no longer valid.
+                    std::cout << "Overflow detected.\n";
+                    return -1;
+                }
+
+                // For the case b <= n_max, integer check might be no longer valid.
+                int const beta = e + floor_log2_pow10(k);
+
+                // unit = 2^(e + k - 1) * 5^k = a/b.
+                unit.numerator = 1;
+                unit.denominator = 1;
+                if (k >= 0) {
+                    unit.numerator = jkj::big_uint::pow(5, k);
+                }
+                else {
+                    unit.denominator = jkj::big_uint::pow(5, -k);
+                }
+                if (e + k - 1 >= 0) {
+                    unit.numerator *= jkj::big_uint::power_of_2(e + k - 1);
+                }
+                else {
+                    unit.denominator *= jkj::big_uint::power_of_2(-e - k + 1);
+                }
+
+                if (unit.denominator <= n_max) {
+                    // Check (recovered_cache) < 2^(Q-beta) * a/b + 2^(q-beta)/(floor(nmax/b) * b),
+                    // or equivalently,
+                    // b * (recovered_cache) - 2^(Q-beta) * a < 2^(q-beta) / floor(nmax/b).
+                    auto const rc = jkj::big_uint{recovered_cache.low(), recovered_cache.high()};
+                    auto const left_hand_side =
+                        unit.denominator * rc -
+                        jkj::big_uint::power_of_2(impl::cache_bits - beta) * unit.numerator;
+
+                    if (left_hand_side * (n_max / unit.denominator) >=
+                        jkj::big_uint::power_of_2(impl::carrier_bits - beta)) {
+                        std::cout << "Overflow detected.\n";
+                        return -1;
+                    }
+                }
             }
         }
     }
+    std::cout << "Verification succeeded. No error detected.\n";
 }
