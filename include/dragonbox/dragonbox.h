@@ -1834,10 +1834,7 @@ namespace jkj::dragonbox {
                                              1>(zi);
                 auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
 
-                if (r > deltai) {
-                    goto small_divisor_case_label;
-                }
-                else if (r < deltai) {
+                if (r < deltai) {
                     // Exclude the right endpoint if necessary.
                     if (r == 0 && is_z_integer && !interval_type.include_right_endpoint()) {
                         if constexpr (BinaryToDecimalRoundingPolicy::tag ==
@@ -1853,6 +1850,9 @@ namespace jkj::dragonbox {
                             goto small_divisor_case_label;
                         }
                     }
+                }
+                else if (r > deltai) {
+                    goto small_divisor_case_label;
                 }
                 else {
                     // r == deltai; compare fractional parts.
@@ -1903,7 +1903,7 @@ namespace jkj::dragonbox {
                     // interval.
                     if (!interval_type.include_right_endpoint()) {
                         // Is r divisible by 10^kappa?
-                        if (div::check_divisibility_and_divide_by_pow10<kappa>(r) && is_z_integer) {
+                        if (is_z_integer && div::check_divisibility_and_divide_by_pow10<kappa>(r)) {
                             // This should be in the interval.
                             ret_value.significand += r - 1;
                         }
