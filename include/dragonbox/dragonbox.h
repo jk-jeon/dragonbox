@@ -1582,35 +1582,37 @@ namespace jkj::dragonbox {
                                k <= cache_holder<FloatFormat>::max_k);
 
                         if constexpr (std::is_same_v<FloatFormat, ieee754_binary64>) {
-                            // Compute base index.
-                            auto cache_index =
+                            // Compute the base index.
+                            auto const cache_index =
                                 int(std::uint32_t(k - cache_holder<FloatFormat>::min_k) /
                                     compressed_cache_detail::compression_ratio);
-                            auto kb = cache_index * compressed_cache_detail::compression_ratio +
-                                      cache_holder<FloatFormat>::min_k;
-                            auto offset = k - kb;
+                            auto const kb =
+                                cache_index * compressed_cache_detail::compression_ratio +
+                                cache_holder<FloatFormat>::min_k;
+                            auto const offset = k - kb;
 
-                            // Get base cache.
-                            auto base_cache = compressed_cache_detail::cache.table[cache_index];
+                            // Get the base cache.
+                            auto const base_cache =
+                                compressed_cache_detail::cache.table[cache_index];
 
                             if (offset == 0) {
                                 return base_cache;
                             }
                             else {
                                 // Compute the required amount of bit-shift.
-                                auto alpha = log::floor_log2_pow10(kb + offset) -
-                                             log::floor_log2_pow10(kb) - offset;
+                                auto const alpha = log::floor_log2_pow10(kb + offset) -
+                                                   log::floor_log2_pow10(kb) - offset;
                                 assert(alpha > 0 && alpha < 64);
 
                                 // Try to recover the real cache.
-                                auto pow5 = compressed_cache_detail::pow5.table[offset];
+                                auto const pow5 = compressed_cache_detail::pow5.table[offset];
                                 auto recovered_cache = wuint::umul128(base_cache.high(), pow5);
-                                auto middle_low = wuint::umul128(base_cache.low(), pow5);
+                                auto const middle_low = wuint::umul128(base_cache.low(), pow5);
 
                                 recovered_cache += middle_low.high();
 
-                                auto high_to_middle = recovered_cache.high() << (64 - alpha);
-                                auto middle_to_low = recovered_cache.low() << (64 - alpha);
+                                auto const high_to_middle = recovered_cache.high() << (64 - alpha);
+                                auto const middle_to_low = recovered_cache.low() << (64 - alpha);
 
                                 recovered_cache = wuint::uint128{
                                     (recovered_cache.low() >> alpha) | high_to_middle,
@@ -1994,8 +1996,7 @@ namespace jkj::dragonbox {
 
                 // Otherwise, compute the round-up of y.
                 TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
-                ret_value.significand =
-                    compute_round_up_for_shorter_interval_case(cache, beta);
+                ret_value.significand = compute_round_up_for_shorter_interval_case(cache, beta);
                 ret_value.exponent = minus_k;
 
                 // When tie occurs, choose one of them according to the rule.
@@ -2115,8 +2116,8 @@ namespace jkj::dragonbox {
 
                 // Compute zi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
-                auto const deltai = shorter_interval ? compute_delta(cache, beta - 1)
-                                                     : compute_delta(cache, beta);
+                auto const deltai =
+                    shorter_interval ? compute_delta(cache, beta - 1) : compute_delta(cache, beta);
                 carrier_uint const zi = compute_mul(two_fc << beta, cache).result;
 
 
@@ -2137,8 +2138,7 @@ namespace jkj::dragonbox {
                 }
                 else if (r == deltai) {
                     // Compare the fractional parts.
-                    if (!compute_mul_parity(two_fc - (shorter_interval ? 1 : 2), cache,
-                                            beta)
+                    if (!compute_mul_parity(two_fc - (shorter_interval ? 1 : 2), cache, beta)
                              .parity) {
                         goto small_divisor_case_label;
                     }
@@ -2287,8 +2287,7 @@ namespace jkj::dragonbox {
 
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
                     auto r = wuint::umul96_lower64(two_f, cache);
-                    return {((r >> (64 - beta)) & 1) != 0,
-                            std::uint32_t(r >> (32 - beta)) == 0};
+                    return {((r >> (64 - beta)) & 1) != 0, std::uint32_t(r >> (32 - beta)) == 0};
                 }
                 else {
                     static_assert(std::is_same_v<format, ieee754_binary64>);
@@ -2330,16 +2329,12 @@ namespace jkj::dragonbox {
             compute_round_up_for_shorter_interval_case(cache_entry_type const& cache,
                                                        int beta) noexcept {
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
-                    return (carrier_uint(cache >>
-                                         (cache_bits - significand_bits - 2 - beta)) +
-                            1) /
+                    return (carrier_uint(cache >> (cache_bits - significand_bits - 2 - beta)) + 1) /
                            2;
                 }
                 else {
                     static_assert(std::is_same_v<format, ieee754_binary64>);
-                    return ((cache.high() >> (carrier_bits - significand_bits - 2 - beta)) +
-                            1) /
-                           2;
+                    return ((cache.high() >> (carrier_bits - significand_bits - 2 - beta)) + 1) / 2;
                 }
             }
 
