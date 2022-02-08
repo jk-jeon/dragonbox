@@ -179,7 +179,7 @@ Determines what `jkj::dragonbox::to_decimal` will do when rounding tie occurs wh
 All of these policies can be specified also to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
 
 ## Cache policy
-Choose between the full cache table and the compressed one. Using the compressed cache will result in about 20% slower code, but it can significantly reduce the amount of required static data. It currently has no effect for binary32 (`float`) inputs. For binary64 (`double`) inputs, `jkj::dragonbox::cache_policy::full` will cause `jkj::dragonbox::to_decimal` to use `24*16 + 619*16 = 10288` bytes of static data table, while the corresponding amount for `jkj::dragonbox::cache_policy::compact` is `24*16 + 23*16 + 27*8 + 39*4 = 1124` bytes.
+Choose between the full cache table and the compressed one. Using the compressed cache will result in about 20% slower code, but it can significantly reduce the amount of required static data. It currently has no effect for binary32 (`float`) inputs. For binary64 (`double`) inputs, `jkj::dragonbox::cache_policy::full` will cause `jkj::dragonbox::to_decimal` to use `619*16 = 9904` bytes of static data table, while the corresponding amount for `jkj::dragonbox::cache_policy::compact` is `23*16 + 27*8 = 584` bytes.
 
 - `jkj::dragonbox::policy::cache::full`: **This is the default policy.** Use the full table.
 
