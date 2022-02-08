@@ -22,17 +22,40 @@ p_value = 0.5*(100-sort(prctile_value));
 
 hold on
 % Create the polygons for the shaded region
-for j=1:numel(p_value)
-    Ptop = prctile(Y,100-p_value(j));
-    Pbot = prctile(Y,p_value(j));
+%%%% This part is modified by Junekey Jeon %%%%
+% for j=1:numel(p_value)
+%     Ptop = prctile(Y,100-p_value(j));
+%     Pbot = prctile(Y,p_value(j));
+%     for i=1:numel(X)-1
+%         Px = [X(i) X(i+1) X(i+1) X(i)];
+%         Py = [Ptop(i) Ptop(i+1) Pbot(i+1) Pbot(i)];
+%         fill(Px,Py,color_value,'FaceAlpha',alpha_value,'EdgeColor','none');
+%     end
+% end
+% plot(X,median(Y),'LineWidth',line_width,'Color',color_value);
+Ptop = prctile(Y,100-p_value(1));
+Pbot = prctile(Y,p_value(1));
+block_alpha_value = 1- (1-alpha_value)^numel(p_value);
+for i=1:numel(X)-1
+    Px = [X(i) X(i+1) X(i+1) X(i)];
+    Py = [Ptop(i) Ptop(i+1) Pbot(i+1) Pbot(i)];
+    fill(Px,Py,color_value,'FaceAlpha',block_alpha_value,'EdgeColor','none');
+end
+for j=2:numel(p_value)
+    Ptop1 = prctile(Y,100-p_value(j));
+    Ptop2 = prctile(Y,100-p_value(j-1));
+    Pbot1 = prctile(Y,p_value(j));
+    Pbot2 = prctile(Y,p_value(j-1));
+    block_alpha_value = 1- (1-alpha_value)^(numel(p_value) - j + 1);
     for i=1:numel(X)-1
         Px = [X(i) X(i+1) X(i+1) X(i)];
-        Py = [Ptop(i) Ptop(i+1) Pbot(i+1) Pbot(i)];
-        fill(Px,Py,color_value,'FaceAlpha',alpha_value,'EdgeColor','none');
+        Py = [Ptop1(i) Ptop1(i+1) Ptop2(i+1) Ptop2(i)];
+        fill(Px,Py,color_value,'FaceAlpha',block_alpha_value,'EdgeColor','none');
+        Px = [X(i) X(i+1) X(i+1) X(i)];
+        Py = [Pbot1(i) Pbot1(i+1) Pbot2(i+1) Pbot2(i)];
+        fill(Px,Py,color_value,'FaceAlpha',block_alpha_value,'EdgeColor','none');
     end
 end
-%plot(X,median(Y),'LineWidth',line_width,'Color',color_value);
-%%%% This part is modified by Junekey Jeon %%%%
 plot(X,median(Y),'--','LineWidth',line_width,'Color',color_value);
 hold off
 
