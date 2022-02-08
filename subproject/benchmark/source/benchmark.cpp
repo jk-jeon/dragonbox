@@ -204,10 +204,6 @@ static void benchmark_test(std::string_view float_name, std::size_t number_of_un
         }
     }
     out_file.close();
-
-#ifdef RUN_MATLAB
-    run_matlab();
-#endif
 }
 
 int main() {
@@ -235,4 +231,8 @@ int main() {
                                number_of_benchmark_iterations_double);
         std::cout << "Done.\n\n\n";
     }
+
+#ifdef RUN_MATLAB
+    run_matlab();
+#endif
 }
