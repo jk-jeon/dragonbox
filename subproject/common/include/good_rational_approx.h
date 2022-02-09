@@ -91,7 +91,7 @@ namespace jkj {
                 auto error = candidate.denominator * x - candidate.numerator;
                 auto error_multiple = error;
                 auto denominator_multiple = candidate.denominator;
-                while (error_multiple <= error_threshold &&
+                while (error_multiple < error_threshold &&
                        denominator_multiple <= denominator_upper_bound) {
                     results.push_back(denominator_multiple);
                     error_multiple += error;
@@ -136,7 +136,7 @@ namespace jkj {
             }
 
             // Now, cf.current_index() is even.
-            if (cf.current_denominator() * x - cf.current_numerator() <= error_threshold) {
+            if (cf.current_denominator() * x - cf.current_numerator() < error_threshold) {
                 // In this case, we should look at semiconvergents.
                 if (cf.current_index() == 0) {
                     // In this case, the semiconvergent we are looking for is the 0th convergent.
@@ -157,7 +157,7 @@ namespace jkj {
                             break;
                         }
 
-                        if (semiconvergent.denominator * x - semiconvergent.numerator <=
+                        if (semiconvergent.denominator * x - semiconvergent.numerator <
                             error_threshold) {
                             // Found the first semiconvergent.
                             // Iterate until reaching the next convergent.
