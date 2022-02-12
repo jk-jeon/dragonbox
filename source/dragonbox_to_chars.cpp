@@ -48,6 +48,13 @@ namespace jkj::dragonbox {
 
         // These digit generation routines are inspired by James Anhalt's itoa algorithm:
         // https://github.com/jeaiii/itoa
+        // The main idea is for given n, find y such that floor(10^k * y / 2^32) = n holds,
+        // where k is an appropriate integer depending on the length of n.
+        // For example, if n = 1234567, we set k = 6. In this case, we have
+        // floor(y / 2^32) = 1,
+        // floor(10^2 * (y mod 2^32) / 2^32) = 23,
+        // floor(10^2 * (10^2 * y mod 2^32) / 2^32) = 45, and
+        // floor(10^2 * (10^4 * y mod 2^32) / 2^32) = 67.
 
         template <>
         char* to_chars<float, default_float_traits<float>>(std::uint32_t s32, int exponent,
@@ -123,26 +130,25 @@ namespace jkj::dragonbox {
                         exponent += 5;
                     }
 
-                    std::memcpy(buffer, &radix_100_table[second_two_digits * 2], 2);
-                    buffer += 2;
-                    std::memcpy(buffer, &radix_100_table[third_two_digits * 2], 2);
-                    buffer += 2;
+                    std::memcpy(buffer + 0, &radix_100_table[second_two_digits * 2], 2);
+                    std::memcpy(buffer + 2, &radix_100_table[third_two_digits * 2], 2);
+                    buffer += 4;
                 }
             }
             else if (s32 < 1'0000'0000) {
-                // 140737489 = ceil(2^47 / 100'0000)
-                auto constexpr mask = (std::numeric_limits<std::uint64_t>::max() >> (64 - 47));
-                auto prod = s32 * std::uint64_t(140737489);
-                auto first_two_digits = std::uint32_t(prod >> 47);
+                // 281474978 = ceil(2^48 / 100'0000) + 1
+                auto prod = s32 * std::uint64_t(281474978);
+                prod >>= 16;
+                auto first_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto second_two_digits = std::uint32_t(prod >> 47);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto second_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto third_two_digits = std::uint32_t(prod >> 47);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto third_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto fourth_two_digits = std::uint32_t(prod >> 47);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto fourth_two_digits = std::uint32_t(prod >> 32);
 
                 if (first_two_digits < 10) {
                     // 7 digits.
@@ -160,45 +166,40 @@ namespace jkj::dragonbox {
                     exponent += 7;
                 }
 
-                std::memcpy(buffer, &radix_100_table[second_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[third_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[fourth_two_digits * 2], 2);
-                buffer += 2;
+                std::memcpy(buffer + 0, &radix_100_table[second_two_digits * 2], 2);
+                std::memcpy(buffer + 2, &radix_100_table[third_two_digits * 2], 2);
+                std::memcpy(buffer + 4, &radix_100_table[fourth_two_digits * 2], 2);
+                buffer += 6;
             }
             else {
                 // 9 digits.
-                // 1441151881 = ceil(2^57 / 1'0000'0000)
-                auto constexpr mask = (std::numeric_limits<std::uint64_t>::max() >> (64 - 57));
-                auto prod = s32 * std::uint64_t(1441151881);
-                auto first_digit = std::uint8_t(prod >> 57);
+                // 2882303763 = ceil(2^58 / 1'0000'0000) + 1
+                auto prod = s32 * std::uint64_t(2882303763);
+                prod >>= 26;
+                auto first_digit = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto second_two_digits = std::uint32_t(prod >> 57);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto second_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto third_two_digits = std::uint32_t(prod >> 57);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto third_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto fourth_two_digits = std::uint32_t(prod >> 57);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto fourth_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto fifth_two_digits = std::uint32_t(prod >> 57);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto fifth_two_digits = std::uint32_t(prod >> 32);
 
                 buffer[0] = char('0' + first_digit);
                 buffer[1] = '.';
                 buffer += 2;
                 exponent += 8;
 
-                std::memcpy(buffer, &radix_100_table[second_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[third_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[fourth_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[fifth_two_digits * 2], 2);
-                buffer += 2;
+                std::memcpy(buffer + 0, &radix_100_table[second_two_digits * 2], 2);
+                std::memcpy(buffer + 2, &radix_100_table[third_two_digits * 2], 2);
+                std::memcpy(buffer + 4, &radix_100_table[fourth_two_digits * 2], 2);
+                std::memcpy(buffer + 6, &radix_100_table[fifth_two_digits * 2], 2);
+                buffer += 8;
             }
 
             // Print exponent and return
@@ -317,26 +318,25 @@ namespace jkj::dragonbox {
                         exponent += 5;
                     }
 
-                    std::memcpy(buffer, &radix_100_table[second_two_digits * 2], 2);
-                    buffer += 2;
-                    std::memcpy(buffer, &radix_100_table[third_two_digits * 2], 2);
-                    buffer += 2;
+                    std::memcpy(buffer + 0, &radix_100_table[second_two_digits * 2], 2);
+                    std::memcpy(buffer + 2, &radix_100_table[third_two_digits * 2], 2);
+                    buffer += 4;
                 }
             }
             else if (first_block < 1'0000'0000) {
-                // 140737489 = ceil(2^47 / 100'0000)
-                auto constexpr mask = (std::numeric_limits<std::uint64_t>::max() >> (64 - 47));
-                auto prod = first_block * std::uint64_t(140737489);
-                auto first_two_digits = std::uint32_t(prod >> 47);
+                // 281474978 = ceil(2^48 / 100'0000) + 1
+                auto prod = first_block * std::uint64_t(281474978);
+                prod >>= 16;
+                auto first_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto second_two_digits = std::uint32_t(prod >> 47);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto second_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto third_two_digits = std::uint32_t(prod >> 47);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto third_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto fourth_two_digits = std::uint32_t(prod >> 47);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto fourth_two_digits = std::uint32_t(prod >> 32);
 
                 if (first_two_digits < 10) {
                     // 7 digits.
@@ -354,71 +354,64 @@ namespace jkj::dragonbox {
                     exponent += 7;
                 }
 
-                std::memcpy(buffer, &radix_100_table[second_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[third_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[fourth_two_digits * 2], 2);
-                buffer += 2;
+                std::memcpy(buffer + 0, &radix_100_table[second_two_digits * 2], 2);
+                std::memcpy(buffer + 2, &radix_100_table[third_two_digits * 2], 2);
+                std::memcpy(buffer + 4, &radix_100_table[fourth_two_digits * 2], 2);
+                buffer += 6;
             }
             else {
                 // 9 digits.
-                // 1441151881 = ceil(2^57 / 1'0000'0000)
-                auto constexpr mask = (std::numeric_limits<std::uint64_t>::max() >> (64 - 57));
-                auto prod = first_block * std::uint64_t(1441151881);
-                auto first_digit = std::uint8_t(prod >> 57);
+                // 2882303763 = ceil(2^58 / 1'0000'0000) + 1
+                auto prod = first_block * std::uint64_t(2882303763);
+                prod >>= 26;
+                auto first_digit = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto second_two_digits = std::uint32_t(prod >> 57);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto second_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto third_two_digits = std::uint32_t(prod >> 57);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto third_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto fourth_two_digits = std::uint32_t(prod >> 57);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto fourth_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto fifth_two_digits = std::uint32_t(prod >> 57);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto fifth_two_digits = std::uint32_t(prod >> 32);
 
                 buffer[0] = char('0' + first_digit);
                 buffer[1] = '.';
                 buffer += 2;
                 exponent += 8;
 
-                std::memcpy(buffer, &radix_100_table[second_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[third_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[fourth_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[fifth_two_digits * 2], 2);
-                buffer += 2;
+                std::memcpy(buffer + 0, &radix_100_table[second_two_digits * 2], 2);
+                std::memcpy(buffer + 2, &radix_100_table[third_two_digits * 2], 2);
+                std::memcpy(buffer + 4, &radix_100_table[fourth_two_digits * 2], 2);
+                std::memcpy(buffer + 6, &radix_100_table[fifth_two_digits * 2], 2);
+                buffer += 8;
             }
 
             // Print second block if necessary.
             if (have_second_block) {
-                // 140737489 = ceil(2^47 / 100'0000)
-                auto constexpr mask = (std::numeric_limits<std::uint64_t>::max() >> (64 - 47));
-                auto prod = second_block * std::uint64_t(140737489);
-                auto first_two_digits = std::uint32_t(prod >> 47);
+                // 281474978 = ceil(2^48 / 100'0000) + 1
+                auto prod = second_block * std::uint64_t(281474978);
+                prod >>= 16;
+                prod += 1;
+                auto first_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto second_two_digits = std::uint32_t(prod >> 47);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto second_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto third_two_digits = std::uint32_t(prod >> 47);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto third_two_digits = std::uint32_t(prod >> 32);
 
-                prod = (prod & mask) * 100;
-                auto fourth_two_digits = std::uint32_t(prod >> 47);
+                prod = std::uint32_t(prod) * std::uint64_t(100);
+                auto fourth_two_digits = std::uint32_t(prod >> 32);
 
-                std::memcpy(buffer, &radix_100_table[first_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[second_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[third_two_digits * 2], 2);
-                buffer += 2;
-                std::memcpy(buffer, &radix_100_table[fourth_two_digits * 2], 2);
-                buffer += 2;
+                std::memcpy(buffer + 0, &radix_100_table[first_two_digits * 2], 2);
+                std::memcpy(buffer + 2, &radix_100_table[second_two_digits * 2], 2);
+                std::memcpy(buffer + 4, &radix_100_table[third_two_digits * 2], 2);
+                std::memcpy(buffer + 6, &radix_100_table[fourth_two_digits * 2], 2);
+                buffer += 8;
 
                 exponent += 8;
             }
