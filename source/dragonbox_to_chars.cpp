@@ -60,9 +60,9 @@ namespace jkj::dragonbox {
         // where k is an appropriate integer depending on the length of n.
         // For example, if n = 1234567, we set k = 6. In this case, we have
         // floor(y / 2^32) = 1,
-        // floor(10^2 * (y mod 2^32) / 2^32) = 23,
-        // floor(10^2 * (10^2 * y mod 2^32) / 2^32) = 45, and
-        // floor(10^2 * (10^4 * y mod 2^32) / 2^32) = 67.
+        // floor(10^2 * ((10^0 * y) mod 2^32) / 2^32) = 23,
+        // floor(10^2 * ((10^2 * y) mod 2^32) / 2^32) = 45, and
+        // floor(10^2 * ((10^4 * y) mod 2^32) / 2^32) = 67.
 
         JKJ_FORCEINLINE static void print_9_digits(std::uint32_t s32, int& exponent,
                                                    char*& buffer) noexcept {
