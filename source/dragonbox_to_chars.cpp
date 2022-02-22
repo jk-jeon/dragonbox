@@ -63,6 +63,7 @@ namespace jkj::dragonbox {
         // floor(10^2 * ((10^0 * y) mod 2^32) / 2^32) = 23,
         // floor(10^2 * ((10^2 * y) mod 2^32) / 2^32) = 45, and
         // floor(10^2 * ((10^4 * y) mod 2^32) / 2^32) = 67.
+        // See https://jk-jeon.github.io/posts/2022/02/jeaiii-algorithm/ for more explanation.
 
         JKJ_FORCEINLINE static void print_9_digits(std::uint32_t s32, int& exponent,
                                                    char*& buffer) noexcept {
