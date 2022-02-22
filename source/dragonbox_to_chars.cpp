@@ -243,12 +243,12 @@ namespace jkj::dragonbox {
             if (exponent >= 100) {
                 // d1 = exponent / 10; d2 = exponent % 10;
                 // 6554 = ceil(2^16 / 10)
-                auto prod = std::uint32_t(exponent) * 6554;
+                auto prod = std::uint32_t(exponent) * std::uint32_t(6554);
                 auto d1 = prod >> 16;
-                prod = std::uint16_t(prod) * 10;
-                auto d2 = prod >> 16;
+                prod = std::uint16_t(prod) * std::uint32_t(5); // * 10
+                auto d2 = prod >> 15;                          // >> 16
                 std::memcpy(buffer, &radix_100_table[d1 * 2], 2);
-                buffer[2] = (char)('0' + d2);
+                buffer[2] = char('0' + d2);
                 buffer += 3;
             }
             else if (exponent >= 10) {
@@ -256,7 +256,7 @@ namespace jkj::dragonbox {
                 buffer += 2;
             }
             else {
-                buffer[0] = (char)('0' + exponent);
+                buffer[0] = char('0' + exponent);
                 buffer += 1;
             }
 
