@@ -1842,6 +1842,7 @@ namespace jkj::dragonbox {
                             ret_value.significand *= 10;
                             ret_value.exponent = minus_k + kappa;
                             --ret_value.significand;
+                            TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
                             return ret_value;
                         }
                         else {
