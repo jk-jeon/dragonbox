@@ -96,7 +96,7 @@ auto v = jkj::dragonbox::to_decimal(x);
 
 By default, `jkj::dragonbox::to_decimal` returns a struct with three members (`significand`, `exponent`, and `is_negative`). But the return type and the return value can change if you specify policy paramters. See [below](https://github.com/jk-jeon/dragonbox#policies).
 
-***Important.*** `jkj::dragonbox::to_decimal` is designed to ***work only with finite nonzero*** inputs. The behavior of it when given with infinities/NaN's/`+0`/`-0` is undefined. `jkj::dragonbox::to_chars` works fine for any inputs.
+***Important.*** `jkj::dragonbox::to_decimal` is designed to ***work only with finite nonzero*** inputs. The behavior of it when given with infinities/NaN's/`+0`/`-0` is undefined. `jkj::dragonbox::to_chars` and `jkj::dragonbox::to_chars_n` work fine for any inputs.
 
 # Policies
 Dragonbox provides several policies that the user can select. Most of the time the default policies will be sufficient, but for some situation this customizability might be useful. There are currently five different kinds of policies that you can specify: sign policy, trailing zero policy, decimal-to-binary (parsing) rounding policy, binary-to-decimal (formatting) rounding policy, and cache policy. Those policies live in the namespace `jkj::dragonbox::policy`. You can provide the policies as additional parameters to `jkj::dragonbox::to_decimal` or `jkj::dragonbox::to_chars` or `jkj::dragonbox::to_chars_n`. Here is an example usage:
