@@ -58,7 +58,7 @@ target_link_libraries(my_target dragonbox::dragonbox) # or dragonbox::dragonbox_
 ```
 
 # Language Standard
-The library is targetting C++17 and actively using its features (e.g., `if constexpr`).
+The library is targeting C++17 and actively using its features (e.g., `if constexpr`).
 
 # Usage Examples
 (Simple string generation from `float/double`)
@@ -94,7 +94,7 @@ double x = 1.234;   // Also works for float
 auto v = jkj::dragonbox::to_decimal(x);
 ```
 
-By default, `jkj::dragonbox::to_decimal` returns a struct with three members (`significand`, `exponent`, and `is_negative`). But the return type and the return value can change if you specify policy paramters. See [below](https://github.com/jk-jeon/dragonbox#policies).
+By default, `jkj::dragonbox::to_decimal` returns a struct with three members (`significand`, `exponent`, and `is_negative`). But the return type and the return value can change if you specify policy parameters. See [below](https://github.com/jk-jeon/dragonbox#policies).
 
 ***Important.*** `jkj::dragonbox::to_decimal` is designed to ***work only with finite nonzero*** inputs. The behavior of it when given with infinities/NaN's/`+0`/`-0` is undefined. `jkj::dragonbox::to_chars` and `jkj::dragonbox::to_chars_n` work fine for any inputs.
 
@@ -111,7 +111,7 @@ In this example, the `ignore` sign policy and the `compact` cache policy are spe
 Policy parameters (e.g., `jkj::dragonbox::policy::sign::ignore` in the above example) are of different types, so different combinations of policies generally result in separate template instantiations, which might cause binary bloat. (However, it is only the combination that matters; giving the same parameter combination in a different order will usually not generate a separate binary.)
 
 ## Sign policy
-Determines whether or not `jkj::dragonbox::to_decimal` will extract and return the sign of the input paramter.
+Determines whether or not `jkj::dragonbox::to_decimal` will extract and return the sign of the input parameter.
 
 - `jkj::dragonbox::policy::sign::ignore`: The sign of the input is ignored, and there is no `is_negative` member in the returned struct. A string generation routine might anyway need to deal with the sign by itself, so often this member will not be needed. In that case, omitting `is_negative` member can reduce some overhead. `jkj::dragonbox::to_chars` and `jkj::dragonbox::to_chars_n` use this policy internally.
 
@@ -265,7 +265,7 @@ Some executable files require the correct working directory to be set. For examp
 
 The [paper](other_files/Dragonbox.pdf) provides a mathematical proof of the correctness of the algorithm, with the aid of verification programs in [`test`](test) and [`meta`](meta) directories. In addition to that, I did a fair amount of uniformly random tests against Ryu (which is extremely heavily tested in its own), and I also ran a joint test of Dragonbox with a binary-to-decimal floating-point conversion routine I developed, and confirmed correct roundtrip for all possible IEEE-754 binary32-encoded floating-point numbers (aka `float`) with the round-to-nearest, tie-to-even rounding mode. Therefore, I am pretty confident about the correctness of both of the algorithms.
 
-## Precise meaning of roundtrip gurantee
+## Precise meaning of roundtrip guarantee
 
 The precise meaning of roundtrip guarantee might be tricky, as it depends on the notion of "correct parsers". For example, given that `significand` and `exponent` are the outputs of Dragonbox with respect to an input floating-point number `x` of, say, type `double`, then things like `x == significand * pow(10.0, exponent)` might or might not be the case, because each of the floating-point operations in the expression `significand * pow(10.0, exponent)` can introduce rounding errors that can accumulate to a bigger error. What a correct parser should do is to precisely compute the floating-point number from the given expression according to the assumed rounding rule, and the result must be "correctly rounded" in the sense that only the minimum possible rounding error is allowed. Implementing a correct parser is indeed a very nontrivial job, so you may need additional libraries (like [Ryu](https://github.com/ulfjack/ryu) or [double-conversion](https://github.com/google/double-conversion)) if you want to check this roundtrip guarantee by yourself.
 
