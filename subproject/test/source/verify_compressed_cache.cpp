@@ -151,4 +151,5 @@ int main() {
         }
     }
     std::cout << "Verification succeeded. No error detected.\n";
+    std::cout << "Done.\n\n\n";
 }

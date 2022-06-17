@@ -589,7 +589,7 @@ namespace jkj {
     std::vector<std::uint64_t> big_uint::to_decimal() const {
         std::vector<std::uint64_t> ret;
         auto n = *this;
-        auto divisor = big_uint{1000'0000'0000'0000'0000};
+        auto divisor = big_uint{1000'0000'0000'0000'0000ull};
 
         do {
             auto quotient = n.long_division(divisor);
