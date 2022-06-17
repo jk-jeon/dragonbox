@@ -1,6 +1,10 @@
 name: Cross-Compilation CI
 
 on:
+  push:
+    branches:
+      - master
+
   workflow_dispatch:
   pull_request:
     branches: [master]
@@ -44,10 +48,9 @@ jobs:
       - name: Test
         run: |
           cd build/test
-          xcross --target ${{ matrix.target }} run ./verify_fast_multiplication
-          xcross --target ${{ matrix.target }} run ./verify_log_computation
-          xcross --target ${{ matrix.target }} run ./verify_magic_division
           xcross --target ${{ matrix.target }} run ./test_all_shorter_interval_cases
           xcross --target ${{ matrix.target }} run ./uniform_random_test
           xcross --target ${{ matrix.target }} run ./verify_compressed_cache
-          xcross --target ${{ matrix.target }} run ./compute_required_cache_length
+          xcross --target ${{ matrix.target }} run ./verify_fast_multiplication
+          xcross --target ${{ matrix.target }} run ./verify_log_computation
+          xcross --target ${{ matrix.target }} run ./verify_magic_division
