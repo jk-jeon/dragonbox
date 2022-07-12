@@ -1836,7 +1836,7 @@ namespace jkj::dragonbox {
 
                 if (r < deltai) {
                     // Exclude the right endpoint if necessary.
-                    if (r == 0 && is_z_integer && !interval_type.include_right_endpoint()) {
+                    if (r == 0 && (is_z_integer & !interval_type.include_right_endpoint())) {
                         if constexpr (BinaryToDecimalRoundingPolicy::tag ==
                                       policy_impl::binary_to_decimal_rounding::tag_t::do_not_care) {
                             ret_value.significand *= 10;
@@ -1857,26 +1857,11 @@ namespace jkj::dragonbox {
                 }
                 else {
                     // r == deltai; compare fractional parts.
-                    auto const two_fl = two_fc - 1;
+                    auto const [xi_parity, x_is_integer] =
+                        compute_mul_parity(two_fc - 1, cache, beta);
 
-                    if (!interval_type.include_left_endpoint() ||
-                        exponent < case_fc_pm_half_lower_threshold ||
-                        exponent > divisibility_check_by_5_threshold) {
-                        // If the left endpoint is not included, the condition for
-                        // success is z^(f) < delta^(f) (odd parity).
-                        // Otherwise, the inequalities on exponent ensure that
-                        // x is not an integer, so if z^(f) >= delta^(f) (even parity), we in fact
-                        // have strict inequality.
-                        if (!compute_mul_parity(two_fl, cache, beta).parity) {
-                            goto small_divisor_case_label;
-                        }
-                    }
-                    else {
-                        auto const [xi_parity, x_is_integer] =
-                            compute_mul_parity(two_fl, cache, beta);
-                        if (!xi_parity && !x_is_integer) {
-                            goto small_divisor_case_label;
-                        }
+                    if (!(xi_parity | (x_is_integer & interval_type.include_left_endpoint()))) {
+                        goto small_divisor_case_label;
                     }
                 }
                 ret_value.exponent = minus_k + kappa + 1;
@@ -1943,7 +1928,7 @@ namespace jkj::dragonbox {
                             // If z^(f) >= epsilon^(f), we might have a tie
                             // when z^(f) == epsilon^(f), or equivalently, when y is an integer.
                             // For tie-to-up case, we can just choose the upper one.
-                            if (BinaryToDecimalRoundingPolicy::prefer_round_down(ret_value) &&
+                            if (BinaryToDecimalRoundingPolicy::prefer_round_down(ret_value) &
                                 is_y_integer) {
                                 --ret_value.significand;
                             }
