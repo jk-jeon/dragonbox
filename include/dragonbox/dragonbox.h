@@ -1746,14 +1746,6 @@ namespace jkj::dragonbox {
             using cache_entry_type = typename cache_holder<format>::cache_entry_type;
             static constexpr auto cache_bits = cache_holder<format>::cache_bits;
 
-            static constexpr int max_power_of_factor_of_5 =
-                log::floor_log5_pow2(int(significand_bits + 2));
-            static constexpr int divisibility_check_by_5_threshold =
-                log::floor_log2_pow10(max_power_of_factor_of_5 + kappa + 1);
-
-            static constexpr int case_fc_pm_half_lower_threshold =
-                -kappa - log::floor_log5_pow2(kappa);
-
             static constexpr int case_shorter_interval_left_endpoint_lower_threshold = 2;
             static constexpr int case_shorter_interval_left_endpoint_upper_threshold =
                 2 +
