@@ -294,7 +294,7 @@ namespace jkj::dragonbox {
                 buffer += 2;
             }
             else {
-                buffer[0] = (char)('0' + exponent);
+                buffer[0] = char('0' + exponent);
                 buffer += 1;
             }
 
@@ -342,6 +342,8 @@ namespace jkj::dragonbox {
                     prod = std::uint32_t(prod) * std::uint64_t(100);
                     std::memcpy(buffer + 8, radix_100_table + std::uint32_t(prod >> 32) * 2, 2);
 
+                    // The second block is of 8 digits.
+                    // 281474978 = ceil(2^48 / 100'0000) + 1
                     prod = second_block * std::uint64_t(281474978);
                     prod >>= 16;
                     prod += 1;
