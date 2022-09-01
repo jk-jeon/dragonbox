@@ -39,7 +39,7 @@ namespace jkj::dragonbox {
                 }
                 if (br.is_nonzero()) {
                     auto result = to_decimal<Float, FloatTraits>(
-                        s, exponent_bits, policy::sign::ignore, policy::trailing_zero::remove,
+                        s, exponent_bits, policy::sign::ignore, policy::trailing_zero::ignore,
                         typename PolicyHolder::decimal_to_binary_rounding_policy{},
                         typename PolicyHolder::binary_to_decimal_rounding_policy{},
                         typename PolicyHolder::cache_policy{});
