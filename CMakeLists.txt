@@ -58,7 +58,7 @@ option(DRAGONBOX_INSTALL_TO_CHARS
         On)
 
 set(dragonbox_directory "dragonbox-${PROJECT_VERSION}")
-set(dragonbox_include_directory "${CMAKE_INSTALL_INCLUDEDIR}/${dragonbox_directory}")
+set(dragonbox_include_directory "${CMAKE_INSTALL_INCLUDEDIR}")
 set(dragonbox_install_targets "dragonbox")
 
 if (DRAGONBOX_INSTALL_TO_CHARS)
