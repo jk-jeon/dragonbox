@@ -654,7 +654,7 @@ namespace jkj::dragonbox {
                 }
                 // Specialize for 64-bit division by 1000.
                 // Ensure that the correctness condition is met.
-                if constexpr (std::is_same_v<UInt, std::uint64_t> && N == 3 &&
+                else if constexpr (std::is_same_v<UInt, std::uint64_t> && N == 3 &&
                               n_max <= std::uint64_t(15534100272597517998ull)) {
                     return wuint::umul128_upper64(n, std::uint64_t(2361183241434822607ull)) >> 7;
                 }
