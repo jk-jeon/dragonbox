@@ -135,8 +135,8 @@ namespace jkj::dragonbox {
             constexpr int exponent_bits = format::exponent_bits;
             static_assert(detail::value_bits<unsigned int> > exponent_bits);
             constexpr auto exponent_bits_mask =
-                (unsigned int)(((unsigned int)(1) << exponent_bits) - 1);
-            return (unsigned int)(u >> significand_bits) & exponent_bits_mask;
+                (static_cast<unsigned int>(1) << exponent_bits) - 1;
+            return static_cast<unsigned int>(u >> significand_bits) & exponent_bits_mask;
         }
 
         // Extract significand bits from a bit pattern.
