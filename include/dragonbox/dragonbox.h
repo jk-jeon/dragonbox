@@ -135,8 +135,8 @@ namespace jkj::dragonbox {
             constexpr int exponent_bits = format::exponent_bits;
             static_assert(detail::value_bits<unsigned int> > exponent_bits);
             constexpr auto exponent_bits_mask =
-                (unsigned int)(((unsigned int)(1) << exponent_bits) - 1);
-            return (unsigned int)(u >> significand_bits) & exponent_bits_mask;
+                (static_cast<unsigned int>(1) << exponent_bits) - 1;
+            return static_cast<unsigned int>(u >> significand_bits) & exponent_bits_mask;
         }
 
         // Extract significand bits from a bit pattern.
@@ -654,7 +654,7 @@ namespace jkj::dragonbox {
                 }
                 // Specialize for 64-bit division by 1000.
                 // Ensure that the correctness condition is met.
-                if constexpr (std::is_same_v<UInt, std::uint64_t> && N == 3 &&
+                else if constexpr (std::is_same_v<UInt, std::uint64_t> && N == 3 &&
                               n_max <= std::uint64_t(15534100272597517998ull)) {
                     return wuint::umul128_upper64(n, std::uint64_t(2361183241434822607ull)) >> 7;
                 }
