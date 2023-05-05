@@ -77,18 +77,11 @@ namespace jkj::dragonbox {
         };
 
         static void print_1_digit(std::uint32_t n, char* buffer) noexcept {
-            if constexpr ('1' == '0' + 1 && '2' == '0' + 2 && '3' == '0' + 3 && '4' == '0' + 4 &&
-                          '5' == '0' + 5 && '6' == '0' + 6 && '7' == '0' + 7 && '8' == '0' + 8 &&
-                          '9' == '0' + 9) {
-                if constexpr (('0' & 0xf) == 0) {
-                    *buffer = char('0' | n);
-                }
-                else {
-                    *buffer = char('0' + n);
-                }
+            if constexpr (('0' & 0xf) == 0) {
+                *buffer = char('0' | n);
             }
             else {
-                std::memcpy(buffer, radix_100_table + n * 2 + 1, 1);
+                *buffer = char('0' + n);
             }
         }
 
