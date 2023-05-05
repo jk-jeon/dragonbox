@@ -113,9 +113,9 @@ Policy parameters (e.g., `jkj::dragonbox::policy::sign::ignore` in the above exa
 ## Sign policy
 Determines whether or not `jkj::dragonbox::to_decimal` will extract and return the sign of the input parameter.
 
-- `jkj::dragonbox::policy::sign::ignore`: The sign of the input is ignored, and there is no `is_negative` member in the returned struct. A string generation routine might anyway need to deal with the sign by itself, so often this member will not be needed. In that case, omitting `is_negative` member can reduce some overhead. `jkj::dragonbox::to_chars` and `jkj::dragonbox::to_chars_n` use this policy internally.
+- `jkj::dragonbox::policy::sign::ignore`: There is no `is_negative` member in the returned struct and the sign of the input is not returned. A string generation routine might anyway need to deal with the sign by itself, so often this member will not be needed. In that case, omitting `is_negative` member can reduce some overhead. `jkj::dragonbox::to_chars` and `jkj::dragonbox::to_chars_n` use this policy internally. In the implementation of `jkj::dragonbox::to_decimal`, the sign of the input is relevant only for deciding the rounding interval under certain rounding mode policies. Under the default rounding mode policies, the sign is completely ignored.
 
-- `jkj::dragonbox::policy::sign::return_sign`: **This is the default policy.** The sign of the input will be written in the `is_negative` member of the returned struct.
+-`jkj::dragonbox::policy::sign::return_sign`: **This is the default policy.** The sign of the input will be written in the `is_negative` member of the returned struct.
 
 You cannot specify sign policy to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
 
