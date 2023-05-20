@@ -25,6 +25,32 @@
 #include <limits>
 #include <type_traits>
 
+#ifdef __has_include
+    #if __has_include(<version>)
+        #include <version>
+    #endif
+#endif
+
+#if defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
+    #include <bit>
+    #define JKJ_HAS_BIT_CAST 1
+#else
+    #define JKJ_HAS_BIT_CAST 0
+#endif
+
+#if defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
+    #define JKJ_HAS_IS_CONSTANT_EVALUATED 1
+#else
+    #define JKJ_HAS_IS_CONSTANT_EVALUATED 0
+#endif
+
+// Testing for relevant C++20 constexpr library features
+#if JKJ_HAS_IS_CONSTANT_EVALUATED && JKJ_HAS_BIT_CAST
+    #define JKJ_CONSTEXPR20 constexpr
+#else
+    #define JKJ_CONSTEXPR20
+#endif
+
 // Suppress additional buffer overrun check.
 // I have no idea why MSVC thinks some functions here are vulnerable to the buffer overrun
 // attacks. No, they aren't.
@@ -51,6 +77,14 @@
 
 namespace jkj::dragonbox {
     namespace detail {
+        constexpr bool cpp20_and_in_constexpr() {
+#if JKJ_HAS_IS_CONSTANT_EVALUATED
+            return std::is_constant_evaluated();
+#else
+            return false;
+#endif
+        }
+
         template <class T>
         constexpr std::size_t
             physical_bits = sizeof(T) * std::numeric_limits<unsigned char>::digits;
@@ -114,17 +148,25 @@ namespace jkj::dragonbox {
         // Depending on the floating-point encoding format, this operation might not be possible for
         // some specific bit patterns. However, the contract is that u always denotes a
         // valid bit pattern, so this function must be assumed to be noexcept.
-        static T carrier_to_float(carrier_uint u) noexcept {
+        static JKJ_CONSTEXPR20 T carrier_to_float(carrier_uint u) noexcept {
+#if JKJ_HAS_BIT_CAST
+            return std::bit_cast<T>(u);
+#else
             T x;
             std::memcpy(&x, &u, sizeof(carrier_uint));
             return x;
+#endif
         }
 
         // Same as above.
-        static carrier_uint float_to_carrier(T x) noexcept {
+        static JKJ_CONSTEXPR20 carrier_uint float_to_carrier(T x) noexcept {
+#if JKJ_HAS_BIT_CAST
+            return std::bit_cast<carrier_uint>(x);
+#else
             carrier_uint u;
             std::memcpy(&u, &x, sizeof(carrier_uint));
             return u;
+#endif
         }
 
         // Extract exponent bits from a bit pattern.
@@ -319,11 +361,11 @@ namespace jkj::dragonbox {
 
         namespace bits {
             // Most compilers should be able to optimize this into the ROR instruction.
-            inline std::uint32_t rotr(std::uint32_t n, std::uint32_t r) noexcept {
+            constexpr std::uint32_t rotr(std::uint32_t n, std::uint32_t r) noexcept {
                 r &= 31;
                 return (n >> r) | (n << (32 - r));
             }
-            inline std::uint64_t rotr(std::uint64_t n, std::uint32_t r) noexcept {
+            constexpr std::uint64_t rotr(std::uint64_t n, std::uint32_t r) noexcept {
                 r &= 63;
                 return (n >> r) | (n << (64 - r));
             }
@@ -362,7 +404,16 @@ namespace jkj::dragonbox {
                 constexpr std::uint64_t high() const noexcept { return high_; }
                 constexpr std::uint64_t low() const noexcept { return low_; }
 
-                uint128& operator+=(std::uint64_t n) & noexcept {
+                JKJ_CONSTEXPR20 uint128& operator+=(std::uint64_t n) & noexcept {
+                    const auto generic_impl = [&] {
+                        auto sum = low_ + n;
+                        high_ += (sum < low_ ? 1 : 0);
+                        low_ = sum;
+                    };
+                    if (cpp20_and_in_constexpr()) {
+                        generic_impl();
+                        return *this;
+                    }
 #if JKJ_DRAGONBOX_HAS_BUILTIN(__builtin_addcll)
                     unsigned long long carry;
                     low_ = __builtin_addcll(low_, n, 0, &carry);
@@ -377,24 +428,45 @@ namespace jkj::dragonbox {
                     auto carry = _addcarry_u64(0, low_, n, &low_);
                     _addcarry_u64(carry, high_, 0, &high_);
 #else
-                    auto sum = low_ + n;
-                    high_ += (sum < low_ ? 1 : 0);
-                    low_ = sum;
+                    generic_impl();
 #endif
                     return *this;
                 }
             };
 
-            static inline std::uint64_t umul64(std::uint32_t x, std::uint32_t y) noexcept {
+            static JKJ_CONSTEXPR20 inline std::uint64_t umul64(std::uint32_t x,
+                                                               std::uint32_t y) noexcept {
 #if defined(_MSC_VER) && defined(_M_IX86)
-                return __emulu(x, y);
+                if (!cpp20_and_in_constexpr()) {
+                    return __emulu(x, y);
+                }
 #else
                 return x * std::uint64_t(y);
 #endif
             }
 
             // Get 128-bit result of multiplication of two 64-bit unsigned integers.
-            JKJ_SAFEBUFFERS inline uint128 umul128(std::uint64_t x, std::uint64_t y) noexcept {
+            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 inline uint128 umul128(std::uint64_t x,
+                                                                   std::uint64_t y) noexcept {
+                const auto generic_impl = [&]() -> uint128 {
+                    auto a = std::uint32_t(x >> 32);
+                    auto b = std::uint32_t(x);
+                    auto c = std::uint32_t(y >> 32);
+                    auto d = std::uint32_t(y);
+
+                    auto ac = umul64(a, c);
+                    auto bc = umul64(b, c);
+                    auto ad = umul64(a, d);
+                    auto bd = umul64(b, d);
+
+                    auto intermediate = (bd >> 32) + std::uint32_t(ad) + std::uint32_t(bc);
+
+                    return {ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32),
+                            (intermediate << 32) + std::uint32_t(bd)};
+                };
+                if (cpp20_and_in_constexpr()) {
+                    return generic_impl();
+                }
 #if defined(__SIZEOF_INT128__)
                 auto result = builtin_uint128_t(x) * builtin_uint128_t(y);
                 return {std::uint64_t(result >> 64), std::uint64_t(result)};
@@ -403,50 +475,44 @@ namespace jkj::dragonbox {
                 result.low_ = _umul128(x, y, &result.high_);
                 return result;
 #else
-                auto a = std::uint32_t(x >> 32);
-                auto b = std::uint32_t(x);
-                auto c = std::uint32_t(y >> 32);
-                auto d = std::uint32_t(y);
-
-                auto ac = umul64(a, c);
-                auto bc = umul64(b, c);
-                auto ad = umul64(a, d);
-                auto bd = umul64(b, d);
-
-                auto intermediate = (bd >> 32) + std::uint32_t(ad) + std::uint32_t(bc);
-
-                return {ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32),
-                        (intermediate << 32) + std::uint32_t(bd)};
+                return generic_impl();
 #endif
             }
 
-            JKJ_SAFEBUFFERS inline std::uint64_t umul128_upper64(std::uint64_t x,
-                                                                 std::uint64_t y) noexcept {
+            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 inline std::uint64_t
+            umul128_upper64(std::uint64_t x, std::uint64_t y) noexcept {
+                const auto generic_impl = [&]() -> std::uint64_t {
+                    auto a = std::uint32_t(x >> 32);
+                    auto b = std::uint32_t(x);
+                    auto c = std::uint32_t(y >> 32);
+                    auto d = std::uint32_t(y);
+
+                    auto ac = umul64(a, c);
+                    auto bc = umul64(b, c);
+                    auto ad = umul64(a, d);
+                    auto bd = umul64(b, d);
+
+                    auto intermediate = (bd >> 32) + std::uint32_t(ad) + std::uint32_t(bc);
+
+                    return ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32);
+                };
+                if (cpp20_and_in_constexpr()) {
+                    return generic_impl();
+                }
 #if defined(__SIZEOF_INT128__)
                 auto result = builtin_uint128_t(x) * builtin_uint128_t(y);
                 return std::uint64_t(result >> 64);
 #elif defined(_MSC_VER) && defined(_M_X64)
                 return __umulh(x, y);
 #else
-                auto a = std::uint32_t(x >> 32);
-                auto b = std::uint32_t(x);
-                auto c = std::uint32_t(y >> 32);
-                auto d = std::uint32_t(y);
-
-                auto ac = umul64(a, c);
-                auto bc = umul64(b, c);
-                auto ad = umul64(a, d);
-                auto bd = umul64(b, d);
-
-                auto intermediate = (bd >> 32) + std::uint32_t(ad) + std::uint32_t(bc);
-
-                return ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32);
+                return generic_impl();
 #endif
             }
 
             // Get upper 128-bits of multiplication of a 64-bit unsigned integer and a 128-bit
             // unsigned integer.
-            JKJ_SAFEBUFFERS inline uint128 umul192_upper128(std::uint64_t x, uint128 y) noexcept {
+            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 inline uint128 umul192_upper128(std::uint64_t x,
+                                                                            uint128 y) noexcept {
                 auto r = umul128(x, y.high());
                 r += umul128_upper64(x, y.low());
                 return r;
@@ -454,7 +520,8 @@ namespace jkj::dragonbox {
 
             // Get upper 64-bits of multiplication of a 32-bit unsigned integer and a 64-bit
             // unsigned integer.
-            inline std::uint64_t umul96_upper64(std::uint32_t x, std::uint64_t y) noexcept {
+            inline std::uint64_t JKJ_CONSTEXPR20 umul96_upper64(std::uint32_t x,
+                                                                std::uint64_t y) noexcept {
 #if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
                 return umul128_upper64(std::uint64_t(x) << 32, y);
 #else
@@ -470,7 +537,8 @@ namespace jkj::dragonbox {
 
             // Get lower 128-bits of multiplication of a 64-bit unsigned integer and a 128-bit
             // unsigned integer.
-            JKJ_SAFEBUFFERS inline uint128 umul192_lower128(std::uint64_t x, uint128 y) noexcept {
+            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 inline uint128 umul192_lower128(std::uint64_t x,
+                                                                            uint128 y) noexcept {
                 auto high = x * y.high();
                 auto high_low = umul128(x, y.low());
                 return {high + high_low.high(), high_low.low()};
@@ -478,7 +546,7 @@ namespace jkj::dragonbox {
 
             // Get lower 64-bits of multiplication of a 32-bit unsigned integer and a 64-bit
             // unsigned integer.
-            inline std::uint64_t umul96_lower64(std::uint32_t x, std::uint64_t y) noexcept {
+            constexpr std::uint64_t umul96_lower64(std::uint32_t x, std::uint64_t y) noexcept {
                 return x * y;
             }
         }
@@ -1238,7 +1306,8 @@ namespace jkj::dragonbox {
                     using shorter_interval_type = interval_type::closed;
 
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits, Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
+                                                                   Func&& f) noexcept {
                         return f(nearest_to_even{});
                     }
 
@@ -1260,7 +1329,8 @@ namespace jkj::dragonbox {
                     using shorter_interval_type = interval_type::open;
 
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits, Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
+                                                                   Func&& f) noexcept {
                         return f(nearest_to_odd{});
                     }
 
@@ -1282,7 +1352,8 @@ namespace jkj::dragonbox {
                     using shorter_interval_type = interval_type::asymmetric_boundary;
 
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits, Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
+                                                                   Func&& f) noexcept {
                         return f(nearest_toward_plus_infinity{});
                     }
 
@@ -1304,7 +1375,8 @@ namespace jkj::dragonbox {
                     using shorter_interval_type = interval_type::asymmetric_boundary;
 
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits, Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
+                                                                   Func&& f) noexcept {
                         return f(nearest_toward_minus_infinity{});
                     }
 
@@ -1326,7 +1398,8 @@ namespace jkj::dragonbox {
                     using shorter_interval_type = interval_type::right_closed_left_open;
 
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits, Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
+                                                                   Func&& f) noexcept {
                         return f(nearest_toward_zero{});
                     }
 
@@ -1348,7 +1421,8 @@ namespace jkj::dragonbox {
                     using shorter_interval_type = interval_type::left_closed_right_open;
 
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits, Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
+                                                                   Func&& f) noexcept {
                         return f(nearest_away_from_zero{});
                     }
 
@@ -1402,8 +1476,8 @@ namespace jkj::dragonbox {
                 struct nearest_to_even_static_boundary : base {
                     using decimal_to_binary_rounding_policy = nearest_to_even_static_boundary;
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits s,
-                                                         Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits s,
+                                                                   Func&& f) noexcept {
                         if (s.has_even_significand_bits()) {
                             return f(detail::nearest_always_closed{});
                         }
@@ -1415,8 +1489,8 @@ namespace jkj::dragonbox {
                 struct nearest_to_odd_static_boundary : base {
                     using decimal_to_binary_rounding_policy = nearest_to_odd_static_boundary;
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits s,
-                                                         Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits s,
+                                                                   Func&& f) noexcept {
                         if (s.has_even_significand_bits()) {
                             return f(detail::nearest_always_open{});
                         }
@@ -1429,8 +1503,8 @@ namespace jkj::dragonbox {
                     using decimal_to_binary_rounding_policy =
                         nearest_toward_plus_infinity_static_boundary;
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits s,
-                                                         Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits s,
+                                                                   Func&& f) noexcept {
                         if (s.is_negative()) {
                             return f(nearest_toward_zero{});
                         }
@@ -1443,8 +1517,8 @@ namespace jkj::dragonbox {
                     using decimal_to_binary_rounding_policy =
                         nearest_toward_minus_infinity_static_boundary;
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits s,
-                                                         Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits s,
+                                                                   Func&& f) noexcept {
                         if (s.is_negative()) {
                             return f(nearest_away_from_zero{});
                         }
@@ -1466,8 +1540,8 @@ namespace jkj::dragonbox {
                 struct toward_plus_infinity : base {
                     using decimal_to_binary_rounding_policy = toward_plus_infinity;
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits s,
-                                                         Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits s,
+                                                                   Func&& f) noexcept {
                         if (s.is_negative()) {
                             return f(detail::left_closed_directed{});
                         }
@@ -1479,8 +1553,8 @@ namespace jkj::dragonbox {
                 struct toward_minus_infinity : base {
                     using decimal_to_binary_rounding_policy = toward_minus_infinity;
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits s,
-                                                         Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits s,
+                                                                   Func&& f) noexcept {
                         if (s.is_negative()) {
                             return f(detail::right_closed_directed{});
                         }
@@ -1492,14 +1566,16 @@ namespace jkj::dragonbox {
                 struct toward_zero : base {
                     using decimal_to_binary_rounding_policy = toward_zero;
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits, Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
+                                                                   Func&& f) noexcept {
                         return f(detail::left_closed_directed{});
                     }
                 };
                 struct away_from_zero : base {
                     using decimal_to_binary_rounding_policy = away_from_zero;
                     template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static auto delegate(SignedSignificandBits, Func&& f) noexcept {
+                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
+                                                                   Func&& f) noexcept {
                         return f(detail::right_closed_directed{});
                     }
                 };
@@ -1787,7 +1863,7 @@ namespace jkj::dragonbox {
             template <class ReturnType, class IntervalType, class TrailingZeroPolicy,
                       class BinaryToDecimalRoundingPolicy, class CachePolicy,
                       class... AdditionalArgs>
-            JKJ_SAFEBUFFERS static ReturnType
+            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 static ReturnType
             compute_nearest_normal(carrier_uint const two_fc, int const exponent,
                                    AdditionalArgs... additional_args) noexcept {
                 //////////////////////////////////////////////////////////////////////
@@ -1832,48 +1908,50 @@ namespace jkj::dragonbox {
                                              1>(zi);
                 auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
 
-                if (r < deltai) {
-                    // Exclude the right endpoint if necessary.
-                    if (r == 0 && (is_z_integer & !interval_type.include_right_endpoint())) {
-                        if constexpr (BinaryToDecimalRoundingPolicy::tag ==
-                                      policy_impl::binary_to_decimal_rounding::tag_t::do_not_care) {
-                            ret_value.significand *= 10;
-                            ret_value.exponent = minus_k + kappa;
-                            --ret_value.significand;
-                            TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
-                            return ret_value;
-                        }
-                        else {
-                            --ret_value.significand;
-                            r = big_divisor;
-                            goto small_divisor_case_label;
+                do {
+                    if (r < deltai) {
+                        // Exclude the right endpoint if necessary.
+                        if (r == 0 && (is_z_integer & !interval_type.include_right_endpoint())) {
+                            if constexpr (BinaryToDecimalRoundingPolicy::tag ==
+                                          policy_impl::binary_to_decimal_rounding::tag_t::
+                                              do_not_care) {
+                                ret_value.significand *= 10;
+                                ret_value.exponent = minus_k + kappa;
+                                --ret_value.significand;
+                                TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
+                                return ret_value;
+                            }
+                            else {
+                                --ret_value.significand;
+                                r = big_divisor;
+                                break;
+                            }
                         }
                     }
-                }
-                else if (r > deltai) {
-                    goto small_divisor_case_label;
-                }
-                else {
-                    // r == deltai; compare fractional parts.
-                    auto const [xi_parity, x_is_integer] =
-                        compute_mul_parity(two_fc - 1, cache, beta);
-
-                    if (!(xi_parity | (x_is_integer & interval_type.include_left_endpoint()))) {
-                        goto small_divisor_case_label;
+                    else if (r > deltai) {
+                        break;
                     }
-                }
-                ret_value.exponent = minus_k + kappa + 1;
+                    else {
+                        // r == deltai; compare fractional parts.
+                        auto const [xi_parity, x_is_integer] =
+                            compute_mul_parity(two_fc - 1, cache, beta);
 
-                // We may need to remove trailing zeros.
-                TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
-                return ret_value;
+                        if (!(xi_parity | (x_is_integer & interval_type.include_left_endpoint()))) {
+                            break;
+                        }
+                    }
+                    ret_value.exponent = minus_k + kappa + 1;
+
+                    // We may need to remove trailing zeros.
+                    TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
+                    return ret_value;
+                } while (false);
 
 
                 //////////////////////////////////////////////////////////////////////
                 // Step 3: Find the significand with the smaller divisor
                 //////////////////////////////////////////////////////////////////////
 
-            small_divisor_case_label:
                 TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
                 ret_value.significand *= 10;
                 ret_value.exponent = minus_k + kappa;
@@ -1939,7 +2017,7 @@ namespace jkj::dragonbox {
             template <class ReturnType, class IntervalType, class TrailingZeroPolicy,
                       class BinaryToDecimalRoundingPolicy, class CachePolicy,
                       class... AdditionalArgs>
-            JKJ_SAFEBUFFERS static ReturnType
+            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 static ReturnType
             compute_nearest_shorter(int const exponent,
                                     AdditionalArgs... additional_args) noexcept {
                 ReturnType ret_value;
@@ -1996,7 +2074,7 @@ namespace jkj::dragonbox {
             }
 
             template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
-            JKJ_SAFEBUFFERS static ReturnType
+            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 static ReturnType
             compute_left_closed_directed(carrier_uint const two_fc, int exponent) noexcept {
                 //////////////////////////////////////////////////////////////////////
                 // Step 1: Schubfach multiplier calculation
@@ -2049,34 +2127,35 @@ namespace jkj::dragonbox {
                     r = big_divisor - r;
                 }
 
-                if (r > deltai) {
-                    goto small_divisor_case_label;
-                }
-                else if (r == deltai) {
-                    // Compare the fractional parts.
-                    // This branch is never taken for the exceptional cases
-                    // 2f_c = 29711482, e = -81
-                    // (6.1442649164096937243516663440523473127541365101933479309082... * 10^-18)
-                    // and 2f_c = 29711482, e = -80
-                    // (1.2288529832819387448703332688104694625508273020386695861816... * 10^-17).
-                    auto const [zi_parity, is_z_integer] =
-                        compute_mul_parity(two_fc + 2, cache, beta);
-                    if (zi_parity || is_z_integer) {
-                        goto small_divisor_case_label;
+                do {
+                    if (r > deltai) {
+                        break;
                     }
-                }
+                    else if (r == deltai) {
+                        // Compare the fractional parts.
+                        // This branch is never taken for the exceptional cases
+                        // 2f_c = 29711482, e = -81
+                        // (6.1442649164096937243516663440523473127541365101933479309082... * 10^-18)
+                        // and 2f_c = 29711482, e = -80
+                        // (1.2288529832819387448703332688104694625508273020386695861816... * 10^-17).
+                        auto const [zi_parity, is_z_integer] =
+                            compute_mul_parity(two_fc + 2, cache, beta);
+                        if (zi_parity || is_z_integer) {
+                            break;
+                        }
+                    }
 
-                // The ceiling is inside, so we are done.
-                ret_value.exponent = minus_k + kappa + 1;
-                TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
-                return ret_value;
+                    // The ceiling is inside, so we are done.
+                    ret_value.exponent = minus_k + kappa + 1;
+                    TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
+                    return ret_value;
+                } while (false);
 
 
                 //////////////////////////////////////////////////////////////////////
                 // Step 3: Find the significand with the smaller divisor
                 //////////////////////////////////////////////////////////////////////
 
-            small_divisor_case_label:
                 ret_value.significand *= 10;
                 ret_value.significand -= div::small_division_by_pow10<kappa>(r);
                 ret_value.exponent = minus_k + kappa;
@@ -2085,7 +2164,7 @@ namespace jkj::dragonbox {
             }
 
             template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
-            JKJ_SAFEBUFFERS static ReturnType
+            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 static ReturnType
             compute_right_closed_directed(carrier_uint const two_fc, int const exponent,
                                           bool shorter_interval) noexcept {
                 //////////////////////////////////////////////////////////////////////
@@ -2121,28 +2200,29 @@ namespace jkj::dragonbox {
                                              1>(zi);
                 auto const r = std::uint32_t(zi - big_divisor * ret_value.significand);
 
-                if (r > deltai) {
-                    goto small_divisor_case_label;
-                }
-                else if (r == deltai) {
-                    // Compare the fractional parts.
-                    if (!compute_mul_parity(two_fc - (shorter_interval ? 1 : 2), cache, beta)
-                             .parity) {
-                        goto small_divisor_case_label;
+                do {
+                    if (r > deltai) {
+                        break;
                     }
-                }
+                    else if (r == deltai) {
+                        // Compare the fractional parts.
+                        if (!compute_mul_parity(two_fc - (shorter_interval ? 1 : 2), cache, beta)
+                                 .parity) {
+                            break;
+                        }
+                    }
 
-                // The floor is inside, so we are done.
-                ret_value.exponent = minus_k + kappa + 1;
-                TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
-                return ret_value;
+                    // The floor is inside, so we are done.
+                    ret_value.exponent = minus_k + kappa + 1;
+                    TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
+                    return ret_value;
+                } while (false);
 
 
                 //////////////////////////////////////////////////////////////////////
                 // Step 3: Find the significand with the small divisor
                 //////////////////////////////////////////////////////////////////////
 
-            small_divisor_case_label:
                 ret_value.significand *= 10;
                 ret_value.significand += div::small_division_by_pow10<kappa>(r);
                 ret_value.exponent = minus_k + kappa;
@@ -2151,7 +2231,7 @@ namespace jkj::dragonbox {
             }
 
             // Remove trailing zeros from n and return the number of zeros removed.
-            JKJ_FORCEINLINE static int remove_trailing_zeros(carrier_uint& n) noexcept {
+            JKJ_FORCEINLINE JKJ_CONSTEXPR20 static int remove_trailing_zeros(carrier_uint& n) noexcept {
                 assert(n != 0);
 
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
@@ -2243,8 +2323,8 @@ namespace jkj::dragonbox {
                 }
             }
 
-            static compute_mul_result compute_mul(carrier_uint u,
-                                                  cache_entry_type const& cache) noexcept {
+            static JKJ_CONSTEXPR20 compute_mul_result
+            compute_mul(carrier_uint u, cache_entry_type const& cache) noexcept {
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
                     auto r = wuint::umul96_upper64(u, cache);
                     return {carrier_uint(r >> 32), carrier_uint(r) == 0};
@@ -2267,9 +2347,8 @@ namespace jkj::dragonbox {
                 }
             }
 
-            static compute_mul_parity_result compute_mul_parity(carrier_uint two_f,
-                                                                cache_entry_type const& cache,
-                                                                int beta) noexcept {
+            static JKJ_CONSTEXPR20 compute_mul_parity_result compute_mul_parity(
+                carrier_uint two_f, cache_entry_type const& cache, int beta) noexcept {
                 assert(beta >= 1);
                 assert(beta < 64);
 
@@ -2500,7 +2579,7 @@ namespace jkj::dragonbox {
     ////////////////////////////////////////////////////////////////////////////////////////
 
     template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
-    JKJ_FORCEINLINE JKJ_SAFEBUFFERS auto
+    JKJ_FORCEINLINE JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 auto
     to_decimal(signed_significand_bits<Float, FloatTraits> signed_significand_bits,
                unsigned int exponent_bits, Policies... policies) noexcept {
         // Build policy holder type.
@@ -2641,7 +2720,8 @@ namespace jkj::dragonbox {
     }
 
     template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
-    JKJ_FORCEINLINE JKJ_SAFEBUFFERS auto to_decimal(Float x, Policies... policies) noexcept {
+    JKJ_FORCEINLINE JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 auto to_decimal(Float x,
+                                                                    Policies... policies) noexcept {
         auto const br = float_bits<Float, FloatTraits>(x);
         auto const exponent_bits = br.extract_exponent_bits();
         auto const s = br.remove_exponent_bits(exponent_bits);
