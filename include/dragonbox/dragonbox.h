@@ -1871,6 +1871,11 @@ namespace jkj::dragonbox {
                 //////////////////////////////////////////////////////////////////////
 
                 ReturnType ret_value;
+                if (cpp20_and_in_constexpr()) {
+                  // TODO: In runtime we return with the sign remaning uninitialized, which is technically UB
+                  // We work around this in constexpr, but probably needs fixing in general
+                  ret_value = {};
+                }
                 IntervalType interval_type{additional_args...};
 
                 // Compute k and beta.
@@ -2021,6 +2026,11 @@ namespace jkj::dragonbox {
             compute_nearest_shorter(int const exponent,
                                     AdditionalArgs... additional_args) noexcept {
                 ReturnType ret_value;
+                if (cpp20_and_in_constexpr()) {
+                  // TODO: In runtime we return with the sign remaning uninitialized, which is technically UB
+                  // We work around this in constexpr, but probably needs fixing in general
+                  ret_value = {};
+                }
                 IntervalType interval_type{additional_args...};
 
                 // Compute k and beta.
@@ -2081,6 +2091,11 @@ namespace jkj::dragonbox {
                 //////////////////////////////////////////////////////////////////////
 
                 ReturnType ret_value;
+                if (cpp20_and_in_constexpr()) {
+                  // TODO: In runtime we return with the sign remaning uninitialized, which is technically UB
+                  // We work around this in constexpr, but probably needs fixing in general
+                  ret_value = {};
+                }
 
                 // Compute k and beta.
                 int const minus_k = log::floor_log10_pow2(exponent) - kappa;
@@ -2172,6 +2187,11 @@ namespace jkj::dragonbox {
                 //////////////////////////////////////////////////////////////////////
 
                 ReturnType ret_value;
+                if (cpp20_and_in_constexpr()) {
+                  // TODO: In runtime we return with the sign remaning uninitialized, which is technically UB
+                  // We work around this in constexpr, but probably needs fixing in general
+                  ret_value = {};
+                }
 
                 // Compute k and beta.
                 int const minus_k =
