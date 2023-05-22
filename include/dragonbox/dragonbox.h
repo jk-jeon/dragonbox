@@ -38,14 +38,22 @@
     #define JKJ_HAS_BIT_CAST 0
 #endif
 
-#if defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
-    #define JKJ_HAS_IS_CONSTANT_EVALUATED 1
+#if defined(__cpp_if_consteval) && __cpp_is_consteval >= 202106L
+    #define JKJ_IF_CONSTEVAL if consteval
+    #define JKJ_IF_NOT_CONSTEVAL if !consteval
+    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+#elif defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
+    #define JKJ_IF_CONSTEVAL if (std::is_constant_evaluated())
+    #define JKJ_IF_NOT_CONSTEVAL if (!std::is_constant_evaluated())
+    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
 #else
-    #define JKJ_HAS_IS_CONSTANT_EVALUATED 0
+    #define JKJ_IF_CONSTEVAL if constexpr (false)
+    #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
+    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
 #endif
 
 // Testing for relevant C++20 constexpr library features
-#if JKJ_HAS_IS_CONSTANT_EVALUATED && JKJ_HAS_BIT_CAST
+#if JKJ_CAN_BRANCH_ON_CONSTEVAL && JKJ_HAS_BIT_CAST
     #define JKJ_CONSTEXPR20 constexpr
 #else
     #define JKJ_CONSTEXPR20
@@ -77,14 +85,6 @@
 
 namespace jkj::dragonbox {
     namespace detail {
-        constexpr bool cpp20_and_in_constexpr() {
-#if JKJ_HAS_IS_CONSTANT_EVALUATED
-            return std::is_constant_evaluated();
-#else
-            return false;
-#endif
-        }
-
         template <class T>
         constexpr std::size_t
             physical_bits = sizeof(T) * std::numeric_limits<unsigned char>::digits;
@@ -412,7 +412,7 @@ namespace jkj::dragonbox {
                         high_ += (sum < low_ ? 1 : 0);
                         low_ = sum;
                     };
-                    if (cpp20_and_in_constexpr()) {
+                    JKJ_IF_CONSTEVAL {
                         generic_impl();
                         return *this;
                     }
@@ -439,9 +439,7 @@ namespace jkj::dragonbox {
             static JKJ_CONSTEXPR20 inline std::uint64_t umul64(std::uint32_t x,
                                                                std::uint32_t y) noexcept {
 #if defined(_MSC_VER) && defined(_M_IX86)
-                if (!cpp20_and_in_constexpr()) {
-                    return __emulu(x, y);
-                }
+                JKJ_IF_NOT_CONSTEVAL { return __emulu(x, y); }
 #else
                 return x * std::uint64_t(y);
 #endif
@@ -466,9 +464,7 @@ namespace jkj::dragonbox {
                     return {ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32),
                             (intermediate << 32) + std::uint32_t(bd)};
                 };
-                if (cpp20_and_in_constexpr()) {
-                    return generic_impl();
-                }
+                JKJ_IF_CONSTEVAL { return generic_impl(); }
 #if defined(__SIZEOF_INT128__)
                 auto result = builtin_uint128_t(x) * builtin_uint128_t(y);
                 return {std::uint64_t(result >> 64), std::uint64_t(result)};
@@ -498,9 +494,7 @@ namespace jkj::dragonbox {
 
                     return ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32);
                 };
-                if (cpp20_and_in_constexpr()) {
-                    return generic_impl();
-                }
+                JKJ_IF_CONSTEVAL { return generic_impl(); }
 #if defined(__SIZEOF_INT128__)
                 auto result = builtin_uint128_t(x) * builtin_uint128_t(y);
                 return std::uint64_t(result >> 64);
@@ -1873,10 +1867,11 @@ namespace jkj::dragonbox {
                 //////////////////////////////////////////////////////////////////////
 
                 ReturnType ret_value;
-                if (cpp20_and_in_constexpr()) {
-                  // TODO: In runtime we return with the sign remaning uninitialized, which is technically UB
-                  // We work around this in constexpr, but probably needs fixing in general
-                  ret_value = {};
+                JKJ_IF_CONSTEVAL {
+                    // TODO: In runtime we return with the sign remaning uninitialized, which is
+                    // technically UB We work around this in constexpr, but probably needs fixing in
+                    // general
+                    ret_value = {};
                 }
                 IntervalType interval_type{additional_args...};
 
@@ -2028,10 +2023,11 @@ namespace jkj::dragonbox {
             compute_nearest_shorter(int const exponent,
                                     AdditionalArgs... additional_args) noexcept {
                 ReturnType ret_value;
-                if (cpp20_and_in_constexpr()) {
-                  // TODO: In runtime we return with the sign remaning uninitialized, which is technically UB
-                  // We work around this in constexpr, but probably needs fixing in general
-                  ret_value = {};
+                JKJ_IF_CONSTEVAL {
+                    // TODO: In runtime we return with the sign remaning uninitialized, which is
+                    // technically UB We work around this in constexpr, but probably needs fixing in
+                    // general
+                    ret_value = {};
                 }
                 IntervalType interval_type{additional_args...};
 
@@ -2093,10 +2089,11 @@ namespace jkj::dragonbox {
                 //////////////////////////////////////////////////////////////////////
 
                 ReturnType ret_value;
-                if (cpp20_and_in_constexpr()) {
-                  // TODO: In runtime we return with the sign remaning uninitialized, which is technically UB
-                  // We work around this in constexpr, but probably needs fixing in general
-                  ret_value = {};
+                JKJ_IF_CONSTEVAL {
+                    // TODO: In runtime we return with the sign remaning uninitialized, which is
+                    // technically UB We work around this in constexpr, but probably needs fixing in
+                    // general
+                    ret_value = {};
                 }
 
                 // Compute k and beta.
@@ -2189,10 +2186,11 @@ namespace jkj::dragonbox {
                 //////////////////////////////////////////////////////////////////////
 
                 ReturnType ret_value;
-                if (cpp20_and_in_constexpr()) {
-                  // TODO: In runtime we return with the sign remaning uninitialized, which is technically UB
-                  // We work around this in constexpr, but probably needs fixing in general
-                  ret_value = {};
+                JKJ_IF_CONSTEVAL {
+                    // TODO: In runtime we return with the sign remaning uninitialized, which is
+                    // technically UB We work around this in constexpr, but probably needs fixing in
+                    // general
+                    ret_value = {};
                 }
 
                 // Compute k and beta.
