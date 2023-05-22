@@ -68,3 +68,12 @@ add_test(verify_compressed_cache)
 add_test(verify_fast_multiplication)
 add_test(verify_log_computation)
 add_test(verify_magic_division)
+
+option(DRAGONBOX_ENABLE_CONSTEXPR_TEST "Build constexpr test" OFF)
+if (DRAGONBOX_ENABLE_CONSTEXPR_TEST)
+    add_test(constexpr)
+    set_target_properties(constexpr PROPERTIES
+      CXX_STANDARD 20
+      CXX_STANDARD_REQUIRED ON
+    )
+endif()
