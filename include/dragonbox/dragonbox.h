@@ -92,6 +92,20 @@ namespace jkj::dragonbox {
         template <class T>
         constexpr std::size_t value_bits =
             std::numeric_limits<std::enable_if_t<std::is_unsigned_v<T>, T>>::digits;
+
+        template <typename To, typename From>
+        JKJ_CONSTEXPR20 To bit_cast(const From& from) {
+#if JKJ_HAS_BIT_CAST
+            return std::bit_cast<To>(from);
+#else
+            static_assert(sizeof(From) == sizeof(To));
+            static_assert(std::is_trivially_copyable_v<To>);
+            static_assert(std::is_trivially_copyable_v<From>);
+            To to;
+            std::memcpy(&to, &from, sizeof(To));
+            return to;
+#endif
+        }
     }
 
     // These classes expose encoding specs of IEEE-754-like floating-point formats.
@@ -149,24 +163,12 @@ namespace jkj::dragonbox {
         // some specific bit patterns. However, the contract is that u always denotes a
         // valid bit pattern, so this function must be assumed to be noexcept.
         static JKJ_CONSTEXPR20 T carrier_to_float(carrier_uint u) noexcept {
-#if JKJ_HAS_BIT_CAST
-            return std::bit_cast<T>(u);
-#else
-            T x;
-            std::memcpy(&x, &u, sizeof(carrier_uint));
-            return x;
-#endif
+            return detail::bit_cast<T>(u);
         }
 
         // Same as above.
         static JKJ_CONSTEXPR20 carrier_uint float_to_carrier(T x) noexcept {
-#if JKJ_HAS_BIT_CAST
-            return std::bit_cast<carrier_uint>(x);
-#else
-            carrier_uint u;
-            std::memcpy(&u, &x, sizeof(carrier_uint));
-            return u;
-#endif
+            return detail::bit_cast<carrier_uint>(x);
         }
 
         // Extract exponent bits from a bit pattern.
