@@ -56,7 +56,7 @@
 #if JKJ_CAN_BRANCH_ON_CONSTEVAL && JKJ_HAS_BIT_CAST
     #define JKJ_CONSTEXPR20 constexpr
 #else
-    #define JKJ_CONSTEXPR20 inline
+    #define JKJ_CONSTEXPR20
 #endif
 
 // Suppress additional buffer overrun check.
@@ -435,7 +435,7 @@ namespace jkj::dragonbox {
                 }
             };
 
-            JKJ_CONSTEXPR20 std::uint64_t umul64(std::uint32_t x, std::uint32_t y) noexcept {
+            inline JKJ_CONSTEXPR20 std::uint64_t umul64(std::uint32_t x, std::uint32_t y) noexcept {
 #if defined(_MSC_VER) && defined(_M_IX86)
                 JKJ_IF_NOT_CONSTEVAL { return __emulu(x, y); }
 #else
@@ -444,8 +444,8 @@ namespace jkj::dragonbox {
             }
 
             // Get 128-bit result of multiplication of two 64-bit unsigned integers.
-            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 uint128 umul128(std::uint64_t x,
-                                                            std::uint64_t y) noexcept {
+            JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128 umul128(std::uint64_t x,
+                                                                   std::uint64_t y) noexcept {
                 auto const generic_impl = [&]() -> uint128 {
                     auto a = std::uint32_t(x >> 32);
                     auto b = std::uint32_t(x);
@@ -475,7 +475,7 @@ namespace jkj::dragonbox {
 #endif
             }
 
-            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 std::uint64_t
+            JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 std::uint64_t
             umul128_upper64(std::uint64_t x, std::uint64_t y) noexcept {
                 auto const generic_impl = [&]() -> std::uint64_t {
                     auto a = std::uint32_t(x >> 32);
@@ -505,8 +505,8 @@ namespace jkj::dragonbox {
 
             // Get upper 128-bits of multiplication of a 64-bit unsigned integer and a 128-bit
             // unsigned integer.
-            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 uint128 umul192_upper128(std::uint64_t x,
-                                                                     uint128 y) noexcept {
+            JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128 umul192_upper128(std::uint64_t x,
+                                                                            uint128 y) noexcept {
                 auto r = umul128(x, y.high());
                 r += umul128_upper64(x, y.low());
                 return r;
@@ -514,8 +514,8 @@ namespace jkj::dragonbox {
 
             // Get upper 64-bits of multiplication of a 32-bit unsigned integer and a 64-bit
             // unsigned integer.
-            JKJ_CONSTEXPR20 std::uint64_t umul96_upper64(std::uint32_t x,
-                                                         std::uint64_t y) noexcept {
+            inline JKJ_CONSTEXPR20 std::uint64_t umul96_upper64(std::uint32_t x,
+                                                                std::uint64_t y) noexcept {
 #if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
                 return umul128_upper64(std::uint64_t(x) << 32, y);
 #else
@@ -531,8 +531,8 @@ namespace jkj::dragonbox {
 
             // Get lower 128-bits of multiplication of a 64-bit unsigned integer and a 128-bit
             // unsigned integer.
-            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 uint128 umul192_lower128(std::uint64_t x,
-                                                                     uint128 y) noexcept {
+            JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128 umul192_lower128(std::uint64_t x,
+                                                                            uint128 y) noexcept {
                 auto high = x * y.high();
                 auto high_low = umul128(x, y.low());
                 return {high + high_low.high(), high_low.low()};
