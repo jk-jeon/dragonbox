@@ -1,4 +1,4 @@
-// Copyright 2020-2022 Junekey Jeon
+// Copyright 2020-2023 Junekey Jeon
 //
 // The contents of this file may be used under the terms of
 // the Apache License v2.0 with LLVM Exceptions.
@@ -1857,7 +1857,7 @@ namespace jkj::dragonbox {
             template <class ReturnType, class IntervalType, class TrailingZeroPolicy,
                       class BinaryToDecimalRoundingPolicy, class CachePolicy,
                       class... AdditionalArgs>
-            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 static ReturnType
+            JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType
             compute_nearest_normal(carrier_uint const two_fc, int const exponent,
                                    AdditionalArgs... additional_args) noexcept {
                 //////////////////////////////////////////////////////////////////////
@@ -2017,9 +2017,8 @@ namespace jkj::dragonbox {
             template <class ReturnType, class IntervalType, class TrailingZeroPolicy,
                       class BinaryToDecimalRoundingPolicy, class CachePolicy,
                       class... AdditionalArgs>
-            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 static ReturnType
-            compute_nearest_shorter(int const exponent,
-                                    AdditionalArgs... additional_args) noexcept {
+            JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType compute_nearest_shorter(
+                int const exponent, AdditionalArgs... additional_args) noexcept {
                 ReturnType ret_value;
                 JKJ_IF_CONSTEVAL {
                     // TODO: In runtime we return with the sign remaning uninitialized, which is
@@ -2080,7 +2079,7 @@ namespace jkj::dragonbox {
             }
 
             template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
-            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 static ReturnType
+            JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType
             compute_left_closed_directed(carrier_uint const two_fc, int exponent) noexcept {
                 //////////////////////////////////////////////////////////////////////
                 // Step 1: Schubfach multiplier calculation
@@ -2177,9 +2176,8 @@ namespace jkj::dragonbox {
             }
 
             template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
-            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 static ReturnType
-            compute_right_closed_directed(carrier_uint const two_fc, int const exponent,
-                                          bool shorter_interval) noexcept {
+            JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType compute_right_closed_directed(
+                carrier_uint const two_fc, int const exponent, bool shorter_interval) noexcept {
                 //////////////////////////////////////////////////////////////////////
                 // Step 1: Schubfach multiplier calculation
                 //////////////////////////////////////////////////////////////////////
@@ -2250,7 +2248,7 @@ namespace jkj::dragonbox {
             }
 
             // Remove trailing zeros from n and return the number of zeros removed.
-            JKJ_FORCEINLINE JKJ_CONSTEXPR20 static int
+            JKJ_FORCEINLINE static JKJ_CONSTEXPR20 int
             remove_trailing_zeros(carrier_uint& n) noexcept {
                 assert(n != 0);
 
