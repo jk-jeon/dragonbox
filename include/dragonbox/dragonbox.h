@@ -56,7 +56,7 @@
 #if JKJ_CAN_BRANCH_ON_CONSTEVAL && JKJ_HAS_BIT_CAST
     #define JKJ_CONSTEXPR20 constexpr
 #else
-    #define JKJ_CONSTEXPR20
+    #define JKJ_CONSTEXPR20 inline
 #endif
 
 // Suppress additional buffer overrun check.
@@ -74,9 +74,9 @@
 #endif
 
 #if defined(__has_builtin)
-    #define JKJ_DRAGONBOX_HAS_BUILTIN(x) __has_builtin(x)
+    #define JKJ_HAS_BUILTIN(x) __has_builtin(x)
 #else
-    #define JKJ_DRAGONBOX_HAS_BUILTIN(x) false
+    #define JKJ_HAS_BUILTIN(x) false
 #endif
 
 #if defined(_MSC_VER)
@@ -86,8 +86,8 @@
 namespace jkj::dragonbox {
     namespace detail {
         template <class T>
-        constexpr std::size_t
-            physical_bits = sizeof(T) * std::numeric_limits<unsigned char>::digits;
+        constexpr std::size_t physical_bits =
+            sizeof(T) * std::numeric_limits<unsigned char>::digits;
 
         template <class T>
         constexpr std::size_t value_bits =
@@ -178,8 +178,7 @@ namespace jkj::dragonbox {
             constexpr int significand_bits = format::significand_bits;
             constexpr int exponent_bits = format::exponent_bits;
             static_assert(detail::value_bits<unsigned int> > exponent_bits);
-            constexpr auto exponent_bits_mask =
-                (static_cast<unsigned int>(1) << exponent_bits) - 1;
+            constexpr auto exponent_bits_mask = (static_cast<unsigned int>(1) << exponent_bits) - 1;
             return static_cast<unsigned int>(u >> significand_bits) & exponent_bits_mask;
         }
 
@@ -390,7 +389,7 @@ namespace jkj::dragonbox {
 #if defined(__GNUC__)
 			__extension__
 #endif
-				using builtin_uint128_t = unsigned __int128;
+			using builtin_uint128_t = unsigned __int128;
 #endif
             // clang-format on
 
@@ -407,7 +406,7 @@ namespace jkj::dragonbox {
                 constexpr std::uint64_t low() const noexcept { return low_; }
 
                 JKJ_CONSTEXPR20 uint128& operator+=(std::uint64_t n) & noexcept {
-                    const auto generic_impl = [&] {
+                    auto const generic_impl = [&] {
                         auto sum = low_ + n;
                         high_ += (sum < low_ ? 1 : 0);
                         low_ = sum;
@@ -416,12 +415,12 @@ namespace jkj::dragonbox {
                         generic_impl();
                         return *this;
                     }
-#if JKJ_DRAGONBOX_HAS_BUILTIN(__builtin_addcll)
-                    unsigned long long carry;
+#if JKJ_HAS_BUILTIN(__builtin_addcll)
+                    unsigned long long carry{};
                     low_ = __builtin_addcll(low_, n, 0, &carry);
                     high_ = __builtin_addcll(high_, 0, carry, &carry);
-#elif JKJ_DRAGONBOX_HAS_BUILTIN(__builtin_ia32_addcarryx_u64)
-                    unsigned long long result;
+#elif JKJ_HAS_BUILTIN(__builtin_ia32_addcarryx_u64)
+                    unsigned long long result{};
                     auto carry = __builtin_ia32_addcarryx_u64(0, low_, n, &result);
                     low_ = result;
                     __builtin_ia32_addcarryx_u64(carry, high_, 0, &result);
@@ -436,8 +435,7 @@ namespace jkj::dragonbox {
                 }
             };
 
-            static JKJ_CONSTEXPR20 inline std::uint64_t umul64(std::uint32_t x,
-                                                               std::uint32_t y) noexcept {
+            JKJ_CONSTEXPR20 std::uint64_t umul64(std::uint32_t x, std::uint32_t y) noexcept {
 #if defined(_MSC_VER) && defined(_M_IX86)
                 JKJ_IF_NOT_CONSTEVAL { return __emulu(x, y); }
 #else
@@ -446,9 +444,9 @@ namespace jkj::dragonbox {
             }
 
             // Get 128-bit result of multiplication of two 64-bit unsigned integers.
-            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 inline uint128 umul128(std::uint64_t x,
-                                                                   std::uint64_t y) noexcept {
-                const auto generic_impl = [&]() -> uint128 {
+            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 uint128 umul128(std::uint64_t x,
+                                                            std::uint64_t y) noexcept {
+                auto const generic_impl = [&]() -> uint128 {
                     auto a = std::uint32_t(x >> 32);
                     auto b = std::uint32_t(x);
                     auto c = std::uint32_t(y >> 32);
@@ -477,9 +475,9 @@ namespace jkj::dragonbox {
 #endif
             }
 
-            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 inline std::uint64_t
+            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 std::uint64_t
             umul128_upper64(std::uint64_t x, std::uint64_t y) noexcept {
-                const auto generic_impl = [&]() -> std::uint64_t {
+                auto const generic_impl = [&]() -> std::uint64_t {
                     auto a = std::uint32_t(x >> 32);
                     auto b = std::uint32_t(x);
                     auto c = std::uint32_t(y >> 32);
@@ -507,8 +505,8 @@ namespace jkj::dragonbox {
 
             // Get upper 128-bits of multiplication of a 64-bit unsigned integer and a 128-bit
             // unsigned integer.
-            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 inline uint128 umul192_upper128(std::uint64_t x,
-                                                                            uint128 y) noexcept {
+            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 uint128 umul192_upper128(std::uint64_t x,
+                                                                     uint128 y) noexcept {
                 auto r = umul128(x, y.high());
                 r += umul128_upper64(x, y.low());
                 return r;
@@ -516,8 +514,8 @@ namespace jkj::dragonbox {
 
             // Get upper 64-bits of multiplication of a 32-bit unsigned integer and a 64-bit
             // unsigned integer.
-            inline std::uint64_t JKJ_CONSTEXPR20 umul96_upper64(std::uint32_t x,
-                                                                std::uint64_t y) noexcept {
+            JKJ_CONSTEXPR20 std::uint64_t umul96_upper64(std::uint32_t x,
+                                                         std::uint64_t y) noexcept {
 #if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
                 return umul128_upper64(std::uint64_t(x) << 32, y);
 #else
@@ -533,8 +531,8 @@ namespace jkj::dragonbox {
 
             // Get lower 128-bits of multiplication of a 64-bit unsigned integer and a 128-bit
             // unsigned integer.
-            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 inline uint128 umul192_lower128(std::uint64_t x,
-                                                                            uint128 y) noexcept {
+            JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 uint128 umul192_lower128(std::uint64_t x,
+                                                                     uint128 y) noexcept {
                 auto high = x * y.high();
                 auto high_low = umul128(x, y.low());
                 return {high + high_low.high(), high_low.low()};
@@ -719,7 +717,7 @@ namespace jkj::dragonbox {
                 // Specialize for 64-bit division by 1000.
                 // Ensure that the correctness condition is met.
                 else if constexpr (std::is_same_v<UInt, std::uint64_t> && N == 3 &&
-                              n_max <= std::uint64_t(15534100272597517998ull)) {
+                                   n_max <= std::uint64_t(15534100272597517998ull)) {
                     return wuint::umul128_upper64(n, std::uint64_t(2361183241434822607ull)) >> 7;
                 }
                 else {
@@ -2149,9 +2147,10 @@ namespace jkj::dragonbox {
                         // Compare the fractional parts.
                         // This branch is never taken for the exceptional cases
                         // 2f_c = 29711482, e = -81
-                        // (6.1442649164096937243516663440523473127541365101933479309082... * 10^-18)
-                        // and 2f_c = 29711482, e = -80
-                        // (1.2288529832819387448703332688104694625508273020386695861816... * 10^-17).
+                        // (6.1442649164096937243516663440523473127541365101933479309082... *
+                        // 10^-18) and 2f_c = 29711482, e = -80
+                        // (1.2288529832819387448703332688104694625508273020386695861816... *
+                        // 10^-17).
                         auto const [zi_parity, is_z_integer] =
                             compute_mul_parity(two_fc + 2, cache, beta);
                         if (zi_parity || is_z_integer) {
@@ -2251,7 +2250,8 @@ namespace jkj::dragonbox {
             }
 
             // Remove trailing zeros from n and return the number of zeros removed.
-            JKJ_FORCEINLINE JKJ_CONSTEXPR20 static int remove_trailing_zeros(carrier_uint& n) noexcept {
+            JKJ_FORCEINLINE JKJ_CONSTEXPR20 static int
+            remove_trailing_zeros(carrier_uint& n) noexcept {
                 assert(n != 0);
 
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
@@ -2751,8 +2751,12 @@ namespace jkj::dragonbox {
     }
 }
 
+#undef JKJ_HAS_BUILTIN
 #undef JKJ_FORCEINLINE
 #undef JKJ_SAFEBUFFERS
-#undef JKJ_DRAGONBOX_HAS_BUILTIN
+#undef JKJ_CAN_BRANCH_ON_CONSTEVAL
+#undef JKJ_IF_NOT_CONSTEVAL
+#undef JKJ_IF_CONSTEVAL
+#undef JKJ_HAS_BIT_CAST
 
 #endif
