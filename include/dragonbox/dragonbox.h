@@ -1916,7 +1916,7 @@ namespace jkj::dragonbox {
                 -log::floor_log5_pow2(significand_bits + 2) - 2 - significand_bits;
 
             struct compute_mul_result {
-                carrier_uint result;
+                carrier_uint integer_part;
                 bool is_integer;
             };
             struct compute_mul_parity_result {
@@ -1955,7 +1955,7 @@ namespace jkj::dragonbox {
                 // this does not cause any problem for the endpoints calculations; it can only
                 // cause a problem when we need to perform integer check for the center.
                 // Fortunately, with these inputs, that branch is never executed, so we are fine.
-                auto const [zi, is_z_integer] = compute_mul((two_fc | 1) << beta, cache);
+                auto const z_result = compute_mul((two_fc | 1) << beta, cache);
 
 
                 //////////////////////////////////////////////////////////////////////
@@ -1970,13 +1970,14 @@ namespace jkj::dragonbox {
                 carrier_uint decimal_significand =
                     div::divide_by_pow10<kappa + 1, carrier_uint,
                                          (carrier_uint(1) << (significand_bits + 1)) * big_divisor -
-                                             1>(zi);
-                auto r = std::uint32_t(zi - big_divisor * decimal_significand);
+                                             1>(z_result.integer_part);
+                auto r = std::uint32_t(z_result.integer_part - big_divisor * decimal_significand);
 
                 do {
                     if (r < deltai) {
                         // Exclude the right endpoint if necessary.
-                        if (r == 0 && (is_z_integer & !interval_type.include_right_endpoint())) {
+                        if (r == 0 &&
+                            (z_result.is_integer & !interval_type.include_right_endpoint())) {
                             if constexpr (BinaryToDecimalRoundingPolicy::tag ==
                                           policy_impl::binary_to_decimal_rounding::tag_t::
                                               do_not_care) {
@@ -1998,10 +1999,10 @@ namespace jkj::dragonbox {
                     }
                     else {
                         // r == deltai; compare fractional parts.
-                        auto const [xi_parity, x_is_integer] =
-                            compute_mul_parity(two_fc - 1, cache, beta);
+                        auto const x_result = compute_mul_parity(two_fc - 1, cache, beta);
 
-                        if (!(xi_parity | (x_is_integer & interval_type.include_left_endpoint()))) {
+                        if (!(x_result.parity |
+                              (x_result.is_integer & interval_type.include_left_endpoint()))) {
                             break;
                         }
                     }
@@ -2027,7 +2028,7 @@ namespace jkj::dragonbox {
                     // interval.
                     if (!interval_type.include_right_endpoint()) {
                         // Is r divisible by 10^kappa?
-                        if (is_z_integer && div::check_divisibility_and_divide_by_pow10<kappa>(r)) {
+                        if (z.is_integer && div::check_divisibility_and_divide_by_pow10<kappa>(r)) {
                             // This should be in the interval.
                             decimal_significand += r - 1;
                         }
@@ -2057,9 +2058,8 @@ namespace jkj::dragonbox {
                         // Since there are only 2 possibilities, we only need to care about the
                         // parity. Also, zi and r should have the same parity since the divisor is
                         // an even number.
-                        auto const [yi_parity, is_y_integer] =
-                            compute_mul_parity(two_fc, cache, beta);
-                        if (yi_parity != approx_y_parity) {
+                        auto const y_result = compute_mul_parity(two_fc, cache, beta);
+                        if (y_result.parity != approx_y_parity) {
                             --decimal_significand;
                         }
                         else {
@@ -2068,7 +2068,7 @@ namespace jkj::dragonbox {
                             // For tie-to-up case, we can just choose the upper one.
                             if (BinaryToDecimalRoundingPolicy::prefer_round_down(
                                     decimal_significand) &
-                                is_y_integer) {
+                                y_result.is_integer) {
                                 --decimal_significand;
                             }
                         }
@@ -2148,7 +2148,7 @@ namespace jkj::dragonbox {
                 // Compute xi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
                 auto const deltai = compute_delta(cache, beta);
-                auto [xi, is_x_integer] = compute_mul(two_fc << beta, cache);
+                auto x_result = compute_mul(two_fc << beta, cache);
 
                 // Deal with the unique exceptional cases
                 // 29711844 * 2^-82
@@ -2158,12 +2158,12 @@ namespace jkj::dragonbox {
                 // for binary32.
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
                     if (binary_exponent <= -80) {
-                        is_x_integer = false;
+                        x_result.is_integer = false;
                     }
                 }
 
-                if (!is_x_integer) {
-                    ++xi;
+                if (!x_result.is_integer) {
+                    ++x_result.integer_part;
                 }
 
                 //////////////////////////////////////////////////////////////////////
@@ -2197,9 +2197,8 @@ namespace jkj::dragonbox {
                         // 10^-18) and 2f_c = 29711482, e = -80
                         // (1.2288529832819387448703332688104694625508273020386695861816... *
                         // 10^-17).
-                        auto const [zi_parity, is_z_integer] =
-                            compute_mul_parity(two_fc + 2, cache, beta);
-                        if (zi_parity || is_z_integer) {
+                        auto const z_result = compute_mul_parity(two_fc + 2, cache, beta);
+                        if (z_result.parity || z_result.is_integer) {
                             break;
                         }
                     }
@@ -2238,7 +2237,7 @@ namespace jkj::dragonbox {
                 // 10^kappa <= deltai < 10^(kappa + 1)
                 auto const deltai =
                     shorter_interval ? compute_delta(cache, beta - 1) : compute_delta(cache, beta);
-                carrier_uint const zi = compute_mul(two_fc << beta, cache).result;
+                carrier_uint const zi = compute_mul(two_fc << beta, cache).integer_part;
 
 
                 //////////////////////////////////////////////////////////////////////
