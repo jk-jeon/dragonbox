@@ -767,15 +767,41 @@ namespace jkj::dragonbox {
 
         carrier_uint significand;
         int exponent;
-        bool is_negative;
         bool may_have_trailing_zeros;
+        bool is_negative;
     };
 
-    template <class UInt>
-    using unsigned_decimal_fp = decimal_fp<UInt, false, false>;
+    template <class UInt, bool trailing_zero_flag = false>
+    using unsigned_decimal_fp = decimal_fp<UInt, false, trailing_zero_flag>;
+
+    template <class UInt, bool trailing_zero_flag = false>
+    using signed_decimal_fp = decimal_fp<UInt, true, trailing_zero_flag>;
 
     template <class UInt>
-    using signed_decimal_fp = decimal_fp<UInt, true, false>;
+    constexpr signed_decimal_fp<UInt, false>
+    add_sign_to_unsigned_decimal_fp(bool is_negative, unsigned_decimal_fp<UInt, false> r) noexcept {
+        return {r.significand, r.exponent, is_negative};
+    }
+
+    template <class UInt>
+    constexpr signed_decimal_fp<UInt, true>
+    add_sign_to_unsigned_decimal_fp(bool is_negative, unsigned_decimal_fp<UInt, true> r) noexcept {
+        return {r.significand, r.exponent, r.may_have_trailing_zeros, is_negative};
+    }
+
+    namespace detail {
+        template <class UnsignedDecimalFp>
+        struct unsigned_decimal_fp_to_signed;
+
+        template <class UInt, bool trailing_zero_flag>
+        struct unsigned_decimal_fp_to_signed<unsigned_decimal_fp<UInt, trailing_zero_flag>> {
+            using type = signed_decimal_fp<UInt, trailing_zero_flag>;
+        };
+
+        template <class UnsignedDecimalFp>
+        using unsigned_decimal_fp_to_signed_t =
+            typename unsigned_decimal_fp_to_signed<UnsignedDecimalFp>::type;
+    }
 
 
     ////////////////////////////////////////////////////////////////////////////////////////
@@ -1187,8 +1213,10 @@ namespace jkj::dragonbox {
                     using sign_policy = ignore;
                     static constexpr bool return_has_sign = false;
 
-                    template <class SignedSignificandBits, class ReturnType>
-                    static constexpr void handle_sign(SignedSignificandBits, ReturnType&) noexcept {
+                    template <class SignedSignificandBits, class UnsignedDecimalFp>
+                    static constexpr UnsignedDecimalFp handle_sign(SignedSignificandBits,
+                                                                   UnsignedDecimalFp r) noexcept {
+                        return r;
                     }
                 };
 
@@ -1196,10 +1224,10 @@ namespace jkj::dragonbox {
                     using sign_policy = return_sign;
                     static constexpr bool return_has_sign = true;
 
-                    template <class SignedSignificandBits, class ReturnType>
-                    static constexpr void handle_sign(SignedSignificandBits s,
-                                                      ReturnType& r) noexcept {
-                        r.is_negative = s.is_negative();
+                    template <class SignedSignificandBits, class UnsignedDecimalFp>
+                    static constexpr unsigned_decimal_fp_to_signed_t<UnsignedDecimalFp>
+                    handle_sign(SignedSignificandBits s, UnsignedDecimalFp r) noexcept {
+                        return add_sign_to_unsigned_decimal_fp(s.is_negative(), r);
                     }
                 };
             }
@@ -1213,10 +1241,18 @@ namespace jkj::dragonbox {
                     static constexpr bool report_trailing_zeros = false;
 
                     template <class Impl, class ReturnType>
-                    static constexpr void on_trailing_zeros(ReturnType&) noexcept {}
+                    static constexpr ReturnType
+                    on_trailing_zeros(typename Impl::carrier_uint significand,
+                                      int exponent) noexcept {
+                        return {significand, exponent};
+                    }
 
                     template <class Impl, class ReturnType>
-                    static constexpr void no_trailing_zeros(ReturnType&) noexcept {}
+                    static constexpr ReturnType
+                    no_trailing_zeros(typename Impl::carrier_uint significand,
+                                      int exponent) noexcept {
+                        return {significand, exponent};
+                    }
                 };
 
                 struct remove : base {
@@ -1224,13 +1260,18 @@ namespace jkj::dragonbox {
                     static constexpr bool report_trailing_zeros = false;
 
                     template <class Impl, class ReturnType>
-                    JKJ_FORCEINLINE static constexpr void
-                    on_trailing_zeros(ReturnType& r) noexcept {
-                        r.exponent += Impl::remove_trailing_zeros(r.significand);
+                    JKJ_FORCEINLINE static constexpr ReturnType
+                    on_trailing_zeros(typename Impl::carrier_uint significand,
+                                      int exponent) noexcept {
+                        return {significand, exponent + Impl::remove_trailing_zeros(significand)};
                     }
 
                     template <class Impl, class ReturnType>
-                    static constexpr void no_trailing_zeros(ReturnType&) noexcept {}
+                    static constexpr ReturnType
+                    no_trailing_zeros(typename Impl::carrier_uint significand,
+                                      int exponent) noexcept {
+                        return {significand, exponent};
+                    }
                 };
 
                 struct report : base {
@@ -1238,13 +1279,17 @@ namespace jkj::dragonbox {
                     static constexpr bool report_trailing_zeros = true;
 
                     template <class Impl, class ReturnType>
-                    static constexpr void on_trailing_zeros(ReturnType& r) noexcept {
-                        r.may_have_trailing_zeros = true;
+                    static constexpr ReturnType
+                    on_trailing_zeros(typename Impl::carrier_uint significand,
+                                      int exponent) noexcept {
+                        return {significand, exponent, true};
                     }
 
                     template <class Impl, class ReturnType>
-                    static constexpr void no_trailing_zeros(ReturnType& r) noexcept {
-                        r.may_have_trailing_zeros = false;
+                    static constexpr ReturnType
+                    no_trailing_zeros(typename Impl::carrier_uint significand,
+                                      int exponent) noexcept {
+                        return {significand, exponent, false};
                     }
                 };
             }
@@ -1586,8 +1631,8 @@ namespace jkj::dragonbox {
                     using binary_to_decimal_rounding_policy = do_not_care;
                     static constexpr auto tag = tag_t::do_not_care;
 
-                    template <class ReturnType>
-                    static constexpr bool prefer_round_down(ReturnType const&) noexcept {
+                    template <class CarrierUInt>
+                    static constexpr bool prefer_round_down(CarrierUInt) noexcept {
                         return false;
                     }
                 };
@@ -1596,9 +1641,9 @@ namespace jkj::dragonbox {
                     using binary_to_decimal_rounding_policy = to_even;
                     static constexpr auto tag = tag_t::to_even;
 
-                    template <class ReturnType>
-                    static constexpr bool prefer_round_down(ReturnType const& r) noexcept {
-                        return r.significand % 2 != 0;
+                    template <class CarrierUInt>
+                    static constexpr bool prefer_round_down(CarrierUInt significand) noexcept {
+                        return significand % 2 != 0;
                     }
                 };
 
@@ -1606,9 +1651,9 @@ namespace jkj::dragonbox {
                     using binary_to_decimal_rounding_policy = to_odd;
                     static constexpr auto tag = tag_t::to_odd;
 
-                    template <class ReturnType>
-                    static constexpr bool prefer_round_down(ReturnType const& r) noexcept {
-                        return r.significand % 2 == 0;
+                    template <class CarrierUInt>
+                    static constexpr bool prefer_round_down(CarrierUInt significand) noexcept {
+                        return significand % 2 == 0;
                     }
                 };
 
@@ -1616,8 +1661,8 @@ namespace jkj::dragonbox {
                     using binary_to_decimal_rounding_policy = away_from_zero;
                     static constexpr auto tag = tag_t::away_from_zero;
 
-                    template <class ReturnType>
-                    static constexpr bool prefer_round_down(ReturnType const&) noexcept {
+                    template <class CarrierUInt>
+                    static constexpr bool prefer_round_down(CarrierUInt) noexcept {
                         return false;
                     }
                 };
@@ -1626,8 +1671,8 @@ namespace jkj::dragonbox {
                     using binary_to_decimal_rounding_policy = toward_zero;
                     static constexpr auto tag = tag_t::toward_zero;
 
-                    template <class ReturnType>
-                    static constexpr bool prefer_round_down(ReturnType const&) noexcept {
+                    template <class CarrierUInt>
+                    static constexpr bool prefer_round_down(CarrierUInt) noexcept {
                         return true;
                     }
                 };
@@ -1858,25 +1903,18 @@ namespace jkj::dragonbox {
                       class BinaryToDecimalRoundingPolicy, class CachePolicy,
                       class... AdditionalArgs>
             JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType
-            compute_nearest_normal(carrier_uint const two_fc, int const exponent,
+            compute_nearest_normal(carrier_uint const two_fc, int const binary_exponent,
                                    AdditionalArgs... additional_args) noexcept {
                 //////////////////////////////////////////////////////////////////////
                 // Step 1: Schubfach multiplier calculation
                 //////////////////////////////////////////////////////////////////////
 
-                ReturnType ret_value;
-                JKJ_IF_CONSTEVAL {
-                    // TODO: In runtime we return with the sign remaning uninitialized, which is
-                    // technically UB We work around this in constexpr, but probably needs fixing in
-                    // general
-                    ret_value = {};
-                }
                 IntervalType interval_type{additional_args...};
 
                 // Compute k and beta.
-                int const minus_k = log::floor_log10_pow2(exponent) - kappa;
+                int const minus_k = log::floor_log10_pow2(binary_exponent) - kappa;
                 auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-                int const beta = exponent + log::floor_log2_pow10(-minus_k);
+                int const beta = binary_exponent + log::floor_log2_pow10(-minus_k);
 
                 // Compute zi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
@@ -1902,11 +1940,11 @@ namespace jkj::dragonbox {
 
                 // Using an upper bound on zi, we might be able to optimize the division
                 // better than the compiler; we are computing zi / big_divisor here.
-                ret_value.significand =
+                carrier_uint decimal_significand =
                     div::divide_by_pow10<kappa + 1, carrier_uint,
                                          (carrier_uint(1) << (significand_bits + 1)) * big_divisor -
                                              1>(zi);
-                auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
+                auto r = std::uint32_t(zi - big_divisor * decimal_significand);
 
                 do {
                     if (r < deltai) {
@@ -1915,14 +1953,14 @@ namespace jkj::dragonbox {
                             if constexpr (BinaryToDecimalRoundingPolicy::tag ==
                                           policy_impl::binary_to_decimal_rounding::tag_t::
                                               do_not_care) {
-                                ret_value.significand *= 10;
-                                ret_value.exponent = minus_k + kappa;
-                                --ret_value.significand;
-                                TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
-                                return ret_value;
+                                decimal_significand *= 10;
+                                --decimal_significand;
+                                return TrailingZeroPolicy::template no_trailing_zeros<impl,
+                                                                                      ReturnType>(
+                                    decimal_significand, minus_k + kappa);
                             }
                             else {
-                                --ret_value.significand;
+                                --decimal_significand;
                                 r = big_divisor;
                                 break;
                             }
@@ -1940,11 +1978,10 @@ namespace jkj::dragonbox {
                             break;
                         }
                     }
-                    ret_value.exponent = minus_k + kappa + 1;
 
                     // We may need to remove trailing zeros.
-                    TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
-                    return ret_value;
+                    return TrailingZeroPolicy::template on_trailing_zeros<impl, ReturnType>(
+                        decimal_significand, minus_k + kappa + 1);
                 } while (false);
 
 
@@ -1952,14 +1989,12 @@ namespace jkj::dragonbox {
                 // Step 3: Find the significand with the smaller divisor
                 //////////////////////////////////////////////////////////////////////
 
-                TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
-                ret_value.significand *= 10;
-                ret_value.exponent = minus_k + kappa;
+                decimal_significand *= 10;
 
                 if constexpr (BinaryToDecimalRoundingPolicy::tag ==
                               policy_impl::binary_to_decimal_rounding::tag_t::do_not_care) {
                     // Normally, we want to compute
-                    // ret_value.significand += r / small_divisor
+                    // significand += r / small_divisor
                     // and return, but we need to take care of the case that the resulting
                     // value is exactly the right endpoint, while that is not included in the
                     // interval.
@@ -1967,14 +2002,14 @@ namespace jkj::dragonbox {
                         // Is r divisible by 10^kappa?
                         if (is_z_integer && div::check_divisibility_and_divide_by_pow10<kappa>(r)) {
                             // This should be in the interval.
-                            ret_value.significand += r - 1;
+                            decimal_significand += r - 1;
                         }
                         else {
-                            ret_value.significand += r;
+                            decimal_significand += r;
                         }
                     }
                     else {
-                        ret_value.significand += div::small_division_by_pow10<kappa>(r);
+                        decimal_significand += div::small_division_by_pow10<kappa>(r);
                     }
                 }
                 else {
@@ -1986,7 +2021,7 @@ namespace jkj::dragonbox {
                         div::check_divisibility_and_divide_by_pow10<kappa>(dist);
 
                     // Add dist / 10^kappa to the significand.
-                    ret_value.significand += dist;
+                    decimal_significand += dist;
 
                     if (divisible_by_small_divisor) {
                         // Check z^(f) >= epsilon^(f).
@@ -1998,39 +2033,34 @@ namespace jkj::dragonbox {
                         auto const [yi_parity, is_y_integer] =
                             compute_mul_parity(two_fc, cache, beta);
                         if (yi_parity != approx_y_parity) {
-                            --ret_value.significand;
+                            --decimal_significand;
                         }
                         else {
                             // If z^(f) >= epsilon^(f), we might have a tie
                             // when z^(f) == epsilon^(f), or equivalently, when y is an integer.
                             // For tie-to-up case, we can just choose the upper one.
-                            if (BinaryToDecimalRoundingPolicy::prefer_round_down(ret_value) &
+                            if (BinaryToDecimalRoundingPolicy::prefer_round_down(
+                                    decimal_significand) &
                                 is_y_integer) {
-                                --ret_value.significand;
+                                --decimal_significand;
                             }
                         }
                     }
                 }
-                return ret_value;
+                return TrailingZeroPolicy::template no_trailing_zeros<impl, ReturnType>(
+                    decimal_significand, minus_k + kappa);
             }
 
             template <class ReturnType, class IntervalType, class TrailingZeroPolicy,
                       class BinaryToDecimalRoundingPolicy, class CachePolicy,
                       class... AdditionalArgs>
             JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType compute_nearest_shorter(
-                int const exponent, AdditionalArgs... additional_args) noexcept {
-                ReturnType ret_value;
-                JKJ_IF_CONSTEVAL {
-                    // TODO: In runtime we return with the sign remaning uninitialized, which is
-                    // technically UB We work around this in constexpr, but probably needs fixing in
-                    // general
-                    ret_value = {};
-                }
+                int const binary_exponent, AdditionalArgs... additional_args) noexcept {
                 IntervalType interval_type{additional_args...};
 
                 // Compute k and beta.
-                int const minus_k = log::floor_log10_pow2_minus_log10_4_over_3(exponent);
-                int const beta = exponent + log::floor_log2_pow10(-minus_k);
+                int const minus_k = log::floor_log10_pow2_minus_log10_4_over_3(binary_exponent);
+                int const beta = binary_exponent + log::floor_log2_pow10(-minus_k);
 
                 // Compute xi and zi.
                 auto const cache = CachePolicy::template get_cache<format>(-minus_k);
@@ -2041,62 +2071,52 @@ namespace jkj::dragonbox {
                 // If we don't accept the right endpoint and
                 // if the right endpoint is an integer, decrease it.
                 if (!interval_type.include_right_endpoint() &&
-                    is_right_endpoint_integer_shorter_interval(exponent)) {
+                    is_right_endpoint_integer_shorter_interval(binary_exponent)) {
                     --zi;
                 }
                 // If we don't accept the left endpoint or
                 // if the left endpoint is not an integer, increase it.
                 if (!interval_type.include_left_endpoint() ||
-                    !is_left_endpoint_integer_shorter_interval(exponent)) {
+                    !is_left_endpoint_integer_shorter_interval(binary_exponent)) {
                     ++xi;
                 }
 
                 // Try bigger divisor.
-                ret_value.significand = zi / 10;
+                carrier_uint decimal_significand = zi / 10;
 
                 // If succeed, remove trailing zeros if necessary and return.
-                if (ret_value.significand * 10 >= xi) {
-                    ret_value.exponent = minus_k + 1;
-                    TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
-                    return ret_value;
+                if (decimal_significand * 10 >= xi) {
+                    return TrailingZeroPolicy::template on_trailing_zeros<impl, ReturnType>(
+                        decimal_significand, minus_k + 1);
                 }
 
                 // Otherwise, compute the round-up of y.
-                TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
-                ret_value.significand = compute_round_up_for_shorter_interval_case(cache, beta);
-                ret_value.exponent = minus_k;
+                decimal_significand = compute_round_up_for_shorter_interval_case(cache, beta);
 
                 // When tie occurs, choose one of them according to the rule.
-                if (BinaryToDecimalRoundingPolicy::prefer_round_down(ret_value) &&
-                    exponent >= shorter_interval_tie_lower_threshold &&
-                    exponent <= shorter_interval_tie_upper_threshold) {
-                    --ret_value.significand;
+                if (BinaryToDecimalRoundingPolicy::prefer_round_down(decimal_significand) &&
+                    binary_exponent >= shorter_interval_tie_lower_threshold &&
+                    binary_exponent <= shorter_interval_tie_upper_threshold) {
+                    --decimal_significand;
                 }
-                else if (ret_value.significand < xi) {
-                    ++ret_value.significand;
+                else if (decimal_significand < xi) {
+                    ++decimal_significand;
                 }
-                return ret_value;
+                return TrailingZeroPolicy::template no_trailing_zeros<impl, ReturnType>(
+                    decimal_significand, minus_k);
             }
 
             template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
             JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType
-            compute_left_closed_directed(carrier_uint const two_fc, int exponent) noexcept {
+            compute_left_closed_directed(carrier_uint const two_fc, int binary_exponent) noexcept {
                 //////////////////////////////////////////////////////////////////////
                 // Step 1: Schubfach multiplier calculation
                 //////////////////////////////////////////////////////////////////////
 
-                ReturnType ret_value;
-                JKJ_IF_CONSTEVAL {
-                    // TODO: In runtime we return with the sign remaning uninitialized, which is
-                    // technically UB We work around this in constexpr, but probably needs fixing in
-                    // general
-                    ret_value = {};
-                }
-
                 // Compute k and beta.
-                int const minus_k = log::floor_log10_pow2(exponent) - kappa;
+                int const minus_k = log::floor_log10_pow2(binary_exponent) - kappa;
                 auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-                int const beta = exponent + log::floor_log2_pow10(-minus_k);
+                int const beta = binary_exponent + log::floor_log2_pow10(-minus_k);
 
                 // Compute xi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
@@ -2110,7 +2130,7 @@ namespace jkj::dragonbox {
                 // = 1.2288530660000000001731007559513386695471126586198806762695... * 10^-17
                 // for binary32.
                 if constexpr (std::is_same_v<format, ieee754_binary32>) {
-                    if (exponent <= -80) {
+                    if (binary_exponent <= -80) {
                         is_x_integer = false;
                     }
                 }
@@ -2127,14 +2147,14 @@ namespace jkj::dragonbox {
 
                 // Using an upper bound on xi, we might be able to optimize the division
                 // better than the compiler; we are computing xi / big_divisor here.
-                ret_value.significand =
+                carrier_uint decimal_significand =
                     div::divide_by_pow10<kappa + 1, carrier_uint,
                                          (carrier_uint(1) << (significand_bits + 1)) * big_divisor -
                                              1>(xi);
-                auto r = std::uint32_t(xi - big_divisor * ret_value.significand);
+                auto r = std::uint32_t(xi - big_divisor * decimal_significand);
 
                 if (r != 0) {
-                    ++ret_value.significand;
+                    ++decimal_significand;
                     r = big_divisor - r;
                 }
 
@@ -2158,9 +2178,8 @@ namespace jkj::dragonbox {
                     }
 
                     // The ceiling is inside, so we are done.
-                    ret_value.exponent = minus_k + kappa + 1;
-                    TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
-                    return ret_value;
+                    return TrailingZeroPolicy::template on_trailing_zeros<impl, ReturnType>(
+                        decimal_significand, minus_k + kappa + 1);
                 } while (false);
 
 
@@ -2168,33 +2187,25 @@ namespace jkj::dragonbox {
                 // Step 3: Find the significand with the smaller divisor
                 //////////////////////////////////////////////////////////////////////
 
-                ret_value.significand *= 10;
-                ret_value.significand -= div::small_division_by_pow10<kappa>(r);
-                ret_value.exponent = minus_k + kappa;
-                TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
-                return ret_value;
+                decimal_significand *= 10;
+                decimal_significand -= div::small_division_by_pow10<kappa>(r);
+                return TrailingZeroPolicy::template no_trailing_zeros<impl, ReturnType>(
+                    decimal_significand, minus_k + kappa);
             }
 
             template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
-            JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType compute_right_closed_directed(
-                carrier_uint const two_fc, int const exponent, bool shorter_interval) noexcept {
+            JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType
+            compute_right_closed_directed(carrier_uint const two_fc, int const binary_exponent,
+                                          bool shorter_interval) noexcept {
                 //////////////////////////////////////////////////////////////////////
                 // Step 1: Schubfach multiplier calculation
                 //////////////////////////////////////////////////////////////////////
 
-                ReturnType ret_value;
-                JKJ_IF_CONSTEVAL {
-                    // TODO: In runtime we return with the sign remaning uninitialized, which is
-                    // technically UB We work around this in constexpr, but probably needs fixing in
-                    // general
-                    ret_value = {};
-                }
-
                 // Compute k and beta.
                 int const minus_k =
-                    log::floor_log10_pow2(exponent - (shorter_interval ? 1 : 0)) - kappa;
+                    log::floor_log10_pow2(binary_exponent - (shorter_interval ? 1 : 0)) - kappa;
                 auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-                int const beta = exponent + log::floor_log2_pow10(-minus_k);
+                int const beta = binary_exponent + log::floor_log2_pow10(-minus_k);
 
                 // Compute zi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
@@ -2211,11 +2222,11 @@ namespace jkj::dragonbox {
 
                 // Using an upper bound on zi, we might be able to optimize the division better than
                 // the compiler; we are computing zi / big_divisor here.
-                ret_value.significand =
+                carrier_uint decimal_significand =
                     div::divide_by_pow10<kappa + 1, carrier_uint,
                                          (carrier_uint(1) << (significand_bits + 1)) * big_divisor -
                                              1>(zi);
-                auto const r = std::uint32_t(zi - big_divisor * ret_value.significand);
+                auto const r = std::uint32_t(zi - big_divisor * decimal_significand);
 
                 do {
                     if (r > deltai) {
@@ -2230,9 +2241,8 @@ namespace jkj::dragonbox {
                     }
 
                     // The floor is inside, so we are done.
-                    ret_value.exponent = minus_k + kappa + 1;
-                    TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
-                    return ret_value;
+                    return TrailingZeroPolicy::template on_trailing_zeros<impl, ReturnType>(
+                        decimal_significand, minus_k + kappa + 1);
                 } while (false);
 
 
@@ -2240,11 +2250,10 @@ namespace jkj::dragonbox {
                 // Step 3: Find the significand with the small divisor
                 //////////////////////////////////////////////////////////////////////
 
-                ret_value.significand *= 10;
-                ret_value.significand += div::small_division_by_pow10<kappa>(r);
-                ret_value.exponent = minus_k + kappa;
-                TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
-                return ret_value;
+                decimal_significand *= 10;
+                decimal_significand += div::small_division_by_pow10<kappa>(r);
+                return TrailingZeroPolicy::template no_trailing_zeros<impl, ReturnType>(
+                    decimal_significand, minus_k + kappa);
             }
 
             // Remove trailing zeros from n and return the number of zeros removed.
@@ -2612,11 +2621,10 @@ namespace jkj::dragonbox {
                                    base_default_pair<cache::base, cache::full>>{},
             policies...));
 
-        using return_type =
-            decimal_fp<typename FloatTraits::carrier_uint, policy_holder::return_has_sign,
-                       policy_holder::report_trailing_zeros>;
+        using unsigned_return_type = decimal_fp<typename FloatTraits::carrier_uint, false,
+                                                policy_holder::report_trailing_zeros>;
 
-        return_type ret = policy_holder::delegate(
+        unsigned_return_type ret = policy_holder::delegate(
             signed_significand_bits,
             [exponent_bits, signed_significand_bits](auto interval_type_provider) {
                 using format = typename FloatTraits::format;
@@ -2664,7 +2672,7 @@ namespace jkj::dragonbox {
                                 signed_significand_bits, [exponent](auto... additional_args) {
                                     return detail::impl<Float, FloatTraits>::
                                         template compute_nearest_shorter<
-                                            return_type,
+                                            unsigned_return_type,
                                             typename decltype(interval_type_provider)::
                                                 shorter_interval_type,
                                             typename policy_holder::trailing_zero_policy,
@@ -2686,7 +2694,7 @@ namespace jkj::dragonbox {
                         signed_significand_bits, [two_fc, exponent](auto... additional_args) {
                             return detail::impl<Float, FloatTraits>::
                                 template compute_nearest_normal<
-                                    return_type,
+                                    unsigned_return_type,
                                     typename decltype(interval_type_provider)::normal_interval_type,
                                     typename policy_holder::trailing_zero_policy,
                                     typename policy_holder::binary_to_decimal_rounding_policy,
@@ -2706,7 +2714,7 @@ namespace jkj::dragonbox {
                     }
 
                     return detail::impl<Float>::template compute_left_closed_directed<
-                        return_type, typename policy_holder::trailing_zero_policy,
+                        unsigned_return_type, typename policy_holder::trailing_zero_policy,
                         typename policy_holder::cache_policy>(two_fc, exponent);
                 }
                 else {
@@ -2728,13 +2736,12 @@ namespace jkj::dragonbox {
                     }
 
                     return detail::impl<Float>::template compute_right_closed_directed<
-                        return_type, typename policy_holder::trailing_zero_policy,
+                        unsigned_return_type, typename policy_holder::trailing_zero_policy,
                         typename policy_holder::cache_policy>(two_fc, exponent, shorter_interval);
                 }
             });
 
-        policy_holder::handle_sign(signed_significand_bits, ret);
-        return ret;
+        return policy_holder::handle_sign(signed_significand_bits, ret);
     }
 
     template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
