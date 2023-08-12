@@ -1344,21 +1344,23 @@ namespace jkj::dragonbox {
                     using normal_interval_type = interval_type::symmetric_boundary;
                     using shorter_interval_type = interval_type::closed;
 
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
-                                                                   Func&& f) noexcept {
-                        return f(nearest_to_even{});
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(nearest_to_even{}, args...);
                     }
 
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto
-                    invoke_normal_interval_case(SignedSignificandBits s, Func&& f) noexcept {
-                        return f(s.has_even_significand_bits());
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    invoke_normal_interval_case(SignedSignificandBits s, Func f,
+                                                Args... args) noexcept {
+                        return f(args..., s.has_even_significand_bits());
                     }
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto
-                    invoke_shorter_interval_case(SignedSignificandBits, Func&& f) noexcept {
-                        return f();
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    invoke_shorter_interval_case(SignedSignificandBits, Func f,
+                                                 Args... args) noexcept {
+                        return f(args...);
                     }
                 };
                 struct nearest_to_odd : base {
@@ -1367,21 +1369,23 @@ namespace jkj::dragonbox {
                     using normal_interval_type = interval_type::symmetric_boundary;
                     using shorter_interval_type = interval_type::open;
 
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
-                                                                   Func&& f) noexcept {
-                        return f(nearest_to_odd{});
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(nearest_to_odd{}, args...);
                     }
 
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto
-                    invoke_normal_interval_case(SignedSignificandBits s, Func&& f) noexcept {
-                        return f(!s.has_even_significand_bits());
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    invoke_normal_interval_case(SignedSignificandBits s, Func f,
+                                                Args... args) noexcept {
+                        return f(args..., !s.has_even_significand_bits());
                     }
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto
-                    invoke_shorter_interval_case(SignedSignificandBits, Func&& f) noexcept {
-                        return f();
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    invoke_shorter_interval_case(SignedSignificandBits, Func f,
+                                                 Args... args) noexcept {
+                        return f(args...);
                     }
                 };
                 struct nearest_toward_plus_infinity : base {
@@ -1390,21 +1394,23 @@ namespace jkj::dragonbox {
                     using normal_interval_type = interval_type::asymmetric_boundary;
                     using shorter_interval_type = interval_type::asymmetric_boundary;
 
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
-                                                                   Func&& f) noexcept {
-                        return f(nearest_toward_plus_infinity{});
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(nearest_toward_plus_infinity{}, args...);
                     }
 
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto
-                    invoke_normal_interval_case(SignedSignificandBits s, Func&& f) noexcept {
-                        return f(!s.is_negative());
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    invoke_normal_interval_case(SignedSignificandBits s, Func f,
+                                                Args... args) noexcept {
+                        return f(args..., !s.is_negative());
                     }
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto
-                    invoke_shorter_interval_case(SignedSignificandBits s, Func&& f) noexcept {
-                        return f(!s.is_negative());
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    invoke_shorter_interval_case(SignedSignificandBits s, Func f,
+                                                 Args... args) noexcept {
+                        return f(args..., !s.is_negative());
                     }
                 };
                 struct nearest_toward_minus_infinity : base {
@@ -1413,21 +1419,23 @@ namespace jkj::dragonbox {
                     using normal_interval_type = interval_type::asymmetric_boundary;
                     using shorter_interval_type = interval_type::asymmetric_boundary;
 
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
-                                                                   Func&& f) noexcept {
-                        return f(nearest_toward_minus_infinity{});
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(nearest_toward_minus_infinity{}, args...);
                     }
 
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto
-                    invoke_normal_interval_case(SignedSignificandBits s, Func&& f) noexcept {
-                        return f(s.is_negative());
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    invoke_normal_interval_case(SignedSignificandBits s, Func f,
+                                                Args... args) noexcept {
+                        return f(args..., s.is_negative());
                     }
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto
-                    invoke_shorter_interval_case(SignedSignificandBits s, Func&& f) noexcept {
-                        return f(s.is_negative());
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    invoke_shorter_interval_case(SignedSignificandBits s, Func f,
+                                                 Args... args) noexcept {
+                        return f(args..., s.is_negative());
                     }
                 };
                 struct nearest_toward_zero : base {
@@ -1436,21 +1444,23 @@ namespace jkj::dragonbox {
                     using normal_interval_type = interval_type::right_closed_left_open;
                     using shorter_interval_type = interval_type::right_closed_left_open;
 
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
-                                                                   Func&& f) noexcept {
-                        return f(nearest_toward_zero{});
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(nearest_toward_zero{}, args...);
                     }
 
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto
-                    invoke_normal_interval_case(SignedSignificandBits, Func&& f) noexcept {
-                        return f();
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    invoke_normal_interval_case(SignedSignificandBits, Func f,
+                                                Args... args) noexcept {
+                        return f(args...);
                     }
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto
-                    invoke_shorter_interval_case(SignedSignificandBits, Func&& f) noexcept {
-                        return f();
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    invoke_shorter_interval_case(SignedSignificandBits, Func f,
+                                                 Args... args) noexcept {
+                        return f(args...);
                     }
                 };
                 struct nearest_away_from_zero : base {
@@ -1459,21 +1469,23 @@ namespace jkj::dragonbox {
                     using normal_interval_type = interval_type::left_closed_right_open;
                     using shorter_interval_type = interval_type::left_closed_right_open;
 
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
-                                                                   Func&& f) noexcept {
-                        return f(nearest_away_from_zero{});
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(nearest_away_from_zero{}, args...);
                     }
 
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto
-                    invoke_normal_interval_case(SignedSignificandBits, Func&& f) noexcept {
-                        return f();
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    invoke_normal_interval_case(SignedSignificandBits, Func f,
+                                                Args... args) noexcept {
+                        return f(args...);
                     }
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto
-                    invoke_shorter_interval_case(SignedSignificandBits, Func&& f) noexcept {
-                        return f();
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    invoke_shorter_interval_case(SignedSignificandBits, Func f,
+                                                 Args... args) noexcept {
+                        return f(args...);
                     }
                 };
 
@@ -1483,15 +1495,17 @@ namespace jkj::dragonbox {
                         using normal_interval_type = interval_type::closed;
                         using shorter_interval_type = interval_type::closed;
 
-                        template <class SignedSignificandBits, class Func>
-                        JKJ_FORCEINLINE static constexpr auto
-                        invoke_normal_interval_case(SignedSignificandBits, Func&& f) noexcept {
-                            return f();
+                        template <class SignedSignificandBits, class Func, class... Args>
+                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                        invoke_normal_interval_case(SignedSignificandBits, Func f,
+                                                    Args... args) noexcept {
+                            return f(args...);
                         }
-                        template <class SignedSignificandBits, class Func>
-                        JKJ_FORCEINLINE static constexpr auto
-                        invoke_shorter_interval_case(SignedSignificandBits, Func&& f) noexcept {
-                            return f();
+                        template <class SignedSignificandBits, class Func, class... Args>
+                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                        invoke_shorter_interval_case(SignedSignificandBits, Func f,
+                                                     Args... args) noexcept {
+                            return f(args...);
                         }
                     };
                     struct nearest_always_open {
@@ -1499,70 +1513,72 @@ namespace jkj::dragonbox {
                         using normal_interval_type = interval_type::open;
                         using shorter_interval_type = interval_type::open;
 
-                        template <class SignedSignificandBits, class Func>
-                        JKJ_FORCEINLINE static constexpr auto
-                        invoke_normal_interval_case(SignedSignificandBits, Func&& f) noexcept {
-                            return f();
+                        template <class SignedSignificandBits, class Func, class... Args>
+                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                        invoke_normal_interval_case(SignedSignificandBits, Func f,
+                                                    Args... args) noexcept {
+                            return f(args...);
                         }
-                        template <class SignedSignificandBits, class Func>
-                        JKJ_FORCEINLINE static constexpr auto
-                        invoke_shorter_interval_case(SignedSignificandBits, Func&& f) noexcept {
-                            return f();
+                        template <class SignedSignificandBits, class Func, class... Args>
+                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                        invoke_shorter_interval_case(SignedSignificandBits, Func f,
+                                                     Args... args) noexcept {
+                            return f(args...);
                         }
                     };
                 }
 
                 struct nearest_to_even_static_boundary : base {
                     using decimal_to_binary_rounding_policy = nearest_to_even_static_boundary;
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits s,
-                                                                   Func&& f) noexcept {
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
                         if (s.has_even_significand_bits()) {
-                            return f(detail::nearest_always_closed{});
+                            return f(detail::nearest_always_closed{}, args...);
                         }
                         else {
-                            return f(detail::nearest_always_open{});
+                            return f(detail::nearest_always_open{}, args...);
                         }
                     }
                 };
                 struct nearest_to_odd_static_boundary : base {
                     using decimal_to_binary_rounding_policy = nearest_to_odd_static_boundary;
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits s,
-                                                                   Func&& f) noexcept {
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
                         if (s.has_even_significand_bits()) {
-                            return f(detail::nearest_always_open{});
+                            return f(detail::nearest_always_open{}, args...);
                         }
                         else {
-                            return f(detail::nearest_always_closed{});
+                            return f(detail::nearest_always_closed{}, args...);
                         }
                     }
                 };
                 struct nearest_toward_plus_infinity_static_boundary : base {
                     using decimal_to_binary_rounding_policy =
                         nearest_toward_plus_infinity_static_boundary;
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits s,
-                                                                   Func&& f) noexcept {
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
                         if (s.is_negative()) {
-                            return f(nearest_toward_zero{});
+                            return f(nearest_toward_zero{}, args...);
                         }
                         else {
-                            return f(nearest_away_from_zero{});
+                            return f(nearest_away_from_zero{}, args...);
                         }
                     }
                 };
                 struct nearest_toward_minus_infinity_static_boundary : base {
                     using decimal_to_binary_rounding_policy =
                         nearest_toward_minus_infinity_static_boundary;
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits s,
-                                                                   Func&& f) noexcept {
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
                         if (s.is_negative()) {
-                            return f(nearest_away_from_zero{});
+                            return f(nearest_away_from_zero{}, args...);
                         }
                         else {
-                            return f(nearest_toward_zero{});
+                            return f(nearest_toward_zero{}, args...);
                         }
                     }
                 };
@@ -1578,44 +1594,44 @@ namespace jkj::dragonbox {
 
                 struct toward_plus_infinity : base {
                     using decimal_to_binary_rounding_policy = toward_plus_infinity;
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits s,
-                                                                   Func&& f) noexcept {
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
                         if (s.is_negative()) {
-                            return f(detail::left_closed_directed{});
+                            return f(detail::left_closed_directed{}, args...);
                         }
                         else {
-                            return f(detail::right_closed_directed{});
+                            return f(detail::right_closed_directed{}, args...);
                         }
                     }
                 };
                 struct toward_minus_infinity : base {
                     using decimal_to_binary_rounding_policy = toward_minus_infinity;
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits s,
-                                                                   Func&& f) noexcept {
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
                         if (s.is_negative()) {
-                            return f(detail::right_closed_directed{});
+                            return f(detail::right_closed_directed{}, args...);
                         }
                         else {
-                            return f(detail::left_closed_directed{});
+                            return f(detail::left_closed_directed{}, args...);
                         }
                     }
                 };
                 struct toward_zero : base {
                     using decimal_to_binary_rounding_policy = toward_zero;
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
-                                                                   Func&& f) noexcept {
-                        return f(detail::left_closed_directed{});
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(detail::left_closed_directed{}, args...);
                     }
                 };
                 struct away_from_zero : base {
                     using decimal_to_binary_rounding_policy = away_from_zero;
-                    template <class SignedSignificandBits, class Func>
-                    JKJ_FORCEINLINE static constexpr auto delegate(SignedSignificandBits,
-                                                                   Func&& f) noexcept {
-                        return f(detail::right_closed_directed{});
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr auto
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(detail::right_closed_directed{}, args...);
                     }
                 };
             }
@@ -1902,7 +1918,7 @@ namespace jkj::dragonbox {
             template <class ReturnType, class IntervalType, class TrailingZeroPolicy,
                       class BinaryToDecimalRoundingPolicy, class CachePolicy,
                       class... AdditionalArgs>
-            JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType
+            JKJ_FORCEINLINE JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType
             compute_nearest_normal(carrier_uint const two_fc, int const binary_exponent,
                                    AdditionalArgs... additional_args) noexcept {
                 //////////////////////////////////////////////////////////////////////
@@ -2107,7 +2123,7 @@ namespace jkj::dragonbox {
             }
 
             template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
-            JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType
+            JKJ_FORCEINLINE JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType
             compute_left_closed_directed(carrier_uint const two_fc, int binary_exponent) noexcept {
                 //////////////////////////////////////////////////////////////////////
                 // Step 1: Schubfach multiplier calculation
@@ -2194,7 +2210,7 @@ namespace jkj::dragonbox {
             }
 
             template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
-            JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType
+            JKJ_FORCEINLINE JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType
             compute_right_closed_directed(carrier_uint const two_fc, int const binary_exponent,
                                           bool shorter_interval) noexcept {
                 //////////////////////////////////////////////////////////////////////
@@ -2598,6 +2614,162 @@ namespace jkj::dragonbox {
                 return convert_to_policy_holder(policy_pair_list{});
             }
         }
+
+        template <class Float, class FloatTraits, class PolicyHolder, class IntervalTypeProvider>
+        struct invoke_shorter_dispatcher {
+            using unsigned_return_type = decimal_fp<typename FloatTraits::carrier_uint, false,
+                                                    PolicyHolder::report_trailing_zeros>;
+
+            template <class... Args>
+            JKJ_FORCEINLINE JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 auto operator()(Args... args) noexcept {
+                return impl<Float, FloatTraits>::template compute_nearest_shorter<
+                    unsigned_return_type, typename IntervalTypeProvider::shorter_interval_type,
+                    typename PolicyHolder::trailing_zero_policy,
+                    typename PolicyHolder::binary_to_decimal_rounding_policy,
+                    typename PolicyHolder::cache_policy>(args...);
+            }
+        };
+
+        template <class Float, class FloatTraits, class PolicyHolder, class IntervalTypeProvider>
+        struct invoke_normal_dispatcher {
+            using unsigned_return_type = decimal_fp<typename FloatTraits::carrier_uint, false,
+                                                    PolicyHolder::report_trailing_zeros>;
+
+            template <class... Args>
+            JKJ_FORCEINLINE JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 auto operator()(Args... args) noexcept {
+                return impl<Float, FloatTraits>::template compute_nearest_normal<
+                    unsigned_return_type, typename IntervalTypeProvider::normal_interval_type,
+                    typename PolicyHolder::trailing_zero_policy,
+                    typename PolicyHolder::binary_to_decimal_rounding_policy,
+                    typename PolicyHolder::cache_policy>(args...);
+            }
+        };
+
+        template <class Float, class FloatTraits, class PolicyHolder, class IntervalTypeProvider>
+        JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 auto
+        to_decimal_impl(signed_significand_bits<Float, FloatTraits> signed_significand_bits,
+                        unsigned int exponent_bits) noexcept {
+            using namespace policy_impl;
+            using unsigned_return_type = decimal_fp<typename FloatTraits::carrier_uint, false,
+                                                    PolicyHolder::report_trailing_zeros>;
+            using format = typename FloatTraits::format;
+            constexpr auto tag = IntervalTypeProvider::tag;
+
+            auto two_fc = signed_significand_bits.remove_sign_bit_and_shift();
+            auto exponent = int(exponent_bits);
+
+            if constexpr (tag == decimal_to_binary_rounding::tag_t::to_nearest) {
+                // Is the input a normal number?
+                if (exponent != 0) {
+                    exponent += format::exponent_bias - format::significand_bits;
+
+                    // Shorter interval case; proceed like Schubfach.
+                    // One might think this condition is wrong, since when exponent_bits ==
+                    // 1 and two_fc == 0, the interval is actually regular. However, it
+                    // turns out that this seemingly wrong condition is actually fine,
+                    // because the end result is anyway the same.
+                    //
+                    // [binary32]
+                    // (fc-1/2) * 2^e = 1.175'494'28... * 10^-38
+                    // (fc-1/4) * 2^e = 1.175'494'31... * 10^-38
+                    //    fc    * 2^e = 1.175'494'35... * 10^-38
+                    // (fc+1/2) * 2^e = 1.175'494'42... * 10^-38
+                    //
+                    // Hence, shorter_interval_case will return 1.175'494'4 * 10^-38.
+                    // 1.175'494'3 * 10^-38 is also a correct shortest representation that
+                    // will be rejected if we assume shorter interval, but 1.175'494'4 *
+                    // 10^-38 is closer to the true value so it doesn't matter.
+                    //
+                    // [binary64]
+                    // (fc-1/2) * 2^e = 2.225'073'858'507'201'13... * 10^-308
+                    // (fc-1/4) * 2^e = 2.225'073'858'507'201'25... * 10^-308
+                    //    fc    * 2^e = 2.225'073'858'507'201'38... * 10^-308
+                    // (fc+1/2) * 2^e = 2.225'073'858'507'201'63... * 10^-308
+                    //
+                    // Hence, shorter_interval_case will return 2.225'073'858'507'201'4 *
+                    // 10^-308. This is indeed of the shortest length, and it is the unique
+                    // one closest to the true value among valid representations of the same
+                    // length.
+                    static_assert(std::is_same_v<format, ieee754_binary32> ||
+                                  std::is_same_v<format, ieee754_binary64>);
+
+                    if (two_fc == 0) {
+                        return PolicyHolder::handle_sign(
+                            signed_significand_bits,
+                            IntervalTypeProvider::invoke_shorter_interval_case(
+                                signed_significand_bits,
+                                invoke_shorter_dispatcher<Float, FloatTraits, PolicyHolder,
+                                                          IntervalTypeProvider>{},
+                                exponent));
+                    }
+
+                    two_fc |= (decltype(two_fc)(1) << (format::significand_bits + 1));
+                }
+                // Is the input a subnormal number?
+                else {
+                    exponent = format::min_exponent - format::significand_bits;
+                }
+
+                return PolicyHolder::handle_sign(
+                    signed_significand_bits,
+                    IntervalTypeProvider::invoke_normal_interval_case(
+                        signed_significand_bits,
+                        invoke_normal_dispatcher<Float, FloatTraits, PolicyHolder,
+                                                 IntervalTypeProvider>{},
+                        two_fc, exponent));
+            }
+            else if constexpr (tag == decimal_to_binary_rounding::tag_t::left_closed_directed) {
+                // Is the input a normal number?
+                if (exponent != 0) {
+                    exponent += format::exponent_bias - format::significand_bits;
+                    two_fc |= (decltype(two_fc)(1) << (format::significand_bits + 1));
+                }
+                // Is the input a subnormal number?
+                else {
+                    exponent = format::min_exponent - format::significand_bits;
+                }
+
+                return PolicyHolder::handle_sign(
+                    signed_significand_bits,
+                    detail::impl<Float, FloatTraits>::template compute_left_closed_directed<
+                        unsigned_return_type, typename PolicyHolder::trailing_zero_policy,
+                        typename PolicyHolder::cache_policy>(two_fc, exponent));
+            }
+            else {
+                static_assert(tag == decimal_to_binary_rounding::tag_t::right_closed_directed);
+
+                bool shorter_interval = false;
+
+                // Is the input a normal number?
+                if (exponent != 0) {
+                    if (two_fc == 0 && exponent != 1) {
+                        shorter_interval = true;
+                    }
+                    exponent += format::exponent_bias - format::significand_bits;
+                    two_fc |= (decltype(two_fc)(1) << (format::significand_bits + 1));
+                }
+                // Is the input a subnormal number?
+                else {
+                    exponent = format::min_exponent - format::significand_bits;
+                }
+
+                return PolicyHolder::handle_sign(
+                    signed_significand_bits,
+                    detail::impl<Float, FloatTraits>::template compute_right_closed_directed<
+                        unsigned_return_type, typename PolicyHolder::trailing_zero_policy,
+                        typename PolicyHolder::cache_policy>(two_fc, exponent, shorter_interval));
+            }
+        }
+
+        template <class Float, class FloatTraits, class PolicyHolder>
+        struct to_decimal_dispatcher {
+            template <class IntervalTypeProvider, class... Args>
+            JKJ_FORCEINLINE JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 auto operator()(IntervalTypeProvider,
+                                                                            Args... args) noexcept {
+                return to_decimal_impl<Float, FloatTraits, PolicyHolder, IntervalTypeProvider>(
+                    args...);
+            }
+        };
     }
 
 
@@ -2621,127 +2793,10 @@ namespace jkj::dragonbox {
                                    base_default_pair<cache::base, cache::full>>{},
             policies...));
 
-        using unsigned_return_type = decimal_fp<typename FloatTraits::carrier_uint, false,
-                                                policy_holder::report_trailing_zeros>;
-
-        unsigned_return_type ret = policy_holder::delegate(
+        return policy_holder::delegate(
             signed_significand_bits,
-            [exponent_bits, signed_significand_bits](auto interval_type_provider) {
-                using format = typename FloatTraits::format;
-                constexpr auto tag = decltype(interval_type_provider)::tag;
-
-                auto two_fc = signed_significand_bits.remove_sign_bit_and_shift();
-                auto exponent = int(exponent_bits);
-
-                if constexpr (tag == decimal_to_binary_rounding::tag_t::to_nearest) {
-                    // Is the input a normal number?
-                    if (exponent != 0) {
-                        exponent += format::exponent_bias - format::significand_bits;
-
-                        // Shorter interval case; proceed like Schubfach.
-                        // One might think this condition is wrong, since when exponent_bits == 1
-                        // and two_fc == 0, the interval is actually regular. However, it turns out
-                        // that this seemingly wrong condition is actually fine, because the end
-                        // result is anyway the same.
-                        //
-                        // [binary32]
-                        // (fc-1/2) * 2^e = 1.175'494'28... * 10^-38
-                        // (fc-1/4) * 2^e = 1.175'494'31... * 10^-38
-                        //    fc    * 2^e = 1.175'494'35... * 10^-38
-                        // (fc+1/2) * 2^e = 1.175'494'42... * 10^-38
-                        //
-                        // Hence, shorter_interval_case will return 1.175'494'4 * 10^-38.
-                        // 1.175'494'3 * 10^-38 is also a correct shortest representation that will
-                        // be rejected if we assume shorter interval, but 1.175'494'4 * 10^-38 is
-                        // closer to the true value so it doesn't matter.
-                        //
-                        // [binary64]
-                        // (fc-1/2) * 2^e = 2.225'073'858'507'201'13... * 10^-308
-                        // (fc-1/4) * 2^e = 2.225'073'858'507'201'25... * 10^-308
-                        //    fc    * 2^e = 2.225'073'858'507'201'38... * 10^-308
-                        // (fc+1/2) * 2^e = 2.225'073'858'507'201'63... * 10^-308
-                        //
-                        // Hence, shorter_interval_case will return 2.225'073'858'507'201'4 *
-                        // 10^-308. This is indeed of the shortest length, and it is the unique one
-                        // closest to the true value among valid representations of the same length.
-                        static_assert(std::is_same_v<format, ieee754_binary32> ||
-                                      std::is_same_v<format, ieee754_binary64>);
-
-                        if (two_fc == 0) {
-                            return decltype(interval_type_provider)::invoke_shorter_interval_case(
-                                signed_significand_bits, [exponent](auto... additional_args) {
-                                    return detail::impl<Float, FloatTraits>::
-                                        template compute_nearest_shorter<
-                                            unsigned_return_type,
-                                            typename decltype(interval_type_provider)::
-                                                shorter_interval_type,
-                                            typename policy_holder::trailing_zero_policy,
-                                            typename policy_holder::
-                                                binary_to_decimal_rounding_policy,
-                                            typename policy_holder::cache_policy>(
-                                            exponent, additional_args...);
-                                });
-                        }
-
-                        two_fc |= (decltype(two_fc)(1) << (format::significand_bits + 1));
-                    }
-                    // Is the input a subnormal number?
-                    else {
-                        exponent = format::min_exponent - format::significand_bits;
-                    }
-
-                    return decltype(interval_type_provider)::invoke_normal_interval_case(
-                        signed_significand_bits, [two_fc, exponent](auto... additional_args) {
-                            return detail::impl<Float, FloatTraits>::
-                                template compute_nearest_normal<
-                                    unsigned_return_type,
-                                    typename decltype(interval_type_provider)::normal_interval_type,
-                                    typename policy_holder::trailing_zero_policy,
-                                    typename policy_holder::binary_to_decimal_rounding_policy,
-                                    typename policy_holder::cache_policy>(two_fc, exponent,
-                                                                          additional_args...);
-                        });
-                }
-                else if constexpr (tag == decimal_to_binary_rounding::tag_t::left_closed_directed) {
-                    // Is the input a normal number?
-                    if (exponent != 0) {
-                        exponent += format::exponent_bias - format::significand_bits;
-                        two_fc |= (decltype(two_fc)(1) << (format::significand_bits + 1));
-                    }
-                    // Is the input a subnormal number?
-                    else {
-                        exponent = format::min_exponent - format::significand_bits;
-                    }
-
-                    return detail::impl<Float>::template compute_left_closed_directed<
-                        unsigned_return_type, typename policy_holder::trailing_zero_policy,
-                        typename policy_holder::cache_policy>(two_fc, exponent);
-                }
-                else {
-                    static_assert(tag == decimal_to_binary_rounding::tag_t::right_closed_directed);
-
-                    bool shorter_interval = false;
-
-                    // Is the input a normal number?
-                    if (exponent != 0) {
-                        if (two_fc == 0 && exponent != 1) {
-                            shorter_interval = true;
-                        }
-                        exponent += format::exponent_bias - format::significand_bits;
-                        two_fc |= (decltype(two_fc)(1) << (format::significand_bits + 1));
-                    }
-                    // Is the input a subnormal number?
-                    else {
-                        exponent = format::min_exponent - format::significand_bits;
-                    }
-
-                    return detail::impl<Float>::template compute_right_closed_directed<
-                        unsigned_return_type, typename policy_holder::trailing_zero_policy,
-                        typename policy_holder::cache_policy>(two_fc, exponent, shorter_interval);
-                }
-            });
-
-        return policy_holder::handle_sign(signed_significand_bits, ret);
+            detail::to_decimal_dispatcher<Float, FloatTraits, policy_holder>{},
+            signed_significand_bits, exponent_bits);
     }
 
     template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
