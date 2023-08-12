@@ -98,9 +98,9 @@ namespace jkj::dragonbox {
 #if JKJ_HAS_BIT_CAST
             return std::bit_cast<To>(from);
 #else
-            static_assert(sizeof(From) == sizeof(To));
-            static_assert(std::is_trivially_copyable_v<To>);
-            static_assert(std::is_trivially_copyable_v<From>);
+            static_assert(sizeof(From) == sizeof(To), "");
+            static_assert(std::is_trivially_copyable_v<To>, "");
+            static_assert(std::is_trivially_copyable_v<From>, "");
             To to;
             std::memcpy(&to, &from, sizeof(To));
             return to;
@@ -153,7 +153,7 @@ namespace jkj::dragonbox {
         // Most of the operations will be done on this integer type.
         using carrier_uint =
             std::conditional_t<detail::physical_bits<T> == 32, std::uint32_t, std::uint64_t>;
-        static_assert(sizeof(carrier_uint) == sizeof(T));
+        static_assert(sizeof(carrier_uint) == sizeof(T), "");
 
         // Number of bits in the above unsigned integer type.
         static constexpr int carrier_bits = int(detail::physical_bits<carrier_uint>);
@@ -177,7 +177,7 @@ namespace jkj::dragonbox {
         static constexpr unsigned int extract_exponent_bits(carrier_uint u) noexcept {
             constexpr int significand_bits = format::significand_bits;
             constexpr int exponent_bits = format::exponent_bits;
-            static_assert(detail::value_bits<unsigned int> > exponent_bits);
+            static_assert(detail::value_bits<unsigned int> > exponent_bits, "");
             constexpr auto exponent_bits_mask = (static_cast<unsigned int>(1) << exponent_bits) - 1;
             return static_cast<unsigned int>(u >> significand_bits) & exponent_bits_mask;
         }
@@ -551,7 +551,7 @@ namespace jkj::dragonbox {
 
         template <int k, class Int>
         constexpr Int compute_power(Int a) noexcept {
-            static_assert(k >= 0);
+            static_assert(k >= 0, "");
             Int p = 1;
             for (int i = 0; i < k; ++i) {
                 p *= a;
@@ -561,7 +561,7 @@ namespace jkj::dragonbox {
 
         template <int a, class UInt>
         constexpr int count_factors(UInt n) noexcept {
-            static_assert(a > 1);
+            static_assert(a > 1, "");
             int c = 0;
             while (n % a == 0) {
                 n /= a;
@@ -675,7 +675,7 @@ namespace jkj::dragonbox {
             template <int N>
             constexpr bool check_divisibility_and_divide_by_pow10(std::uint32_t& n) noexcept {
                 // Make sure the computation for max_n does not overflow.
-                static_assert(N + 1 <= log::floor_log10_pow2(31));
+                static_assert(N + 1 <= log::floor_log10_pow2(31), "");
                 assert(n <= compute_power<N + 1>(std::uint32_t(10)));
 
                 using info = divide_by_pow10_info<N>;
@@ -693,7 +693,7 @@ namespace jkj::dragonbox {
             template <int N>
             constexpr std::uint32_t small_division_by_pow10(std::uint32_t n) noexcept {
                 // Make sure the computation for max_n does not overflow.
-                static_assert(N + 1 <= log::floor_log10_pow2(31));
+                static_assert(N + 1 <= log::floor_log10_pow2(31), "");
                 assert(n <= compute_power<N + 1>(std::uint32_t(10)));
 
                 return (n * divide_by_pow10_info<N>::magic_number) >>
@@ -704,7 +704,7 @@ namespace jkj::dragonbox {
             // Precondition: n <= n_max
             template <int N, class UInt, UInt n_max>
             constexpr UInt divide_by_pow10(UInt n) noexcept {
-                static_assert(N >= 0);
+                static_assert(N >= 0, "");
 
                 // Specialize for 32-bit division by 100.
                 // Compiler is supposed to generate the identical code for just writing
@@ -1857,8 +1857,9 @@ namespace jkj::dragonbox {
             using format::decimal_digits;
 
             static constexpr int kappa = std::is_same_v<format, ieee754_binary32> ? 1 : 2;
-            static_assert(kappa >= 1);
-            static_assert(carrier_bits >= significand_bits + 2 + log::floor_log2_pow10(kappa + 1));
+            static_assert(kappa >= 1, "");
+            static_assert(carrier_bits >= significand_bits + 2 + log::floor_log2_pow10(kappa + 1),
+                          "");
 
             static constexpr int min_k = [] {
                 constexpr auto a = -log::floor_log10_pow2_minus_log10_4_over_3(
@@ -1867,7 +1868,7 @@ namespace jkj::dragonbox {
                     -log::floor_log10_pow2(int(max_exponent - significand_bits)) + kappa;
                 return a < b ? a : b;
             }();
-            static_assert(min_k >= cache_holder<format>::min_k);
+            static_assert(min_k >= cache_holder<format>::min_k, "");
 
             static constexpr int max_k = [] {
                 // We do invoke shorter_interval_case for exponent == min_exponent case,
@@ -1878,7 +1879,7 @@ namespace jkj::dragonbox {
                     -log::floor_log10_pow2(int(min_exponent - significand_bits)) + kappa;
                 return a > b ? a : b;
             }();
-            static_assert(max_k <= cache_holder<format>::max_k);
+            static_assert(max_k <= cache_holder<format>::max_k, "");
 
             using cache_entry_type = typename cache_holder<format>::cache_entry_type;
             static constexpr auto cache_bits = cache_holder<format>::cache_bits;
@@ -2301,7 +2302,7 @@ namespace jkj::dragonbox {
                     return s;
                 }
                 else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>);
+                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
 
                     // Divide by 10^8 and reduce to 32-bits if divisible.
                     // Since ret_value.significand <= (2^53 * 1000 - 1) / 1000 < 10^16,
@@ -2373,7 +2374,7 @@ namespace jkj::dragonbox {
                     return {carrier_uint(r >> 32), carrier_uint(r) == 0};
                 }
                 else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>);
+                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
                     auto r = wuint::umul192_upper128(u, cache);
                     return {r.high(), r.low() == 0};
                 }
@@ -2385,7 +2386,7 @@ namespace jkj::dragonbox {
                     return std::uint32_t(cache >> (cache_bits - 1 - beta));
                 }
                 else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>);
+                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
                     return std::uint32_t(cache.high() >> (carrier_bits - 1 - beta));
                 }
             }
@@ -2400,7 +2401,7 @@ namespace jkj::dragonbox {
                     return {((r >> (64 - beta)) & 1) != 0, std::uint32_t(r >> (32 - beta)) == 0};
                 }
                 else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>);
+                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
                     auto r = wuint::umul192_lower128(two_f, cache);
                     return {((r.high() >> (64 - beta)) & 1) != 0,
                             ((r.high() << beta) | (r.low() >> (64 - beta))) == 0};
@@ -2415,7 +2416,7 @@ namespace jkj::dragonbox {
                                         (cache_bits - significand_bits - 1 - beta));
                 }
                 else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>);
+                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
                     return (cache.high() - (cache.high() >> (significand_bits + 2))) >>
                            (carrier_bits - significand_bits - 1 - beta);
                 }
@@ -2429,7 +2430,7 @@ namespace jkj::dragonbox {
                                         (cache_bits - significand_bits - 1 - beta));
                 }
                 else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>);
+                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
                     return (cache.high() + (cache.high() >> (significand_bits + 1))) >>
                            (carrier_bits - significand_bits - 1 - beta);
                 }
@@ -2443,7 +2444,7 @@ namespace jkj::dragonbox {
                            2;
                 }
                 else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>);
+                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
                     return ((cache.high() >> (carrier_bits - significand_bits - 2 - beta)) + 1) / 2;
                 }
             }
@@ -2691,7 +2692,8 @@ namespace jkj::dragonbox {
                     // one closest to the true value among valid representations of the same
                     // length.
                     static_assert(std::is_same_v<format, ieee754_binary32> ||
-                                  std::is_same_v<format, ieee754_binary64>);
+                                      std::is_same_v<format, ieee754_binary64>,
+                                  "");
 
                     if (two_fc == 0) {
                         return PolicyHolder::handle_sign(
@@ -2736,7 +2738,7 @@ namespace jkj::dragonbox {
                         typename PolicyHolder::cache_policy>(two_fc, exponent));
             }
             else {
-                static_assert(tag == decimal_to_binary_rounding::tag_t::right_closed_directed);
+                static_assert(tag == decimal_to_binary_rounding::tag_t::right_closed_directed, "");
 
                 bool shorter_interval = false;
 
