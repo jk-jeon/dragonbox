@@ -191,7 +191,7 @@ All of these policies can be specified also to `jkj::dragonbox::to_chars`/`jkj::
 # Performance
 In my machine (Intel Core i7-7700HQ 2.80GHz, Windows 10), it defeats or is on par with other contemporary algorithms including Grisu-Exact, Ryu, and Schubfach.
 
-The following benchmark result (performed on 08/31/2022) is obtained using Milo's dtoa benchmark framework ([https://github.com/miloyip/dtoa-benchmark](https://github.com/miloyip/dtoa-benchmark)). The complete source code for the benchmark below is available [here](https://github.com/jk-jeon/dtoa-benchmark).
+The following benchmark result (performed on 08/11/2023) is obtained using Milo's dtoa benchmark framework ([https://github.com/miloyip/dtoa-benchmark](https://github.com/miloyip/dtoa-benchmark)). The complete source code for the benchmark below is available [here](https://github.com/jk-jeon/dtoa-benchmark).
 
 ![corei7_7700hq@2.80_win64_vc2019_randomdigit_time](other_files/milo_benchmark.png)
 
@@ -199,7 +199,9 @@ Note 1: `dragonbox` is the performance of Dragonbox with the full cache table, a
 
 Note 2: [`fmt`](https://github.com/fmtlib/fmt) internally uses Dragonbox with an implementation almost identical to that in this repository.
 
-There is also a benchmark done by myself (top: benchmark for ````float```` data, bottom: benchmark for ````double```` data; solid lines are the averages, dashed lines are the medians, and the shaded regions show 30%, 50%, and 70% percentiles):
+There is also a benchmark done by myself (also performed on 08/11/2023):
+
+(top: benchmark for ````float```` data, bottom: benchmark for ````double```` data; solid lines are the averages, dashed lines are the medians, and the shaded regions show 30%, 50%, and 70% percentiles):
 
 (Clang)
 ![digits_benchmark_binary32](subproject/benchmark/results/digits_benchmark_binary32_clang.png)
