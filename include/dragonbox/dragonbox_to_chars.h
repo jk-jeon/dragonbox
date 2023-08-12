@@ -18,7 +18,7 @@
 #ifndef JKJ_HEADER_DRAGONBOX_TO_CHARS
 #define JKJ_HEADER_DRAGONBOX_TO_CHARS
 
-#include "dragonbox/dragonbox.h"
+#include "dragonbox.h"
 
 namespace jkj::dragonbox {
     namespace to_chars_detail {
