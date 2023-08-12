@@ -62,6 +62,22 @@
     #define JKJ_POLICY_VARIABLE static constexpr
 #endif
 
+#if defined(__cpp_constexpr) && __cpp_constexpr >= 201304L
+    #define JKJ_HAS_CONSTEXPR14 1
+#elif __cplusplus >= 201402L
+    #define JKJ_HAS_CONSTEXPR14 1
+#elif defined(_MSC_VER) && _MSC_VER >= 1912 && _MSVC_LANG >= 201402L
+    #define JKJ_HAS_CONSTEXPR14 1
+#else
+    #define JKJ_HAS_CONSTEXPR14 0
+#endif
+
+#if JKJ_HAS_CONSTEXPR14
+    #define JKJ_CONSTEXPR14 constexpr
+#else
+    #define JKJ_CONSTEXPR14
+#endif
+
 // Testing for relevant C++20 constexpr library features
 #if JKJ_CAN_BRANCH_ON_CONSTEVAL && JKJ_HAS_BIT_CAST
     #define JKJ_CONSTEXPR20 constexpr
@@ -1181,6 +1197,11 @@ namespace jkj::dragonbox {
             struct cache_holder_t {
                 wuint::uint128 table[compressed_table_size];
             };
+            struct pow5_holder_t {
+                std::uint64_t table[compression_ratio];
+            };
+
+#if JKJ_HAS_CONSTEXPR14
             static constexpr cache_holder_t cache = [] {
                 cache_holder_t res{};
                 for (std::size_t i = 0; i < compressed_table_size; ++i) {
@@ -1188,10 +1209,6 @@ namespace jkj::dragonbox {
                 }
                 return res;
             }();
-
-            struct pow5_holder_t {
-                std::uint64_t table[compression_ratio];
-            };
             static constexpr pow5_holder_t pow5 = [] {
                 pow5_holder_t res{};
                 std::uint64_t p = 1;
@@ -1201,6 +1218,38 @@ namespace jkj::dragonbox {
                 }
                 return res;
             }();
+#else
+            template <std::size_t... indices>
+            struct index_sequence {};
+
+            template <std::size_t current, std::size_t total, class Dummy, std::size_t... indices>
+            struct make_index_sequence_impl {
+                using type = typename make_index_sequence_impl<current + 1, total, Dummy,
+                                                               indices..., current>::type;
+            };
+
+            template <std::size_t total, class Dummy, std::size_t... indices>
+            struct make_index_sequence_impl<total, total, Dummy, indices...> {
+                using type = index_sequence<indices...>;
+            };
+
+            template <std::size_t N>
+            using make_index_sequence = typename make_index_sequence_impl<0, N, void>::type;
+
+            template <std::size_t... indices>
+            static constexpr cache_holder_t make_cache_table(index_sequence<indices...>) {
+                return {cache_holder<ieee754_binary64>::cache[indices * compression_ratio]...};
+            }
+            static constexpr auto cache =
+                make_cache_table(make_index_sequence<compressed_table_size>{});
+
+            template <std::size_t... indices>
+            static constexpr pow5_holder_t make_pow5_table(index_sequence<indices...>) {
+                return {compute_power<indices>(std::uint64_t(5))...};
+            }
+            static constexpr auto pow5 =
+                make_pow5_table(make_index_sequence<compression_ratio>{});
+#endif
         };
     }
 
@@ -2827,6 +2876,8 @@ namespace jkj::dragonbox {
 #undef JKJ_FORCEINLINE
 #undef JKJ_SAFEBUFFERS
 #undef JKJ_CONSTEXPR20
+#undef JKJ_CONSTEXPR14
+#undef JKJ_HAS_CONSTEXPR14
 #undef JKJ_POLICY_VARIABLE
 #undef JKJ_CAN_BRANCH_ON_CONSTEVAL
 #undef JKJ_IF_NOT_CONSTEVAL
