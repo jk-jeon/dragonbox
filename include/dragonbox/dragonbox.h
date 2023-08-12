@@ -713,7 +713,7 @@ namespace jkj::dragonbox {
             // Compute floor(n / 10^N) for small N.
             // Precondition: n <= n_max
             template <int N, class UInt, UInt n_max>
-            constexpr UInt divide_by_pow10(UInt n) noexcept {
+            JKJ_CONSTEXPR20 UInt divide_by_pow10(UInt n) noexcept {
                 static_assert(N >= 0, "");
 
                 // Specialize for 32-bit division by 100.
@@ -1723,7 +1723,7 @@ namespace jkj::dragonbox {
                 struct compact : base {
                     using cache_policy = compact;
                     template <class FloatFormat>
-                    static constexpr typename cache_holder<FloatFormat>::cache_entry_type
+                    static JKJ_CONSTEXPR20 typename cache_holder<FloatFormat>::cache_entry_type
                     get_cache(int k) noexcept {
                         assert(k >= cache_holder<FloatFormat>::min_k &&
                                k <= cache_holder<FloatFormat>::max_k);
