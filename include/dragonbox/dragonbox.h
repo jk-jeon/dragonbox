@@ -2028,7 +2028,8 @@ namespace jkj::dragonbox {
                     // interval.
                     if (!interval_type.include_right_endpoint()) {
                         // Is r divisible by 10^kappa?
-                        if (z.is_integer && div::check_divisibility_and_divide_by_pow10<kappa>(r)) {
+                        if (z_result.is_integer &&
+                            div::check_divisibility_and_divide_by_pow10<kappa>(r)) {
                             // This should be in the interval.
                             decimal_significand += r - 1;
                         }
@@ -2177,8 +2178,8 @@ namespace jkj::dragonbox {
                 carrier_uint decimal_significand =
                     div::divide_by_pow10<kappa + 1, carrier_uint,
                                          (carrier_uint(1) << (significand_bits + 1)) * big_divisor -
-                                             1>(xi);
-                auto r = std::uint32_t(xi - big_divisor * decimal_significand);
+                                             1>(x_result.integer_part);
+                auto r = std::uint32_t(x_result.integer_part - big_divisor * decimal_significand);
 
                 if (r != 0) {
                     ++decimal_significand;
