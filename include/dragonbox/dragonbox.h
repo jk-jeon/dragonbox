@@ -31,37 +31,11 @@
     #endif
 #endif
 
-#if defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
-    #include <bit>
-    #define JKJ_HAS_BIT_CAST 1
-#else
-    #define JKJ_HAS_BIT_CAST 0
-#endif
+////////////////////////////////////////////////////////////////////////////////////////
+// Language feature detections.
+////////////////////////////////////////////////////////////////////////////////////////
 
-#if defined(__cpp_if_consteval) && __cpp_is_consteval >= 202106L
-    #define JKJ_IF_CONSTEVAL if consteval
-    #define JKJ_IF_NOT_CONSTEVAL if !consteval
-    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-#elif defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
-    #define JKJ_IF_CONSTEVAL if (std::is_constant_evaluated())
-    #define JKJ_IF_NOT_CONSTEVAL if (!std::is_constant_evaluated())
-    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-#else
-    #define JKJ_IF_CONSTEVAL if constexpr (false)
-    #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
-    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
-#endif
-
-#if defined(__cpp_inline_variables) && __cpp_inline_variables >= 201606L
-    #define JKJ_POLICY_VARIABLE inline constexpr
-#elif __cplusplus >= 201703L
-    #define JKJ_POLICY_VARIABLE inline constexpr
-#elif defined(_MSC_VER) && _MSC_VER >= 1912 && _MSVC_LANG >= 201703L
-    #define JKJ_POLICY_VARIABLE inline constexpr
-#else
-    #define JKJ_POLICY_VARIABLE static constexpr
-#endif
-
+// C++14 constexpr
 #if defined(__cpp_constexpr) && __cpp_constexpr >= 201304L
     #define JKJ_HAS_CONSTEXPR14 1
 #elif __cplusplus >= 201402L
@@ -78,7 +52,46 @@
     #define JKJ_CONSTEXPR14
 #endif
 
-// Testing for relevant C++20 constexpr library features
+// C++17 inline variables
+#if defined(__cpp_inline_variables) && __cpp_inline_variables >= 201606L
+    #define JKJ_HAS_INLINE_VARIABLE 1
+#elif __cplusplus >= 201703L
+    #define JKJ_HAS_INLINE_VARIABLE 1
+#elif defined(_MSC_VER) && _MSC_VER >= 1912 && _MSVC_LANG >= 201703L
+    #define JKJ_HAS_INLINE_VARIABLE 1
+#else
+    #define JKJ_HAS_INLINE_VARIABLE 0
+#endif
+
+#if JKJ_HAS_INLINE_VARIABLE
+    #define JKJ_INLINE_VARIABLE inline constexpr
+#else
+    #define JKJ_INLINE_VARIABLE static constexpr
+#endif
+
+// C++20 std::bit_cast
+#if defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
+    #include <bit>
+    #define JKJ_HAS_BIT_CAST 1
+#else
+    #define JKJ_HAS_BIT_CAST 0
+#endif
+
+// C++23 if consteval or C++20 std::is_constant_evaluated
+#if defined(__cpp_if_consteval) && __cpp_is_consteval >= 202106L
+    #define JKJ_IF_CONSTEVAL if consteval
+    #define JKJ_IF_NOT_CONSTEVAL if !consteval
+    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+#elif defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
+    #define JKJ_IF_CONSTEVAL if (std::is_constant_evaluated())
+    #define JKJ_IF_NOT_CONSTEVAL if (!std::is_constant_evaluated())
+    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+#else
+    #define JKJ_IF_CONSTEVAL if constexpr (false)
+    #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
+    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+#endif
+
 #if JKJ_CAN_BRANCH_ON_CONSTEVAL && JKJ_HAS_BIT_CAST
     #define JKJ_CONSTEXPR20 constexpr
 #else
@@ -110,6 +123,9 @@
 #endif
 
 namespace jkj::dragonbox {
+    ////////////////////////////////////////////////////////////////////////////////////////
+    // Some basic features for encoding/decoding IEEE-754 formats.
+    ////////////////////////////////////////////////////////////////////////////////////////
     namespace detail {
         template <class T>
         constexpr std::size_t physical_bits =
@@ -1837,67 +1853,67 @@ namespace jkj::dragonbox {
 
     namespace policy {
         namespace sign {
-            JKJ_POLICY_VARIABLE auto ignore = detail::policy_impl::sign::ignore{};
-            JKJ_POLICY_VARIABLE auto return_sign = detail::policy_impl::sign::return_sign{};
+            JKJ_INLINE_VARIABLE auto ignore = detail::policy_impl::sign::ignore{};
+            JKJ_INLINE_VARIABLE auto return_sign = detail::policy_impl::sign::return_sign{};
         }
 
         namespace trailing_zero {
-            JKJ_POLICY_VARIABLE auto ignore = detail::policy_impl::trailing_zero::ignore{};
-            JKJ_POLICY_VARIABLE auto remove = detail::policy_impl::trailing_zero::remove{};
-            JKJ_POLICY_VARIABLE auto report = detail::policy_impl::trailing_zero::report{};
+            JKJ_INLINE_VARIABLE auto ignore = detail::policy_impl::trailing_zero::ignore{};
+            JKJ_INLINE_VARIABLE auto remove = detail::policy_impl::trailing_zero::remove{};
+            JKJ_INLINE_VARIABLE auto report = detail::policy_impl::trailing_zero::report{};
         }
 
         namespace decimal_to_binary_rounding {
-            JKJ_POLICY_VARIABLE auto nearest_to_even =
+            JKJ_INLINE_VARIABLE auto nearest_to_even =
                 detail::policy_impl::decimal_to_binary_rounding::nearest_to_even{};
-            JKJ_POLICY_VARIABLE auto nearest_to_odd =
+            JKJ_INLINE_VARIABLE auto nearest_to_odd =
                 detail::policy_impl::decimal_to_binary_rounding::nearest_to_odd{};
-            JKJ_POLICY_VARIABLE auto nearest_toward_plus_infinity =
+            JKJ_INLINE_VARIABLE auto nearest_toward_plus_infinity =
                 detail::policy_impl::decimal_to_binary_rounding::nearest_toward_plus_infinity{};
-            JKJ_POLICY_VARIABLE auto nearest_toward_minus_infinity =
+            JKJ_INLINE_VARIABLE auto nearest_toward_minus_infinity =
                 detail::policy_impl::decimal_to_binary_rounding::nearest_toward_minus_infinity{};
-            JKJ_POLICY_VARIABLE auto nearest_toward_zero =
+            JKJ_INLINE_VARIABLE auto nearest_toward_zero =
                 detail::policy_impl::decimal_to_binary_rounding::nearest_toward_zero{};
-            JKJ_POLICY_VARIABLE auto nearest_away_from_zero =
+            JKJ_INLINE_VARIABLE auto nearest_away_from_zero =
                 detail::policy_impl::decimal_to_binary_rounding::nearest_away_from_zero{};
 
-            JKJ_POLICY_VARIABLE auto nearest_to_even_static_boundary =
+            JKJ_INLINE_VARIABLE auto nearest_to_even_static_boundary =
                 detail::policy_impl::decimal_to_binary_rounding::nearest_to_even_static_boundary{};
-            JKJ_POLICY_VARIABLE auto nearest_to_odd_static_boundary =
+            JKJ_INLINE_VARIABLE auto nearest_to_odd_static_boundary =
                 detail::policy_impl::decimal_to_binary_rounding::nearest_to_odd_static_boundary{};
-            JKJ_POLICY_VARIABLE auto nearest_toward_plus_infinity_static_boundary =
+            JKJ_INLINE_VARIABLE auto nearest_toward_plus_infinity_static_boundary =
                 detail::policy_impl::decimal_to_binary_rounding::
                     nearest_toward_plus_infinity_static_boundary{};
-            JKJ_POLICY_VARIABLE auto nearest_toward_minus_infinity_static_boundary =
+            JKJ_INLINE_VARIABLE auto nearest_toward_minus_infinity_static_boundary =
                 detail::policy_impl::decimal_to_binary_rounding::
                     nearest_toward_minus_infinity_static_boundary{};
 
-            JKJ_POLICY_VARIABLE auto toward_plus_infinity =
+            JKJ_INLINE_VARIABLE auto toward_plus_infinity =
                 detail::policy_impl::decimal_to_binary_rounding::toward_plus_infinity{};
-            JKJ_POLICY_VARIABLE auto toward_minus_infinity =
+            JKJ_INLINE_VARIABLE auto toward_minus_infinity =
                 detail::policy_impl::decimal_to_binary_rounding::toward_minus_infinity{};
-            JKJ_POLICY_VARIABLE auto toward_zero =
+            JKJ_INLINE_VARIABLE auto toward_zero =
                 detail::policy_impl::decimal_to_binary_rounding::toward_zero{};
-            JKJ_POLICY_VARIABLE auto away_from_zero =
+            JKJ_INLINE_VARIABLE auto away_from_zero =
                 detail::policy_impl::decimal_to_binary_rounding::away_from_zero{};
         }
 
         namespace binary_to_decimal_rounding {
-            JKJ_POLICY_VARIABLE auto do_not_care =
+            JKJ_INLINE_VARIABLE auto do_not_care =
                 detail::policy_impl::binary_to_decimal_rounding::do_not_care{};
-            JKJ_POLICY_VARIABLE auto to_even =
+            JKJ_INLINE_VARIABLE auto to_even =
                 detail::policy_impl::binary_to_decimal_rounding::to_even{};
-            JKJ_POLICY_VARIABLE auto to_odd =
+            JKJ_INLINE_VARIABLE auto to_odd =
                 detail::policy_impl::binary_to_decimal_rounding::to_odd{};
-            JKJ_POLICY_VARIABLE auto away_from_zero =
+            JKJ_INLINE_VARIABLE auto away_from_zero =
                 detail::policy_impl::binary_to_decimal_rounding::away_from_zero{};
-            JKJ_POLICY_VARIABLE auto toward_zero =
+            JKJ_INLINE_VARIABLE auto toward_zero =
                 detail::policy_impl::binary_to_decimal_rounding::toward_zero{};
         }
 
         namespace cache {
-            JKJ_POLICY_VARIABLE auto full = detail::policy_impl::cache::full{};
-            JKJ_POLICY_VARIABLE auto compact = detail::policy_impl::cache::compact{};
+            JKJ_INLINE_VARIABLE auto full = detail::policy_impl::cache::full{};
+            JKJ_INLINE_VARIABLE auto compact = detail::policy_impl::cache::compact{};
         }
     }
 
@@ -2879,12 +2895,13 @@ namespace jkj::dragonbox {
 #undef JKJ_FORCEINLINE
 #undef JKJ_SAFEBUFFERS
 #undef JKJ_CONSTEXPR20
-#undef JKJ_CONSTEXPR14
-#undef JKJ_HAS_CONSTEXPR14
-#undef JKJ_POLICY_VARIABLE
 #undef JKJ_CAN_BRANCH_ON_CONSTEVAL
 #undef JKJ_IF_NOT_CONSTEVAL
 #undef JKJ_IF_CONSTEVAL
 #undef JKJ_HAS_BIT_CAST
+#undef JKJ_INLINE_VARIABLE
+#undef JKJ_HAS_INLINE_VARIABLE
+#undef JKJ_CONSTEXPR14
+#undef JKJ_HAS_CONSTEXPR14
 
 #endif
