@@ -201,19 +201,17 @@ namespace jkj::dragonbox {
         // The result must be aligned to the LSB so that there is no additional zero paddings
         // on the right. This function does not do bias adjustment.
         static constexpr unsigned int extract_exponent_bits(carrier_uint u) noexcept {
-            constexpr int significand_bits = format::significand_bits;
-            constexpr int exponent_bits = format::exponent_bits;
-            static_assert(detail::value_bits<unsigned int> > exponent_bits, "");
-            constexpr auto exponent_bits_mask = (static_cast<unsigned int>(1) << exponent_bits) - 1;
-            return static_cast<unsigned int>(u >> significand_bits) & exponent_bits_mask;
+            static_assert(detail::value_bits<unsigned int> > format::exponent_bits, "");
+            return static_cast<unsigned int>(u >> format::significand_bits) &
+                   ((static_cast<unsigned int>(1) << format::exponent_bits) - 1);
         }
 
         // Extract significand bits from a bit pattern.
         // The result must be aligned to the LSB so that there is no additional zero paddings
         // on the right. The result does not contain the implicit bit.
         static constexpr carrier_uint extract_significand_bits(carrier_uint u) noexcept {
-            constexpr auto mask = carrier_uint((carrier_uint(1) << format::significand_bits) - 1);
-            return carrier_uint(u & mask);
+            return carrier_uint(u &
+                                carrier_uint((carrier_uint(1) << format::significand_bits) - 1));
         }
 
         // Remove the exponent bits and extract significand bits together with the sign bit.
@@ -234,24 +232,17 @@ namespace jkj::dragonbox {
 
         // Obtain the actual value of the binary exponent from the extracted exponent bits.
         static constexpr int binary_exponent(unsigned int exponent_bits) noexcept {
-            if (exponent_bits == 0) {
-                return format::min_exponent;
-            }
-            else {
-                return int(exponent_bits) + format::exponent_bias;
-            }
+            return exponent_bits == 0 ? format::min_exponent
+                                      : int(exponent_bits) + format::exponent_bias;
         }
 
         // Obtain the actual value of the binary exponent from the extracted significand bits and
         // exponent bits.
         static constexpr carrier_uint binary_significand(carrier_uint significand_bits,
                                                          unsigned int exponent_bits) noexcept {
-            if (exponent_bits == 0) {
-                return significand_bits;
-            }
-            else {
-                return significand_bits | (carrier_uint(1) << format::significand_bits);
-            }
+            return exponent_bits == 0
+                       ? significand_bits
+                       : (significand_bits | (carrier_uint(1) << format::significand_bits));
         }
 
 
@@ -259,14 +250,11 @@ namespace jkj::dragonbox {
 
         static constexpr bool is_nonzero(carrier_uint u) noexcept { return (u << 1) != 0; }
         static constexpr bool is_positive(carrier_uint u) noexcept {
-            constexpr auto sign_bit = carrier_uint(1)
-                                      << (format::significand_bits + format::exponent_bits);
-            return u < sign_bit;
+            return u < (carrier_uint(1) << (format::significand_bits + format::exponent_bits));
         }
         static constexpr bool is_negative(carrier_uint u) noexcept { return !is_positive(u); }
         static constexpr bool is_finite(unsigned int exponent_bits) noexcept {
-            constexpr unsigned int exponent_bits_all_set = (1u << format::exponent_bits) - 1;
-            return exponent_bits != exponent_bits_all_set;
+            return exponent_bits != ((1u << format::exponent_bits) - 1);
         }
         static constexpr bool has_all_zero_significand_bits(carrier_uint u) noexcept {
             return (u << 1) == 0;
@@ -388,11 +376,11 @@ namespace jkj::dragonbox {
 
         namespace bits {
             // Most compilers should be able to optimize this into the ROR instruction.
-            constexpr std::uint32_t rotr(std::uint32_t n, std::uint32_t r) noexcept {
+            inline JKJ_CONSTEXPR14 std::uint32_t rotr(std::uint32_t n, std::uint32_t r) noexcept {
                 r &= 31;
                 return (n >> r) | (n << (32 - r));
             }
-            constexpr std::uint64_t rotr(std::uint64_t n, std::uint32_t r) noexcept {
+            inline JKJ_CONSTEXPR14 std::uint64_t rotr(std::uint64_t n, std::uint32_t r) noexcept {
                 r &= 63;
                 return (n >> r) | (n << (64 - r));
             }
@@ -1247,8 +1235,7 @@ namespace jkj::dragonbox {
             static constexpr pow5_holder_t make_pow5_table(index_sequence<indices...>) {
                 return {compute_power<indices>(std::uint64_t(5))...};
             }
-            static constexpr auto pow5 =
-                make_pow5_table(make_index_sequence<compression_ratio>{});
+            static constexpr auto pow5 = make_pow5_table(make_index_sequence<compression_ratio>{});
 #endif
         };
     }
