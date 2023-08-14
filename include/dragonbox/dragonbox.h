@@ -702,7 +702,7 @@ namespace jkj::dragonbox {
             };
 
             template <int N>
-            constexpr bool check_divisibility_and_divide_by_pow10(std::uint32_t& n) noexcept {
+            JKJ_CONSTEXPR14 bool check_divisibility_and_divide_by_pow10(std::uint32_t& n) noexcept {
                 // Make sure the computation for max_n does not overflow.
                 static_assert(N + 1 <= log::floor_log10_pow2(31), "");
                 assert(n <= compute_power<N + 1>(std::uint32_t(10)));
@@ -720,7 +720,7 @@ namespace jkj::dragonbox {
             // Compute floor(n / 10^N) for small n and N.
             // Precondition: n <= 10^(N+1)
             template <int N>
-            constexpr std::uint32_t small_division_by_pow10(std::uint32_t n) noexcept {
+            JKJ_CONSTEXPR14 std::uint32_t small_division_by_pow10(std::uint32_t n) noexcept {
                 // Make sure the computation for max_n does not overflow.
                 static_assert(N + 1 <= log::floor_log10_pow2(31), "");
                 assert(n <= compute_power<N + 1>(std::uint32_t(10)));
