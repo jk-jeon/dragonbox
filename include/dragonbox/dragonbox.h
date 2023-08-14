@@ -565,22 +565,32 @@ namespace jkj::dragonbox {
         template <int k, class Int>
         constexpr Int compute_power(Int a) noexcept {
             static_assert(k >= 0, "");
+#if JKJ_HAS_CONSTEXPR14
             Int p = 1;
             for (int i = 0; i < k; ++i) {
                 p *= a;
             }
             return p;
+#else
+            return k == 0       ? 1
+                   : k % 2 == 0 ? compute_power<k / 2, Int>(a * a)
+                                : a * compute_power<k / 2, Int>(a * a);
+#endif
         }
 
         template <int a, class UInt>
         constexpr int count_factors(UInt n) noexcept {
             static_assert(a > 1, "");
+#if JKJ_HAS_CONSTEXPR14
             int c = 0;
             while (n % a == 0) {
                 n /= a;
                 ++c;
             }
             return c;
+#else
+            return n % a == 0 ? count_factors<a, UInt>(n / a) + 1 : 0;
+#endif
         }
 
         ////////////////////////////////////////////////////////////////////////////////////////
@@ -599,7 +609,9 @@ namespace jkj::dragonbox {
 
             template <multiply m, subtract f, shift k, min_exponent e_min, max_exponent e_max>
             constexpr int compute(int e) noexcept {
+#if JKJ_HAS_CONSTEXPR14
                 assert(std::int32_t(e_min) <= e && e <= std::int32_t(e_max));
+#endif
                 return int((std::int32_t(e) * std::int32_t(m) - std::int32_t(f)) >> std::size_t(k));
             }
 
@@ -607,12 +619,16 @@ namespace jkj::dragonbox {
             // Returns -1 when n = 0.
             template <class UInt>
             constexpr int floor_log2(UInt n) noexcept {
+#if JKJ_HAS_CONSTEXPR14
                 int count = -1;
                 while (n != 0) {
                     ++count;
                     n >>= 1;
                 }
                 return count;
+#else
+                return n == 0 ? -1 : floor_log2<UInt>(n / 2) + 1;
+#endif
             }
 
             static constexpr int floor_log10_pow2_min_exponent = -2620;
