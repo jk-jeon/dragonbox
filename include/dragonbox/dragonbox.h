@@ -885,6 +885,11 @@ namespace jkj::dragonbox {
                 0x92efd1b8d0cf37bf, 0xb7abc627050305ae, 0xe596b7b0c643c71a, 0x8f7e32ce7bea5c70,
                 0xb35dbf821ae4f38c, 0xe0352f62a19e306f};
         };
+#if !JKJ_HAS_INLINE_VARIABLE
+        template <class Dummy>
+        constexpr typename cache_holder<ieee754_binary32, Dummy>::cache_entry_type
+            cache_holder<ieee754_binary32, Dummy>::cache[];
+#endif
 
         template <class Dummy>
         struct cache_holder<ieee754_binary64, Dummy> {
@@ -1204,6 +1209,11 @@ namespace jkj::dragonbox {
                 {0x9e19db92b4e31ba9, 0x6c07a2c26a8346d2}, {0xc5a05277621be293, 0xc7098b7305241886},
                 {0xf70867153aa2db38, 0xb8cbee4fc66d1ea8}};
         };
+#if !JKJ_HAS_INLINE_VARIABLE
+        template <class Dummy>
+        constexpr typename cache_holder<ieee754_binary64, Dummy>::cache_entry_type
+            cache_holder<ieee754_binary64, Dummy>::cache[];
+#endif
 
         // Compressed cache for double
         template <class Dummy = void>
@@ -1270,6 +1280,14 @@ namespace jkj::dragonbox {
             static constexpr auto pow5 = make_pow5_table(make_index_sequence<compression_ratio>{});
 #endif
         };
+#if !JKJ_HAS_INLINE_VARIABLE
+        template <class Dummy>
+        constexpr typename compressed_cache_detail<Dummy>::cache_holder_t
+            compressed_cache_detail<Dummy>::cache;
+        template <class Dummy>
+        constexpr typename compressed_cache_detail<Dummy>::pow5_holder_t
+            compressed_cache_detail<Dummy>::pow5;
+#endif
     }
 
 
