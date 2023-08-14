@@ -1830,9 +1830,7 @@ namespace jkj::dragonbox {
                     struct get_cache_impl {
                         static JKJ_CONSTEXPR20 typename cache_holder<FloatFormat>::cache_entry_type
                         get_cache(int k) noexcept {
-                            assert(k >= cache_holder<FloatFormat>::min_k &&
-                                   k <= cache_holder<FloatFormat>::max_k);
-                            return get_cache_impl_binary64(k);
+                            return full::get_cache<FloatFormat>(k);
                         }
                     };
 
