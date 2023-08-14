@@ -150,7 +150,7 @@ namespace jkj::dragonbox {
 
         template <class T>
         constexpr std::size_t value_bits =
-            std::numeric_limits<std::enable_if_t<std::is_unsigned_v<T>, T>>::digits;
+            std::numeric_limits<std::enable_if_t<std::is_unsigned<T>::value, T>>::digits;
 
         template <typename To, typename From>
         JKJ_CONSTEXPR20 To bit_cast(const From& from) {
@@ -158,8 +158,8 @@ namespace jkj::dragonbox {
             return std::bit_cast<To>(from);
 #else
             static_assert(sizeof(From) == sizeof(To), "");
-            static_assert(std::is_trivially_copyable_v<To>, "");
-            static_assert(std::is_trivially_copyable_v<From>, "");
+            static_assert(std::is_trivially_copyable<To>::value, "");
+            static_assert(std::is_trivially_copyable<From>::value, "");
             To to;
             std::memcpy(&to, &from, sizeof(To));
             return to;
@@ -773,12 +773,12 @@ namespace jkj::dragonbox {
                 // "n / 100", but for some reason MSVC generates an inefficient code
                 // (mul + mov for no apparent reason, instead of single imul),
                 // so we does this manually.
-                JKJ_IF_CONSTEXPR(std::is_same_v<UInt, std::uint32_t> && N == 2) {
+                JKJ_IF_CONSTEXPR(std::is_same<UInt, std::uint32_t>::value && N == 2) {
                     return std::uint32_t(wuint::umul64(n, std::uint32_t(1374389535)) >> 37);
                 }
                 // Specialize for 64-bit division by 1000.
                 // Ensure that the correctness condition is met.
-                else JKJ_IF_CONSTEXPR(std::is_same_v<UInt, std::uint64_t> && N == 3 &&
+                else JKJ_IF_CONSTEXPR(std::is_same<UInt, std::uint64_t>::value && N == 3 &&
                                       n_max <= std::uint64_t(15534100272597517998ull)) {
                     return wuint::umul128_upper64(n, std::uint64_t(2361183241434822607ull)) >> 7;
                 }
@@ -1981,7 +1981,7 @@ namespace jkj::dragonbox {
             using format::exponent_bias;
             using format::decimal_digits;
 
-            static constexpr int kappa = std::is_same_v<format, ieee754_binary32> ? 1 : 2;
+            static constexpr int kappa = std::is_same<format, ieee754_binary32>::value ? 1 : 2;
             static_assert(kappa >= 1, "");
             static_assert(carrier_bits >= significand_bits + 2 + log::floor_log2_pow10(kappa + 1),
                           "");
@@ -2278,7 +2278,7 @@ namespace jkj::dragonbox {
                 // and 29711844 * 2^-81
                 // = 1.2288530660000000001731007559513386695471126586198806762695... * 10^-17
                 // for binary32.
-                JKJ_IF_CONSTEXPR(std::is_same_v<format, ieee754_binary32>) {
+                JKJ_IF_CONSTEXPR(std::is_same<format, ieee754_binary32>::value) {
                     if (binary_exponent <= -80) {
                         x_result.is_integer = false;
                     }
@@ -2413,7 +2413,7 @@ namespace jkj::dragonbox {
             remove_trailing_zeros(carrier_uint& n) noexcept {
                 assert(n != 0);
 
-                JKJ_IF_CONSTEXPR(std::is_same_v<format, ieee754_binary32>) {
+                JKJ_IF_CONSTEXPR(std::is_same<format, ieee754_binary32>::value) {
                     constexpr auto mod_inv_5 = std::uint32_t(0xcccc'cccd);
                     constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
 
@@ -2437,7 +2437,9 @@ namespace jkj::dragonbox {
                     return s;
                 }
                 else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
+#if JKJ_HAS_IF_CONSTEXPR
+                    static_assert(std::is_same<format, ieee754_binary64>::value, "");
+#endif
 
                     // Divide by 10^8 and reduce to 32-bits if divisible.
                     // Since ret_value.significand <= (2^53 * 1000 - 1) / 1000 < 10^16,
@@ -2640,7 +2642,7 @@ namespace jkj::dragonbox {
                 template <class FoundPolicyInfo, class FirstPolicy, class... RemainingPolicies>
                 static constexpr auto get_policy_impl(FoundPolicyInfo, FirstPolicy,
                                                       RemainingPolicies... remainings) {
-                    if constexpr (std::is_base_of_v<Base, FirstPolicy>) {
+                    if constexpr (std::is_base_of<Base, FirstPolicy>::value) {
                         if constexpr (FoundPolicyInfo::found_info == policy_found_info::not_found) {
                             return get_policy_impl(
                                 found_policy_pair<FirstPolicy, policy_found_info::unique>{},
@@ -2676,7 +2678,7 @@ namespace jkj::dragonbox {
             constexpr bool check_policy_validity(
                 Policy,
                 base_default_pair_list<FirstBaseDefaultPair, RemainingBaseDefaultPairs...>) {
-                return std::is_base_of_v<typename FirstBaseDefaultPair::base, Policy> ||
+                return std::is_base_of<typename FirstBaseDefaultPair::base, Policy>::value ||
                        check_policy_validity(
                            Policy{}, base_default_pair_list<RemainingBaseDefaultPairs...>{});
             }
@@ -2832,8 +2834,8 @@ namespace jkj::dragonbox {
                     // 10^-308. This is indeed of the shortest length, and it is the unique
                     // one closest to the true value among valid representations of the same
                     // length.
-                    static_assert(std::is_same_v<format, ieee754_binary32> ||
-                                      std::is_same_v<format, ieee754_binary64>,
+                    static_assert(std::is_same<format, ieee754_binary32>::value ||
+                                      std::is_same<format, ieee754_binary64>::value,
                                   "");
 
                     if (two_fc == 0) {
