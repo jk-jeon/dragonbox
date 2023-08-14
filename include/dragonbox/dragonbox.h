@@ -69,6 +69,23 @@
     #define JKJ_INLINE_VARIABLE static constexpr
 #endif
 
+// C++17 if constexpr
+#if defined(__cpp_if_constexpr) && __cpp_if_constexpr >= 201606L
+    #define JKJ_HAS_IF_CONSTEXPR 1
+#elif __cplusplus >= 201703L
+    #define JKJ_HAS_IF_CONSTEXPR 1
+#elif defined(_MSC_VER) && _MSC_VER >= 1912 && _MSVC_LANG >= 201703L
+    #define JKJ_HAS_IF_CONSTEXPR 1
+#else
+    #define JKJ_HAS_IF_CONSTEXPR 0
+#endif
+
+#if JKJ_HAS_IF_CONSTEXPR
+    #define JKJ_IF_CONSTEXPR if constexpr
+#else
+    #define JKJ_IF_CONSTEXPR if
+#endif
+
 // C++20 std::bit_cast
 #if defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
     #include <bit>
@@ -756,13 +773,13 @@ namespace jkj::dragonbox {
                 // "n / 100", but for some reason MSVC generates an inefficient code
                 // (mul + mov for no apparent reason, instead of single imul),
                 // so we does this manually.
-                if constexpr (std::is_same_v<UInt, std::uint32_t> && N == 2) {
+                JKJ_IF_CONSTEXPR(std::is_same_v<UInt, std::uint32_t> && N == 2) {
                     return std::uint32_t(wuint::umul64(n, std::uint32_t(1374389535)) >> 37);
                 }
                 // Specialize for 64-bit division by 1000.
                 // Ensure that the correctness condition is met.
-                else if constexpr (std::is_same_v<UInt, std::uint64_t> && N == 3 &&
-                                   n_max <= std::uint64_t(15534100272597517998ull)) {
+                else JKJ_IF_CONSTEXPR(std::is_same_v<UInt, std::uint64_t> && N == 3 &&
+                                      n_max <= std::uint64_t(15534100272597517998ull)) {
                     return wuint::umul128_upper64(n, std::uint64_t(2361183241434822607ull)) >> 7;
                 }
                 else {
@@ -1808,20 +1825,28 @@ namespace jkj::dragonbox {
 
                 struct compact : base {
                     using cache_policy = compact;
-                    template <class FloatFormat>
-                    static JKJ_CONSTEXPR20 typename cache_holder<FloatFormat>::cache_entry_type
-                    get_cache(int k) noexcept {
-                        assert(k >= cache_holder<FloatFormat>::min_k &&
-                               k <= cache_holder<FloatFormat>::max_k);
 
-                        if constexpr (std::is_same_v<FloatFormat, ieee754_binary64>) {
+                    template <class FloatFormat, class Dummy = void>
+                    struct get_cache_impl {
+                        static JKJ_CONSTEXPR20 typename cache_holder<FloatFormat>::cache_entry_type
+                        get_cache(int k) noexcept {
+                            assert(k >= cache_holder<FloatFormat>::min_k &&
+                                   k <= cache_holder<FloatFormat>::max_k);
+                            return get_cache_impl_binary64(k);
+                        }
+                    };
+
+                    template <class Dummy>
+                    struct get_cache_impl<ieee754_binary64, Dummy> {
+                        static JKJ_CONSTEXPR20 cache_holder<ieee754_binary64>::cache_entry_type
+                        get_cache(int k) noexcept {
                             // Compute the base index.
                             auto const cache_index =
-                                int(std::uint32_t(k - cache_holder<FloatFormat>::min_k) /
+                                int(std::uint32_t(k - cache_holder<ieee754_binary64>::min_k) /
                                     compressed_cache_detail<>::compression_ratio);
                             auto const kb =
                                 cache_index * compressed_cache_detail<>::compression_ratio +
-                                cache_holder<FloatFormat>::min_k;
+                                cache_holder<ieee754_binary64>::min_k;
                             auto const offset = k - kb;
 
                             // Get the base cache.
@@ -1858,11 +1883,15 @@ namespace jkj::dragonbox {
                                 return recovered_cache;
                             }
                         }
-                        else {
-                            // Just use the full cache for anything other than binary64
-                            return cache_holder<FloatFormat>::cache[std::size_t(
-                                k - cache_holder<FloatFormat>::min_k)];
-                        }
+                    };
+
+                    template <class FloatFormat>
+                    static JKJ_CONSTEXPR20 typename cache_holder<FloatFormat>::cache_entry_type
+                    get_cache(int k) noexcept {
+                        assert(k >= cache_holder<FloatFormat>::min_k &&
+                               k <= cache_holder<FloatFormat>::max_k);
+
+                        return get_cache_impl<FloatFormat>::get_cache(k);
                     }
                 };
             }
@@ -2005,6 +2034,8 @@ namespace jkj::dragonbox {
                 bool parity;
                 bool is_integer;
             };
+            template <class FloatFormat, class Dummy = void>
+            struct compute_mul_impl;
 
             //// The main algorithm assumes the input is a normal/subnormal finite number
 
@@ -2027,7 +2058,7 @@ namespace jkj::dragonbox {
 
                 // Compute zi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
-                auto const deltai = compute_delta(cache, beta);
+                auto const deltai = compute_mul_impl<format>::compute_delta(cache, beta);
                 // For the case of binary32, the result of integer check is not correct for
                 // 29711844 * 2^-82
                 // = 6.1442653300000000008655037797566933477355632930994033813476... * 10^-18
@@ -2037,7 +2068,8 @@ namespace jkj::dragonbox {
                 // this does not cause any problem for the endpoints calculations; it can only
                 // cause a problem when we need to perform integer check for the center.
                 // Fortunately, with these inputs, that branch is never executed, so we are fine.
-                auto const z_result = compute_mul((two_fc | 1) << beta, cache);
+                auto const z_result =
+                    compute_mul_impl<format>::compute_mul((two_fc | 1) << beta, cache);
 
 
                 //////////////////////////////////////////////////////////////////////
@@ -2060,9 +2092,9 @@ namespace jkj::dragonbox {
                         // Exclude the right endpoint if necessary.
                         if (r == 0 &&
                             (z_result.is_integer & !interval_type.include_right_endpoint())) {
-                            if constexpr (BinaryToDecimalRoundingPolicy::tag ==
-                                          policy_impl::binary_to_decimal_rounding::tag_t::
-                                              do_not_care) {
+                            JKJ_IF_CONSTEXPR(
+                                BinaryToDecimalRoundingPolicy::tag ==
+                                policy_impl::binary_to_decimal_rounding::tag_t::do_not_care) {
                                 decimal_significand *= 10;
                                 --decimal_significand;
                                 return TrailingZeroPolicy::template no_trailing_zeros<impl,
@@ -2081,7 +2113,8 @@ namespace jkj::dragonbox {
                     }
                     else {
                         // r == deltai; compare fractional parts.
-                        auto const x_result = compute_mul_parity(two_fc - 1, cache, beta);
+                        auto const x_result =
+                            compute_mul_impl<format>::compute_mul_parity(two_fc - 1, cache, beta);
 
                         if (!(x_result.parity |
                               (x_result.is_integer & interval_type.include_left_endpoint()))) {
@@ -2101,8 +2134,8 @@ namespace jkj::dragonbox {
 
                 decimal_significand *= 10;
 
-                if constexpr (BinaryToDecimalRoundingPolicy::tag ==
-                              policy_impl::binary_to_decimal_rounding::tag_t::do_not_care) {
+                JKJ_IF_CONSTEXPR(BinaryToDecimalRoundingPolicy::tag ==
+                                 policy_impl::binary_to_decimal_rounding::tag_t::do_not_care) {
                     // Normally, we want to compute
                     // significand += r / small_divisor
                     // and return, but we need to take care of the case that the resulting
@@ -2141,7 +2174,8 @@ namespace jkj::dragonbox {
                         // Since there are only 2 possibilities, we only need to care about the
                         // parity. Also, zi and r should have the same parity since the divisor is
                         // an even number.
-                        auto const y_result = compute_mul_parity(two_fc, cache, beta);
+                        auto const y_result =
+                            compute_mul_impl<format>::compute_mul_parity(two_fc, cache, beta);
                         if (y_result.parity != approx_y_parity) {
                             --decimal_significand;
                         }
@@ -2175,8 +2209,11 @@ namespace jkj::dragonbox {
                 // Compute xi and zi.
                 auto const cache = CachePolicy::template get_cache<format>(-minus_k);
 
-                auto xi = compute_left_endpoint_for_shorter_interval_case(cache, beta);
-                auto zi = compute_right_endpoint_for_shorter_interval_case(cache, beta);
+                auto xi = compute_mul_impl<format>::compute_left_endpoint_for_shorter_interval_case(
+                    cache, beta);
+                auto zi =
+                    compute_mul_impl<format>::compute_right_endpoint_for_shorter_interval_case(
+                        cache, beta);
 
                 // If we don't accept the right endpoint and
                 // if the right endpoint is an integer, decrease it.
@@ -2201,7 +2238,9 @@ namespace jkj::dragonbox {
                 }
 
                 // Otherwise, compute the round-up of y.
-                decimal_significand = compute_round_up_for_shorter_interval_case(cache, beta);
+                decimal_significand =
+                    compute_mul_impl<format>::compute_round_up_for_shorter_interval_case(cache,
+                                                                                         beta);
 
                 // When tie occurs, choose one of them according to the rule.
                 if (BinaryToDecimalRoundingPolicy::prefer_round_down(decimal_significand) &&
@@ -2230,8 +2269,8 @@ namespace jkj::dragonbox {
 
                 // Compute xi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
-                auto const deltai = compute_delta(cache, beta);
-                auto x_result = compute_mul(two_fc << beta, cache);
+                auto const deltai = compute_mul_impl<format>::compute_delta(cache, beta);
+                auto x_result = compute_mul_impl<format>::compute_mul(two_fc << beta, cache);
 
                 // Deal with the unique exceptional cases
                 // 29711844 * 2^-82
@@ -2239,7 +2278,7 @@ namespace jkj::dragonbox {
                 // and 29711844 * 2^-81
                 // = 1.2288530660000000001731007559513386695471126586198806762695... * 10^-17
                 // for binary32.
-                if constexpr (std::is_same_v<format, ieee754_binary32>) {
+                JKJ_IF_CONSTEXPR(std::is_same_v<format, ieee754_binary32>) {
                     if (binary_exponent <= -80) {
                         x_result.is_integer = false;
                     }
@@ -2280,7 +2319,8 @@ namespace jkj::dragonbox {
                         // 10^-18) and 2f_c = 29711482, e = -80
                         // (1.2288529832819387448703332688104694625508273020386695861816... *
                         // 10^-17).
-                        auto const z_result = compute_mul_parity(two_fc + 2, cache, beta);
+                        auto const z_result =
+                            compute_mul_impl<format>::compute_mul_parity(two_fc + 2, cache, beta);
                         if (z_result.parity || z_result.is_integer) {
                             break;
                         }
@@ -2318,9 +2358,11 @@ namespace jkj::dragonbox {
 
                 // Compute zi and deltai.
                 // 10^kappa <= deltai < 10^(kappa + 1)
-                auto const deltai =
-                    shorter_interval ? compute_delta(cache, beta - 1) : compute_delta(cache, beta);
-                carrier_uint const zi = compute_mul(two_fc << beta, cache).integer_part;
+                auto const deltai = shorter_interval
+                                        ? compute_mul_impl<format>::compute_delta(cache, beta - 1)
+                                        : compute_mul_impl<format>::compute_delta(cache, beta);
+                carrier_uint const zi =
+                    compute_mul_impl<format>::compute_mul(two_fc << beta, cache).integer_part;
 
 
                 //////////////////////////////////////////////////////////////////////
@@ -2343,7 +2385,8 @@ namespace jkj::dragonbox {
                     }
                     else if (r == deltai) {
                         // Compare the fractional parts.
-                        if (!compute_mul_parity(two_fc - (shorter_interval ? 1 : 2), cache, beta)
+                        if (!compute_mul_impl<format>::compute_mul_parity(
+                                 two_fc - (shorter_interval ? 1 : 2), cache, beta)
                                  .parity) {
                             break;
                         }
@@ -2370,7 +2413,7 @@ namespace jkj::dragonbox {
             remove_trailing_zeros(carrier_uint& n) noexcept {
                 assert(n != 0);
 
-                if constexpr (std::is_same_v<format, ieee754_binary32>) {
+                JKJ_IF_CONSTEXPR(std::is_same_v<format, ieee754_binary32>) {
                     constexpr auto mod_inv_5 = std::uint32_t(0xcccc'cccd);
                     constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
 
@@ -2459,87 +2502,93 @@ namespace jkj::dragonbox {
                 }
             }
 
-            static JKJ_CONSTEXPR20 compute_mul_result
-            compute_mul(carrier_uint u, cache_entry_type const& cache) noexcept {
-                if constexpr (std::is_same_v<format, ieee754_binary32>) {
+            template <class Dummy>
+            struct compute_mul_impl<ieee754_binary32, Dummy> {
+                static JKJ_CONSTEXPR20 compute_mul_result
+                compute_mul(carrier_uint u, cache_entry_type const& cache) noexcept {
                     auto r = wuint::umul96_upper64(u, cache);
                     return {carrier_uint(r >> 32), carrier_uint(r) == 0};
                 }
-                else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
-                    auto r = wuint::umul192_upper128(u, cache);
-                    return {r.high(), r.low() == 0};
-                }
-            }
 
-            static constexpr std::uint32_t compute_delta(cache_entry_type const& cache,
-                                                         int beta) noexcept {
-                if constexpr (std::is_same_v<format, ieee754_binary32>) {
+                static constexpr std::uint32_t compute_delta(cache_entry_type const& cache,
+                                                             int beta) noexcept {
                     return std::uint32_t(cache >> (cache_bits - 1 - beta));
                 }
-                else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
-                    return std::uint32_t(cache.high() >> (carrier_bits - 1 - beta));
-                }
-            }
 
-            static JKJ_CONSTEXPR20 compute_mul_parity_result compute_mul_parity(
-                carrier_uint two_f, cache_entry_type const& cache, int beta) noexcept {
-                assert(beta >= 1);
-                assert(beta < 64);
+                static JKJ_CONSTEXPR20 compute_mul_parity_result compute_mul_parity(
+                    carrier_uint two_f, cache_entry_type const& cache, int beta) noexcept {
+                    assert(beta >= 1);
+                    assert(beta < 64);
 
-                if constexpr (std::is_same_v<format, ieee754_binary32>) {
                     auto r = wuint::umul96_lower64(two_f, cache);
                     return {((r >> (64 - beta)) & 1) != 0, std::uint32_t(r >> (32 - beta)) == 0};
                 }
-                else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
+
+                static constexpr carrier_uint
+                compute_left_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
+                                                                int beta) noexcept {
+                    return carrier_uint((cache - (cache >> (significand_bits + 2))) >>
+                                        (cache_bits - significand_bits - 1 - beta));
+                }
+
+                static constexpr carrier_uint
+                compute_right_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
+                                                                 int beta) noexcept {
+                    return carrier_uint((cache + (cache >> (significand_bits + 1))) >>
+                                        (cache_bits - significand_bits - 1 - beta));
+                }
+
+                static constexpr carrier_uint
+                compute_round_up_for_shorter_interval_case(cache_entry_type const& cache,
+                                                           int beta) noexcept {
+                    return (carrier_uint(cache >> (cache_bits - significand_bits - 2 - beta)) + 1) /
+                           2;
+                }
+            };
+
+            template <class Dummy>
+            struct compute_mul_impl<ieee754_binary64, Dummy> {
+                static JKJ_CONSTEXPR20 compute_mul_result
+                compute_mul(carrier_uint u, cache_entry_type const& cache) noexcept {
+                    auto r = wuint::umul192_upper128(u, cache);
+                    return {r.high(), r.low() == 0};
+                }
+
+                static constexpr std::uint32_t compute_delta(cache_entry_type const& cache,
+                                                             int beta) noexcept {
+                    return std::uint32_t(cache.high() >> (carrier_bits - 1 - beta));
+                }
+
+                static JKJ_CONSTEXPR20 compute_mul_parity_result compute_mul_parity(
+                    carrier_uint two_f, cache_entry_type const& cache, int beta) noexcept {
+                    assert(beta >= 1);
+                    assert(beta < 64);
+
                     auto r = wuint::umul192_lower128(two_f, cache);
                     return {((r.high() >> (64 - beta)) & 1) != 0,
                             ((r.high() << beta) | (r.low() >> (64 - beta))) == 0};
                 }
-            }
 
-            static constexpr carrier_uint
-            compute_left_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
-                                                            int beta) noexcept {
-                if constexpr (std::is_same_v<format, ieee754_binary32>) {
-                    return carrier_uint((cache - (cache >> (significand_bits + 2))) >>
-                                        (cache_bits - significand_bits - 1 - beta));
-                }
-                else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
+                static constexpr carrier_uint
+                compute_left_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
+                                                                int beta) noexcept {
                     return (cache.high() - (cache.high() >> (significand_bits + 2))) >>
                            (carrier_bits - significand_bits - 1 - beta);
                 }
-            }
 
-            static constexpr carrier_uint
-            compute_right_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
-                                                             int beta) noexcept {
-                if constexpr (std::is_same_v<format, ieee754_binary32>) {
-                    return carrier_uint((cache + (cache >> (significand_bits + 1))) >>
-                                        (cache_bits - significand_bits - 1 - beta));
-                }
-                else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
+                static constexpr carrier_uint
+                compute_right_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
+                                                                 int beta) noexcept {
                     return (cache.high() + (cache.high() >> (significand_bits + 1))) >>
                            (carrier_bits - significand_bits - 1 - beta);
                 }
-            }
 
-            static constexpr carrier_uint
-            compute_round_up_for_shorter_interval_case(cache_entry_type const& cache,
-                                                       int beta) noexcept {
-                if constexpr (std::is_same_v<format, ieee754_binary32>) {
-                    return (carrier_uint(cache >> (cache_bits - significand_bits - 2 - beta)) + 1) /
-                           2;
-                }
-                else {
-                    static_assert(std::is_same_v<format, ieee754_binary64>, "");
+                static constexpr carrier_uint
+                compute_round_up_for_shorter_interval_case(cache_entry_type const& cache,
+                                                           int beta) noexcept {
                     return ((cache.high() >> (carrier_bits - significand_bits - 2 - beta)) + 1) / 2;
                 }
-            }
+            };
 
             static constexpr bool
             is_right_endpoint_integer_shorter_interval(int exponent) noexcept {
@@ -2913,6 +2962,8 @@ namespace jkj::dragonbox {
 #undef JKJ_IF_NOT_CONSTEVAL
 #undef JKJ_IF_CONSTEVAL
 #undef JKJ_HAS_BIT_CAST
+#undef JKJ_IF_CONSTEXPR
+#undef JKJ_HAS_IF_CONSTEXPR
 #undef JKJ_INLINE_VARIABLE
 #undef JKJ_HAS_INLINE_VARIABLE
 #undef JKJ_CONSTEXPR14
