@@ -1828,7 +1828,7 @@ namespace jkj::dragonbox {
 
                     template <class FloatFormat, class Dummy = void>
                     struct get_cache_impl {
-                        static JKJ_CONSTEXPR20 typename cache_holder<FloatFormat>::cache_entry_type
+                        static constexpr typename cache_holder<FloatFormat>::cache_entry_type
                         get_cache(int k) noexcept {
                             return full::get_cache<FloatFormat>(k);
                         }
