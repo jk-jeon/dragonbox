@@ -1957,20 +1957,24 @@ namespace jkj::dragonbox {
             static_assert(carrier_bits >= significand_bits + 2 + log::floor_log2_pow10(kappa + 1),
                           "");
 
-            static constexpr int min(int x, int y) noexcept { return x < y ? x : y; }
-            static constexpr int max(int x, int y) noexcept { return x > y ? x : y; }
-
-            static constexpr int min_k = min(
-                -log::floor_log10_pow2_minus_log10_4_over_3(int(max_exponent - significand_bits)),
-                -log::floor_log10_pow2(int(max_exponent - significand_bits)) + kappa);
+            static constexpr int min_k = [] {
+                constexpr auto a = -log::floor_log10_pow2_minus_log10_4_over_3(
+                    int(max_exponent - significand_bits));
+                constexpr auto b =
+                    -log::floor_log10_pow2(int(max_exponent - significand_bits)) + kappa;
+                return a < b ? a : b;
+            }();
             static_assert(min_k >= cache_holder<format>::min_k, "");
 
-            // We do invoke shorter_interval_case for exponent == min_exponent case,
-            // so we should not add 1 here.
-            static constexpr int max_k =
-                max(-log::floor_log10_pow2_minus_log10_4_over_3(
-                        int(min_exponent - significand_bits /*+ 1*/)),
-                    -log::floor_log10_pow2(int(min_exponent - significand_bits)) + kappa);
+            static constexpr int max_k = [] {
+                // We do invoke shorter_interval_case for exponent == min_exponent case,
+                // so we should not add 1 here.
+                constexpr auto a = -log::floor_log10_pow2_minus_log10_4_over_3(
+                    int(min_exponent - significand_bits /*+ 1*/));
+                constexpr auto b =
+                    -log::floor_log10_pow2(int(min_exponent - significand_bits)) + kappa;
+                return a > b ? a : b;
+            }();
             static_assert(max_k <= cache_holder<format>::max_k, "");
 
             using cache_entry_type = typename cache_holder<format>::cache_entry_type;
