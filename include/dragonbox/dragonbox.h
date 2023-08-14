@@ -838,11 +838,11 @@ namespace jkj::dragonbox {
     ////////////////////////////////////////////////////////////////////////////////////////
 
     namespace detail {
-        template <class FloatFormat>
+        template <class FloatFormat, class Dummy = void>
         struct cache_holder;
 
-        template <>
-        struct cache_holder<ieee754_binary32> {
+        template <class Dummy>
+        struct cache_holder<ieee754_binary32, Dummy> {
             using cache_entry_type = std::uint64_t;
             static constexpr int cache_bits = 64;
             static constexpr int min_k = -31;
@@ -870,8 +870,8 @@ namespace jkj::dragonbox {
                 0xb35dbf821ae4f38c, 0xe0352f62a19e306f};
         };
 
-        template <>
-        struct cache_holder<ieee754_binary64> {
+        template <class Dummy>
+        struct cache_holder<ieee754_binary64, Dummy> {
             using cache_entry_type = wuint::uint128;
             static constexpr int cache_bits = 128;
             static constexpr int min_k = -292;
@@ -1190,6 +1190,7 @@ namespace jkj::dragonbox {
         };
 
         // Compressed cache for double
+        template <class Dummy = void>
         struct compressed_cache_detail {
             static constexpr int compression_ratio = 27;
             static constexpr std::size_t compressed_table_size =
@@ -1783,15 +1784,15 @@ namespace jkj::dragonbox {
                             // Compute the base index.
                             auto const cache_index =
                                 int(std::uint32_t(k - cache_holder<FloatFormat>::min_k) /
-                                    compressed_cache_detail::compression_ratio);
+                                    compressed_cache_detail<>::compression_ratio);
                             auto const kb =
-                                cache_index * compressed_cache_detail::compression_ratio +
+                                cache_index * compressed_cache_detail<>::compression_ratio +
                                 cache_holder<FloatFormat>::min_k;
                             auto const offset = k - kb;
 
                             // Get the base cache.
                             auto const base_cache =
-                                compressed_cache_detail::cache.table[cache_index];
+                                compressed_cache_detail<>::cache.table[cache_index];
 
                             if (offset == 0) {
                                 return base_cache;
@@ -1803,7 +1804,7 @@ namespace jkj::dragonbox {
                                 assert(alpha > 0 && alpha < 64);
 
                                 // Try to recover the real cache.
-                                auto const pow5 = compressed_cache_detail::pow5.table[offset];
+                                auto const pow5 = compressed_cache_detail<>::pow5.table[offset];
                                 auto recovered_cache = wuint::umul128(base_cache.high(), pow5);
                                 auto const middle_low = wuint::umul128(base_cache.low(), pow5);
 
