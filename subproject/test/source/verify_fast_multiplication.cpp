@@ -46,8 +46,10 @@ static bool verify_fast_multiplication_xz(CachePolicy&& cache_policy) {
         auto const cache = cache_policy.template get_cache<format>(k);
 
         // Compute the endpoints using the fast method.
-        auto x_fast = impl::compute_left_endpoint_for_shorter_interval_case(cache, beta);
-        auto z_fast = impl::compute_right_endpoint_for_shorter_interval_case(cache, beta);
+        auto x_fast = impl::template compute_mul_impl<
+            format>::compute_left_endpoint_for_shorter_interval_case(cache, beta);
+        auto z_fast = impl::template compute_mul_impl<
+            format>::compute_right_endpoint_for_shorter_interval_case(cache, beta);
 
         // Precisely compute the endpoints.
         jkj::unsigned_rational<jkj::big_uint> precise_multiplier{1, 1};
@@ -100,7 +102,8 @@ static bool verify_fast_multiplication_yru(CachePolicy&& cache_policy) {
     for (int k = impl::min_k; k <= impl::max_k; ++k) {
         auto const cache = cache_policy.template get_cache<format>(k);
 
-        // Since Q - p - beta - 2 >= q, it suffices to check that the lower half of the cache is not 0.
+        // Since Q - p - beta - 2 >= q, it suffices to check that the lower half of the cache is not
+        // 0.
         auto const lower_half = [cache] {
             if constexpr (std::is_same_v<typename impl::format, jkj::dragonbox::ieee754_binary32>) {
                 return std::uint32_t(cache);
