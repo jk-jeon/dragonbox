@@ -2800,7 +2800,7 @@ namespace jkj::dragonbox {
             auto two_fc = signed_significand_bits.remove_sign_bit_and_shift();
             auto exponent = int(exponent_bits);
 
-            if constexpr (tag == decimal_to_binary_rounding::tag_t::to_nearest) {
+            JKJ_IF_CONSTEXPR(tag == decimal_to_binary_rounding::tag_t::to_nearest) {
                 // Is the input a normal number?
                 if (exponent != 0) {
                     exponent += format::exponent_bias - format::significand_bits;
@@ -2861,7 +2861,7 @@ namespace jkj::dragonbox {
                                                  IntervalTypeProvider>{},
                         two_fc, exponent));
             }
-            else if constexpr (tag == decimal_to_binary_rounding::tag_t::left_closed_directed) {
+            else JKJ_IF_CONSTEXPR(tag == decimal_to_binary_rounding::tag_t::left_closed_directed) {
                 // Is the input a normal number?
                 if (exponent != 0) {
                     exponent += format::exponent_bias - format::significand_bits;
