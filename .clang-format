@@ -7,7 +7,7 @@ BreakBeforeBraces: Custom
 BraceWrapping:
   BeforeCatch: true
   BeforeElse: true
-ColumnLimit: 100
+ColumnLimit: 104
 FixNamespaceComments: false
 MaxEmptyLinesToKeep: 3
 NamespaceIndentation: All
