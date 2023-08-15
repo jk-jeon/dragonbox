@@ -189,10 +189,13 @@ namespace jkj {
         ////////////////////////////////////////////////////////////////////////////////////////
         namespace detail {
             template <class T>
-            struct bit_encoding_traits {
-                static constexpr std::size_t physical_bits =
+            struct physical_bits {
+                static constexpr std::size_t value =
                     sizeof(T) * std::numeric_limits<unsigned char>::digits;
-                static constexpr std::size_t value_bits = std::numeric_limits<
+            };
+            template <class T>
+            struct value_bits {
+                static constexpr std::size_t value = std::numeric_limits<
                     typename std::enable_if<std::is_unsigned<T>::value, T>::type>::digits;
             };
 
@@ -241,8 +244,8 @@ namespace jkj {
             // I don't know if there is a truly reliable way of detecting
             // IEEE-754 binary32/binary64 formats; I just did my best here.
             static_assert(std::numeric_limits<T>::is_iec559 && std::numeric_limits<T>::radix == 2 &&
-                              (detail::bit_encoding_traits<T>::physical_bits == 32 ||
-                               detail::bit_encoding_traits<T>::physical_bits == 64),
+                              (detail::physical_bits<T>::value == 32 ||
+                               detail::physical_bits<T>::value == 64),
                           "default_ieee754_traits only works for 32-bits or 64-bits types "
                           "supporting binary32 or binary64 formats!");
 
@@ -250,20 +253,17 @@ namespace jkj {
             using type = T;
 
             // Refers to the format specification class.
-            using format =
-                typename std::conditional<detail::bit_encoding_traits<T>::physical_bits == 32,
-                                          ieee754_binary32, ieee754_binary64>::type;
+            using format = typename std::conditional<detail::physical_bits<T>::value == 32,
+                                                     ieee754_binary32, ieee754_binary64>::type;
 
             // Defines an unsigned integer type that is large enough to carry a variable of type T.
             // Most of the operations will be done on this integer type.
-            using carrier_uint =
-                typename std::conditional<detail::bit_encoding_traits<T>::physical_bits == 32,
-                                          std::uint32_t, std::uint64_t>::type;
+            using carrier_uint = typename std::conditional<detail::physical_bits<T>::value == 32,
+                                                           std::uint32_t, std::uint64_t>::type;
             static_assert(sizeof(carrier_uint) == sizeof(T), "");
 
             // Number of bits in the above unsigned integer type.
-            static constexpr int carrier_bits =
-                int(detail::bit_encoding_traits<carrier_uint>::physical_bits);
+            static constexpr int carrier_bits = int(detail::physical_bits<carrier_uint>::value);
 
             // Convert from carrier_uint into the original type.
             // Depending on the floating-point encoding format, this operation might not be possible
@@ -282,8 +282,7 @@ namespace jkj {
             // The result must be aligned to the LSB so that there is no additional zero paddings
             // on the right. This function does not do bias adjustment.
             static constexpr unsigned int extract_exponent_bits(carrier_uint u) noexcept {
-                static_assert(
-                    detail::bit_encoding_traits<unsigned int>::value_bits > format::exponent_bits, "");
+                static_assert(detail::value_bits<unsigned int>::value > format::exponent_bits, "");
                 return static_cast<unsigned int>(u >> format::significand_bits) &
                        ((static_cast<unsigned int>(1) << format::exponent_bits) - 1);
             }
