@@ -2633,36 +2633,35 @@ namespace jkj::dragonbox {
             struct base_default_pair {
                 using base = Base;
 
+                template <class FoundPolicyInfo, class... Policies>
+                struct get_found_policy_pair_impl;
+
                 template <class FoundPolicyInfo>
-                static constexpr FoundPolicyInfo get_policy_impl(FoundPolicyInfo) {
-                    return {};
-                }
+                struct get_found_policy_pair_impl<FoundPolicyInfo> {
+                    using type = FoundPolicyInfo;
+                };
+
                 template <class FoundPolicyInfo, class FirstPolicy, class... RemainingPolicies>
-                static constexpr auto get_policy_impl(FoundPolicyInfo, FirstPolicy,
-                                                      RemainingPolicies... remainings) {
-                    if constexpr (std::is_base_of<Base, FirstPolicy>::value) {
-                        if constexpr (FoundPolicyInfo::found_info == policy_found_info::not_found) {
-                            return get_policy_impl(
-                                found_policy_pair<FirstPolicy, policy_found_info::unique>{},
-                                remainings...);
-                        }
-                        else {
-                            return get_policy_impl(
-                                found_policy_pair<FirstPolicy, policy_found_info::repeated>{},
-                                remainings...);
-                        }
-                    }
-                    else {
-                        return get_policy_impl(FoundPolicyInfo{}, remainings...);
-                    }
-                }
+                struct get_found_policy_pair_impl<FoundPolicyInfo, FirstPolicy,
+                                                  RemainingPolicies...> {
+                    using type = typename std::conditional<
+                        std::is_base_of<Base, FirstPolicy>::value,
+                        typename std::conditional<
+                            FoundPolicyInfo::found_info == policy_found_info::not_found,
+                            typename get_found_policy_pair_impl<
+                                found_policy_pair<FirstPolicy, policy_found_info::unique>,
+                                RemainingPolicies...>::type,
+                            typename get_found_policy_pair_impl<
+                                found_policy_pair<FirstPolicy, policy_found_info::repeated>,
+                                RemainingPolicies...>::type>::type,
+                        typename get_found_policy_pair_impl<FoundPolicyInfo,
+                                                            RemainingPolicies...>::type>::type;
+                };
 
                 template <class... Policies>
-                static constexpr auto get_policy(Policies... policies) {
-                    return get_policy_impl(
-                        found_policy_pair<DefaultPolicy, policy_found_info::not_found>{},
-                        policies...);
-                }
+                using get_found_policy_pair = typename get_found_policy_pair_impl<
+                    found_policy_pair<DefaultPolicy, policy_found_info::not_found>,
+                    Policies...>::type;
             };
             template <class... BaseDefaultPairs>
             struct base_default_pair_list {};
@@ -2702,60 +2701,94 @@ namespace jkj::dragonbox {
             template <class... Policies>
             struct policy_holder : Policies... {};
 
+            template <class BaseDefaultPairList, class FoundPolicyPairList, class... Policies>
+            struct make_policy_holder_impl;
+
             template <bool repeated, class... FoundPolicyPairs, class... Policies>
-            constexpr auto
-            make_policy_holder_impl(base_default_pair_list<>,
-                                    found_policy_pair_list<repeated, FoundPolicyPairs...>,
-                                    Policies...) {
-                return found_policy_pair_list<repeated, FoundPolicyPairs...>{};
-            }
+            struct make_policy_holder_impl<base_default_pair_list<>,
+                                           found_policy_pair_list<repeated, FoundPolicyPairs...>,
+                                           Policies...> {
+                using type = found_policy_pair_list<repeated, FoundPolicyPairs...>;
+            };
 
             template <class FirstBaseDefaultPair, class... RemainingBaseDefaultPairs, bool repeated,
                       class... FoundPolicyPairs, class... Policies>
-            constexpr auto make_policy_holder_impl(
+            struct make_policy_holder_impl<
                 base_default_pair_list<FirstBaseDefaultPair, RemainingBaseDefaultPairs...>,
-                found_policy_pair_list<repeated, FoundPolicyPairs...>, Policies... policies) {
+                found_policy_pair_list<repeated, FoundPolicyPairs...>, Policies...> {
                 using new_found_policy_pair =
-                    decltype(FirstBaseDefaultPair::get_policy(policies...));
+                    typename FirstBaseDefaultPair::template get_found_policy_pair<Policies...>;
 
-                return make_policy_holder_impl(
-                    base_default_pair_list<RemainingBaseDefaultPairs...>{},
-                    found_policy_pair_list < repeated ||
-                        new_found_policy_pair::found_info == policy_found_info::repeated,
-                    new_found_policy_pair, FoundPolicyPairs... > {}, policies...);
-            }
+                using type = typename make_policy_holder_impl<
+                    base_default_pair_list<RemainingBaseDefaultPairs...>,
+                    found_policy_pair_list<(repeated || new_found_policy_pair::found_info ==
+                                                            policy_found_info::repeated),
+                                           new_found_policy_pair, FoundPolicyPairs...>,
+                    Policies...>::type;
+            };
+
+            template <class BaseDefaultPairList, class... Policies>
+            using policy_pair_list =
+                typename make_policy_holder_impl<BaseDefaultPairList, found_policy_pair_list<false>,
+                                                 Policies...>::type;
+
+            template <class FoundPolicyPairList, class... RawPolicies>
+            struct convert_to_policy_holder_impl;
 
             template <bool repeated, class... RawPolicies>
-            constexpr auto convert_to_policy_holder(found_policy_pair_list<repeated>,
-                                                    RawPolicies...) {
-                return policy_holder<RawPolicies...>{};
-            }
+            struct convert_to_policy_holder_impl<found_policy_pair_list<repeated>, RawPolicies...> {
+                using type = policy_holder<RawPolicies...>;
+            };
 
             template <bool repeated, class FirstFoundPolicyPair, class... RemainingFoundPolicyPairs,
                       class... RawPolicies>
-            constexpr auto
-            convert_to_policy_holder(found_policy_pair_list<repeated, FirstFoundPolicyPair,
-                                                            RemainingFoundPolicyPairs...>,
-                                     RawPolicies... policies) {
-                return convert_to_policy_holder(
-                    found_policy_pair_list<repeated, RemainingFoundPolicyPairs...>{},
-                    typename FirstFoundPolicyPair::policy{}, policies...);
-            }
+            struct convert_to_policy_holder_impl<
+                found_policy_pair_list<repeated, FirstFoundPolicyPair,
+                                       RemainingFoundPolicyPairs...>,
+                RawPolicies...> {
+                using type = typename convert_to_policy_holder_impl<
+                    found_policy_pair_list<repeated, RemainingFoundPolicyPairs...>,
+                    typename FirstFoundPolicyPair::policy, RawPolicies...>::type;
+            };
+
+            template <class FoundPolicyPairList>
+            using convert_to_policy_holder =
+                typename convert_to_policy_holder_impl<FoundPolicyPairList>::type;
 
             template <class BaseDefaultPairList, class... Policies>
-            constexpr auto make_policy_holder(BaseDefaultPairList, Policies... policies) {
+            constexpr convert_to_policy_holder<policy_pair_list<BaseDefaultPairList, Policies...>>
+            make_policy_holder(BaseDefaultPairList, Policies... policies) {
                 static_assert(check_policy_list_validity(BaseDefaultPairList{}, Policies{}...),
                               "jkj::dragonbox: an invalid policy is specified");
 
-                using policy_pair_list = decltype(make_policy_holder_impl(
-                    BaseDefaultPairList{}, found_policy_pair_list<false>{}, policies...));
-
-                static_assert(!policy_pair_list::repeated,
+                static_assert(!policy_pair_list<BaseDefaultPairList, Policies...>::repeated,
                               "jkj::dragonbox: each policy should be specified at most once");
 
-                return convert_to_policy_holder(policy_pair_list{});
+                return {};
             }
         }
+
+        template <class... Policies>
+        using to_decimal_policy_holder = decltype(policy_impl::make_policy_holder(
+            policy_impl::base_default_pair_list<
+                policy_impl::base_default_pair<policy_impl::sign::base,
+                                               policy_impl::sign::return_sign>,
+                policy_impl::base_default_pair<policy_impl::trailing_zero::base,
+                                               policy_impl::trailing_zero::remove>,
+                policy_impl::base_default_pair<
+                    policy_impl::decimal_to_binary_rounding::base,
+                    policy_impl::decimal_to_binary_rounding::nearest_to_even>,
+                policy_impl::base_default_pair<policy_impl::binary_to_decimal_rounding::base,
+                                               policy_impl::binary_to_decimal_rounding::to_even>,
+                policy_impl::base_default_pair<policy_impl::cache::base,
+                                               policy_impl::cache::full>>{},
+            Policies{}...));
+
+        template <class FloatTraits, class... Policies>
+        using to_decimal_return_type =
+            decimal_fp<typename FloatTraits::carrier_uint,
+                       to_decimal_policy_holder<Policies...>::return_has_sign,
+                       to_decimal_policy_holder<Policies...>::report_trailing_zeros>;
 
         template <class Float, class FloatTraits, class PolicyHolder, class IntervalTypeProvider>
         struct invoke_shorter_dispatcher {
@@ -2788,9 +2821,11 @@ namespace jkj::dragonbox {
         };
 
         template <class Float, class FloatTraits, class PolicyHolder, class IntervalTypeProvider>
-        JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 auto
-        to_decimal_impl(signed_significand_bits<Float, FloatTraits> signed_significand_bits,
-                        unsigned int exponent_bits) noexcept {
+        JKJ_SAFEBUFFERS JKJ_CONSTEXPR20
+            decimal_fp<typename FloatTraits::carrier_uint, PolicyHolder::return_has_sign,
+                       PolicyHolder::report_trailing_zeros>
+            to_decimal_impl(signed_significand_bits<Float, FloatTraits> signed_significand_bits,
+                            unsigned int exponent_bits) noexcept {
             using namespace policy_impl;
             using unsigned_return_type = decimal_fp<typename FloatTraits::carrier_uint, false,
                                                     PolicyHolder::report_trailing_zeros>;
@@ -2921,20 +2956,13 @@ namespace jkj::dragonbox {
     ////////////////////////////////////////////////////////////////////////////////////////
 
     template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
-    JKJ_FORCEINLINE JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 auto
-    to_decimal(signed_significand_bits<Float, FloatTraits> signed_significand_bits,
-               unsigned int exponent_bits, Policies... policies) noexcept {
+    JKJ_FORCEINLINE
+        JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 detail::to_decimal_return_type<FloatTraits, Policies...>
+        to_decimal(signed_significand_bits<Float, FloatTraits> signed_significand_bits,
+                   unsigned int exponent_bits, Policies...) noexcept {
         // Build policy holder type.
         using namespace detail::policy_impl;
-        using policy_holder = decltype(make_policy_holder(
-            base_default_pair_list<base_default_pair<sign::base, sign::return_sign>,
-                                   base_default_pair<trailing_zero::base, trailing_zero::remove>,
-                                   base_default_pair<decimal_to_binary_rounding::base,
-                                                     decimal_to_binary_rounding::nearest_to_even>,
-                                   base_default_pair<binary_to_decimal_rounding::base,
-                                                     binary_to_decimal_rounding::to_even>,
-                                   base_default_pair<cache::base, cache::full>>{},
-            policies...));
+        using policy_holder = detail::to_decimal_policy_holder<Policies...>;
 
         return policy_holder::delegate(
             signed_significand_bits,
@@ -2943,8 +2971,9 @@ namespace jkj::dragonbox {
     }
 
     template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
-    JKJ_FORCEINLINE JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 auto to_decimal(Float x,
-                                                                    Policies... policies) noexcept {
+    JKJ_FORCEINLINE
+        JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 detail::to_decimal_return_type<FloatTraits, Policies...>
+        to_decimal(Float x, Policies... policies) noexcept {
         auto const br = float_bits<Float, FloatTraits>(x);
         auto const exponent_bits = br.extract_exponent_bits();
         auto const s = br.remove_exponent_bits(exponent_bits);
