@@ -79,23 +79,23 @@ int main()
 	constexpr static std::size_t number_of_digit_perf_tests_double = 6000000;
 
 
-	if constexpr (run_uniform_random_float) {
+	if (run_uniform_random_float) {
 		std::cout << "[Running the algorithm with uniformly randomly generated float inputs...]\n";
 		uniform_random_perf_test<float>(number_of_uniform_random_perf_tests_float);
 		std::cout << "Done.\n\n\n";
 	}
-	if constexpr (run_uniform_random_double) {
+	if (run_uniform_random_double) {
 		std::cout << "[Running the algorithm with uniformly randomly generated double inputs...]\n";
 		uniform_random_perf_test<double>(number_of_uniform_random_perf_tests_double);
 		std::cout << "Done.\n\n\n";
 	}
-	if constexpr (run_digit_float) {
+	if (run_digit_float) {
 		std::cout << "[Running the algorithm with float inputs of digits = "
 			<< digits_for_perf_test_float << "...]\n";
 		digit_perf_test<float>(digits_for_perf_test_float, number_of_digit_perf_tests_float);
 		std::cout << "Done.\n\n\n";
 	}
-	if constexpr (run_digit_double) {
+	if (run_digit_double) {
 		std::cout << "[Running the algorithm with double inputs of digits = "
 			<< digits_for_perf_test_double << "...]\n";
 		digit_perf_test<double>(digits_for_perf_test_double, number_of_digit_perf_tests_double);

@@ -18,9 +18,13 @@
 #include "dragonbox/dragonbox_to_chars.h"
 #include "random_float.h"
 #include "ryu/ryu.h"
+
 #include <iostream>
 #include <string_view>
 #include <utility>
+
+void reference_implementation(float x, char* buffer) { f2s_buffered(x, buffer); }
+void reference_implementation(double x, char* buffer) { d2s_buffered(x, buffer); }
 
 template <class Float, class TypenameString, class... Args>
 static bool uniform_random_test(std::size_t number_of_tests, TypenameString&& type_name_string,
@@ -32,20 +36,15 @@ static bool uniform_random_test(std::size_t number_of_tests, TypenameString&& ty
     for (std::size_t test_idx = 0; test_idx < number_of_tests; ++test_idx) {
         auto x = uniformly_randomly_generate_general_float<Float>(rg);
 
-        // Check if the output is identical to that of Ryu
+        // Check if the output is identical to the reference implementation (Ryu).
         jkj::dragonbox::to_chars(x, buffer1, std::forward<Args>(args)...);
-        if constexpr (std::is_same_v<Float, float>) {
-            f2s_buffered(x, buffer2);
-        }
-        else {
-            d2s_buffered(x, buffer2);
-        }
+        reference_implementation(x, buffer2);
 
         std::string_view view1(buffer1);
         std::string_view view2(buffer2);
 
         if (view1 != view2) {
-            std::cout << "Error detected! [Ryu = " << buffer2 << ", Dragonbox = " << buffer1
+            std::cout << "Error detected! [Reference = " << buffer2 << ", Dragonbox = " << buffer1
                       << "]\n";
             success = false;
         }
@@ -71,17 +70,17 @@ int main() {
 
     bool success = true;
 
-    if constexpr (run_float) {
+    if (run_float) {
         std::cout << "[Testing uniformly randomly generated float inputs...]\n";
         success &= uniform_random_test<float>(number_of_uniform_random_tests_float, "float");
         std::cout << "Done.\n\n\n";
     }
-    if constexpr (run_double) {
+    if (run_double) {
         std::cout << "[Testing uniformly randomly generated double inputs...]\n";
         success &= uniform_random_test<double>(number_of_uniform_random_tests_double, "double");
         std::cout << "Done.\n\n\n";
     }
-    if constexpr (run_double_with_compressed_cache) {
+    if (run_double_with_compressed_cache) {
         std::cout
             << "[Testing uniformly randomly generated double inputs with compressed cache...]\n";
         success &= uniform_random_test<double>(number_of_uniform_random_tests_double_compressed,

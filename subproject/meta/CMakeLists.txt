@@ -36,6 +36,6 @@ function(meta_exe NAME)
 endfunction()
 
 meta_exe(generate_cache dragonbox::common)
-meta_exe(live_test dragonbox::dragonbox_to_chars)
+meta_exe(live_test dragonbox::common dragonbox::dragonbox_to_chars ryu::ryu)
 meta_exe(perf_test dragonbox::common dragonbox::dragonbox_to_chars)
-meta_exe(sandbox dragonbox::dragonbox_to_chars dragonbox::common)
+meta_exe(sandbox dragonbox::common dragonbox::dragonbox_to_chars)

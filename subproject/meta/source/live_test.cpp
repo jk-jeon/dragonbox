@@ -16,14 +16,20 @@
 // KIND, either express or implied.
 
 #include "dragonbox/dragonbox_to_chars.h"
+#include "random_float.h"
+#include "ryu/ryu.h"
 
 #include <iostream>
 #include <iomanip>
 #include <string>
 
+void reference_implementation(float x, char* buffer) { f2s_buffered(x, buffer); }
+void reference_implementation(double x, char* buffer) { d2s_buffered(x, buffer); }
+
 template <class Float>
-static void live_test() {
-    char buffer[41];
+static void live_test(std::streamsize hex_width) {
+    char buffer1[41];
+    char buffer2[41];
 
     while (true) {
         Float x;
@@ -31,12 +37,7 @@ static void live_test() {
         while (true) {
             std::getline(std::cin, x_str);
             try {
-                if constexpr (std::is_same_v<Float, float>) {
-                    x = std::stof(x_str);
-                }
-                else {
-                    x = std::stod(x_str);
-                }
+                x = std_string_to_float<Float>{}(x_str);
             }
             catch (...) {
                 std::cout << "Not a valid input; input again.\n";
@@ -52,30 +53,27 @@ static void live_test() {
                   << " (value: " << xx.binary_exponent() << ")\n";
         std::cout << "  significand bits: "
                   << "0x" << std::hex << std::setfill('0');
-        if constexpr (std::is_same_v<Float, float>) {
-            std::cout << std::setw(8);
-        }
-        else {
-            std::cout << std::setw(16);
-        }
+        std::cout << std::setw(hex_width);
         std::cout << xx.extract_significand_bits() << " (value: 0x" << xx.binary_significand()
                   << ")\n"
                   << std::dec;
 
-        jkj::dragonbox::to_chars(x, buffer);
-        std::cout << "  Dragonbox output: " << buffer << "\n\n";
+        jkj::dragonbox::to_chars(x, buffer1);
+        reference_implementation(x, buffer2);
+        std::cout << "  Dragonbox output: " << buffer1 << "\n";
+        std::cout << "  Reference output: " << buffer2 << "\n\n";
     }
 }
 
 int main() {
     constexpr enum { test_float, test_double } test = test_double;
 
-    if constexpr (test == test_float) {
+    if (test == test_float) {
         std::cout << "[Start live test for float's]\n";
-        live_test<float>();
+        live_test<float>(8);
     }
-    else if constexpr (test == test_double) {
+    else if (test == test_double) {
         std::cout << "[Start live test for double's]\n";
-        live_test<double>();
+        live_test<double>(16);
     }
 }
