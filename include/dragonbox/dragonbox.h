@@ -1409,7 +1409,8 @@ namespace jkj {
                         JKJ_FORCEINLINE static constexpr ReturnType
                         on_trailing_zeros(typename Impl::carrier_uint significand,
                                           int exponent) noexcept {
-                            return {significand, exponent + Impl::remove_trailing_zeros(significand)};
+                            exponent += Impl::remove_trailing_zeros(significand);
+                            return {significand, exponent};
                         }
 
                         template <class Impl, class ReturnType>
