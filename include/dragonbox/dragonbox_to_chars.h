@@ -20,6 +20,23 @@
 
 #include "dragonbox.h"
 
+// C++17 inline variables
+#if defined(__cpp_inline_variables) && __cpp_inline_variables >= 201606L
+    #define JKJ_HAS_INLINE_VARIABLE 1
+#elif __cplusplus >= 201703L
+    #define JKJ_HAS_INLINE_VARIABLE 1
+#elif defined(_MSC_VER) && _MSC_VER >= 1912 && _MSVC_LANG >= 201703L
+    #define JKJ_HAS_INLINE_VARIABLE 1
+#else
+    #define JKJ_HAS_INLINE_VARIABLE 0
+#endif
+
+#if JKJ_HAS_INLINE_VARIABLE
+    #define JKJ_INLINE_VARIABLE inline constexpr
+#else
+    #define JKJ_INLINE_VARIABLE static constexpr
+#endif
+
 namespace jkj::dragonbox {
     namespace to_chars_detail {
         template <class Float, class FloatTraits>
@@ -94,7 +111,7 @@ namespace jkj::dragonbox {
 
     // Maximum required buffer size (excluding null-terminator)
     template <class FloatFormat>
-    inline constexpr std::size_t max_output_string_length =
+    JKJ_INLINE_VARIABLE std::size_t max_output_string_length =
         std::is_same<FloatFormat, ieee754_binary32>::value
             ?
             // sign(1) + significand(9) + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp(2)
@@ -104,5 +121,8 @@ namespace jkj::dragonbox {
             // sign(1) + significand(17) + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp(3)
             (1 + 17 + 1 + 1 + 1 + 3);
 }
+
+#undef JKJ_INLINE_VARIABLE
+#undef JKJ_HAS_INLINE_VARIABLE
 
 #endif
