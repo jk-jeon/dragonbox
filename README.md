@@ -115,7 +115,7 @@ Determines whether or not `jkj::dragonbox::to_decimal` will extract and return t
 
 - `jkj::dragonbox::policy::sign::ignore`: There is no `is_negative` member in the returned struct and the sign of the input is not returned. A string generation routine might anyway need to deal with the sign by itself, so often this member will not be needed. In that case, omitting `is_negative` member can reduce some overhead. `jkj::dragonbox::to_chars` and `jkj::dragonbox::to_chars_n` use this policy internally. In the implementation of `jkj::dragonbox::to_decimal`, the sign of the input is relevant only for deciding the rounding interval under certain rounding mode policies. Under the default rounding mode policies, the sign is completely ignored.
 
--`jkj::dragonbox::policy::sign::return_sign`: **This is the default policy.** The sign of the input will be written in the `is_negative` member of the returned struct.
+- `jkj::dragonbox::policy::sign::return_sign`: **This is the default policy.** The sign of the input will be written in the `is_negative` member of the returned struct.
 
 You cannot specify sign policy to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
 
@@ -123,9 +123,9 @@ You cannot specify sign policy to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to
 Determines what `jkj::dragonbox::to_decimal` will do with possible trailing decimal zeros.
 
 - `jkj::dragonbox::policy::trailing_zero::ignore`: Do not care about trailing zeros; the output significand may contain trailing zeros. Since trailing zero removal is a relatively heavy operation involving lots of divisions, and a string generation routine will need to perform divisions anyway, it is possible to get a better overall performance by omitting trailing zero removal from `jkj::dragonbox::to_decimal` and taking care of that in other places. `jkj::dragonbox::to_chars` and `jkj::dragonbox::to_chars_n` use this policy internally for IEEE-754 binary64 format (aka `double`).
-- 
+ 
 - `jkj::dragonbox::policy::trailing_zero::remove`: **This is the default policy.** Remove all trailing zeros in the output. `jkj::dragonbox::to_chars` and `jkj::dragonbox::to_chars_n` use this policy internally for IEEE-754 binary32 format (aka `float`).
-- 
+
 - `jkj::dragonbox::policy::trailing_zero::report`: The output significand may contain trailing zeros, but such possibility will be reported in the additional member `may_have_trailing_zeros` of the returned struct. This member will be set to `true` if there might be trailing zeros, and it will be set to `false` if there should be no trailing zero. By how the algorithm works, it is guaranteed that whenever there might be trailing zeros, the maximum number of trailing zeros is 7 for binary32 and 15 for binary64.
 
 You cannot specify trailing zero policy to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
