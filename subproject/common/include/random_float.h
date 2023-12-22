@@ -163,7 +163,12 @@ Float randomly_generate_float_with_given_digits(unsigned int digits, RandGen& rg
 
         // Cook up
         auto str = std::to_string(sign * significand) + 'e' + std::to_string(exp);
-        result = std_string_to_float<Float>{}(str);
+        try {
+            result = std_string_to_float<Float>{}(str);
+        }
+        catch (...) {
+            continue;
+        }
 
         if (!std::isfinite(result)) {
             continue;
