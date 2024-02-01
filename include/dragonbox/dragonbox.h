@@ -2648,23 +2648,26 @@ namespace jkj {
 
             namespace policy_impl {
                 // The library will specify a list of accepted kinds of policies and their defaults,
-                // and the user will pass a list of policies. The aim of helper classes/functions
-                // here is to do the following:
+                // and the user will pass a list of policies parameters. The policy parameters are
+                // supposed to be stateless and only convey information through their types.
+                // The aim of the helper classes/functions given below is to do the following:
                 //   1. Check if the policy parameters given by the user are all valid; that means,
                 //      each of them should be of the kinds specified by the library.
                 //      If that's not the case, then the compilation fails.
                 //   2. Check if multiple policy parameters for the same kind is specified by the
-                //   user.
-                //      If that's the case, then the compilation fails.
+                //      user. If that's the case, then the compilation fails.
                 //   3. Build a class deriving from all policies the user have given, and also from
                 //      the default policies if the user did not specify one for some kinds.
-                // A policy belongs to a certain kind if it is deriving from a base class.
+                // The library provides a base class for each kind of policies, and it considers a
+                // certain policy parameter to belong to a specific kind if and only if the parameter's
+                // type is deriving from the said base class.
 
                 // For a given kind, find a policy belonging to that kind.
                 // Check if there are more than one such policies.
                 enum class policy_found_info { not_found, unique, repeated };
                 template <class Policy, policy_found_info info>
                 struct found_policy_pair {
+                    // Either the policy parameter type given by the user, or the default policy.
                     using policy = Policy;
                     static constexpr auto found_info = info;
                 };
@@ -2672,6 +2675,24 @@ namespace jkj {
                 template <class Base, class DefaultPolicy>
                 struct base_default_pair {
                     using base = Base;
+
+                    // Iterate through all given policy parameter types and see if there is a policy
+                    // parameter type deriving from Base.
+                    // 1. If there is none, get_found_policy_pair returns
+                    //    found_policy_pair<DefaultPolicy, policy_found_info::not_found>.
+                    // 2. If there is only one parameter type deriving from Base, then
+                    //    get_found_policy_pair returns
+                    //    found_policy_pair<Policy, policy_found_info::unique>
+                    //    where Policy is the unique parameter type deriving from Base.
+                    // 3. If there are multiple parameter types deriving from Base, then
+                    //    get_found_policy_pair returns
+                    //    found_policy_pair<FirstPolicy, policy_found_info::repeated>
+                    //    where FirstPolicy is the first parameter type deriving from Base.
+                    //    The compilation must fail if this happens.
+                    // This is done by first setting FoundPolicyInfo below to
+                    // found_policy_pair<DefaultPolicy, policy_found_info::not_found>, and then iterate
+                    // over Policies, replacing FoundPolicyInfo by the appropriate one if a parameter
+                    // type deriving from Base is found.
 
                     template <class FoundPolicyInfo, class... Policies>
                     struct get_found_policy_pair_impl;
@@ -2703,6 +2724,8 @@ namespace jkj {
                         found_policy_pair<DefaultPolicy, policy_found_info::not_found>,
                         Policies...>::type;
                 };
+
+                // Simple typelist of base_default_pair's.
                 template <class... BaseDefaultPairs>
                 struct base_default_pair_list {};
 
@@ -2720,11 +2743,11 @@ namespace jkj {
                                Policy{}, base_default_pair_list<RemainingBaseDefaultPairs...>{});
                 }
 
+                // Check if all of policies belong to some of the kinds specified by the library.
                 template <class BaseDefaultPairList>
                 constexpr bool check_policy_list_validity(BaseDefaultPairList) {
                     return true;
                 }
-
                 template <class BaseDefaultPairList, class FirstPolicy, class... RemainingPolicies>
                 constexpr bool check_policy_list_validity(BaseDefaultPairList, FirstPolicy,
                                                           RemainingPolicies... remaining_policies) {
@@ -2732,18 +2755,31 @@ namespace jkj {
                            check_policy_list_validity(BaseDefaultPairList{}, remaining_policies...);
                 }
 
-                // Build policy_holder.
-                template <bool repeated_, class... FoundPolicyPairs>
-                struct found_policy_pair_list {
-                    static constexpr bool repeated = repeated_;
-                };
-
+                // Actual policy holder class deriving from all specified policy types.
                 template <class... Policies>
                 struct policy_holder : Policies... {};
 
+                // Iterate through the library-specified list of base-default pairs, i.e., the list of
+                // policy kinds and their defaults. For each base-default pair, call
+                // base_default_pair::get_found_policy_pair on the list of user-specified list of
+                // policies to get found_policy_pair, and build the list of them.
+
+                template <bool repeated_, class... FoundPolicyPairs>
+                struct found_policy_pair_list {
+                    // This will be set to be true if and only if there exists at least one
+                    // found_policy_pair inside FoundPolicyPairs with
+                    // found_info == policy_found_info::repeated, in which case the compilation must
+                    // fail.
+                    static constexpr bool repeated = repeated_;
+                };
+
+                // Iterate through BaseDefaultPairList and augment FoundPolicyPairList by one at each
+                // iteration.
                 template <class BaseDefaultPairList, class FoundPolicyPairList, class... Policies>
                 struct make_policy_holder_impl;
 
+                // When there is no more base-default pair to iterate, then the current
+                // found_policy_pair_list is the final result.
                 template <bool repeated, class... FoundPolicyPairs, class... Policies>
                 struct make_policy_holder_impl<base_default_pair_list<>,
                                                found_policy_pair_list<repeated, FoundPolicyPairs...>,
@@ -2751,6 +2787,10 @@ namespace jkj {
                     using type = found_policy_pair_list<repeated, FoundPolicyPairs...>;
                 };
 
+                // For the first base-default pair in the remaining list, call
+                // base_default_pair::get_found_policy_pair on Policies and add the returned
+                // found_policy_pair into the current list of found_policy_pair's, and move to the next
+                // base-default pair.
                 template <class FirstBaseDefaultPair, class... RemainingBaseDefaultPairs, bool repeated,
                           class... FoundPolicyPairs, class... Policies>
                 struct make_policy_holder_impl<
@@ -2772,6 +2812,8 @@ namespace jkj {
                     typename make_policy_holder_impl<BaseDefaultPairList, found_policy_pair_list<false>,
                                                      Policies...>::type;
 
+                // Unpack FoundPolicyPairList into found_policy_pair's and build the policy_holder type
+                // from the corresponding typelist of found_policy_pair::policy's.
                 template <class FoundPolicyPairList, class... RawPolicies>
                 struct convert_to_policy_holder_impl;
 
@@ -2801,8 +2843,9 @@ namespace jkj {
                     static_assert(check_policy_list_validity(BaseDefaultPairList{}, Policies{}...),
                                   "jkj::dragonbox: an invalid policy is specified");
 
-                    static_assert(!policy_pair_list<BaseDefaultPairList, Policies...>::repeated,
-                                  "jkj::dragonbox: each policy should be specified at most once");
+                    static_assert(
+                        !policy_pair_list<BaseDefaultPairList, Policies...>::repeated,
+                        "jkj::dragonbox: at most one policy should be specified for each policy kind");
 
                     return {};
                 }
