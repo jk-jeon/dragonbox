@@ -1786,11 +1786,14 @@ namespace jkj {
                 }
 
                 // Binary-to-decimal rounding policies.
-                // (Always assumes nearest rounding modes.)
+                // (Always assumes nearest rounding modes, as there can be no tie for other rounding
+                // modes.)
                 namespace binary_to_decimal_rounding {
                     struct base {};
 
                     enum class tag_t { do_not_care, to_even, to_odd, away_from_zero, toward_zero };
+
+                    // The parameter significand corresponds to 10\tilde{s}+t in the paper.
 
                     struct do_not_care : base {
                         using binary_to_decimal_rounding_policy = do_not_care;
