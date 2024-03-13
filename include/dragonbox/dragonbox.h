@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Junekey Jeon
+// Copyright 2020-2024 Junekey Jeon
 //
 // The contents of this file may be used under the terms of
 // the Apache License v2.0 with LLVM Exceptions.
@@ -19,16 +19,33 @@
 #ifndef JKJ_HEADER_DRAGONBOX
 #define JKJ_HEADER_DRAGONBOX
 
-#include <cassert>
-#include <cstdint>
-#include <cstring>
-#include <limits>
-#include <type_traits>
+// Attribute for storing static data into a dedicated place, e.g. flash memory. Every ODR-used static
+// data declaration will be decorated with this macro. The users may define this macro, before including
+// the library headers, into whatever they want.
+#ifndef JKJ_STATIC_DATA_SECTION
+    #define JKJ_STATIC_DATA_SECTION
+#else
+    #define JKJ_STATIC_DATA_SECTION_DEFINED 1
+#endif
 
-#ifdef __has_include
-    #if __has_include(<version>)
-        #include <version>
+// To use the library with toolchains without standard C++ headers, the users may define this macro into
+// their custom namespace which contains the defintions of all the standard C++ library features used in
+// this header. (The list can be found below.)
+#ifndef JKJ_STD_REPLACEMENT_NAMESPACE
+    #define JKJ_STD_REPLACEMENT_NAMESPACE std
+    #include <cassert>
+    #include <cstdint>
+    #include <cstring>
+    #include <limits>
+    #include <type_traits>
+
+    #ifdef __has_include
+        #if __has_include(<version>)
+            #include <version>
+        #endif
     #endif
+#else
+    #define JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED 1
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -98,7 +115,13 @@
 #endif
 
 // C++20 std::bit_cast
-#if defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
+#if JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
+    #if JKJ_STD_REPLACEMENT_HAS_BIT_CAST
+        #define JKJ_HAS_BIT_CAST 1
+    #else
+        #define JKJ_HAS_BIT_CAST 0
+    #endif
+#elif defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
     #include <bit>
     #define JKJ_HAS_BIT_CAST 1
 #else
@@ -110,18 +133,34 @@
     #define JKJ_IF_CONSTEVAL if consteval
     #define JKJ_IF_NOT_CONSTEVAL if !consteval
     #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-#elif defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
-    #define JKJ_IF_CONSTEVAL if (std::is_constant_evaluated())
-    #define JKJ_IF_NOT_CONSTEVAL if (!std::is_constant_evaluated())
-    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-#elif JKJ_HAS_IF_CONSTEXPR
-    #define JKJ_IF_CONSTEVAL if constexpr (false)
-    #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
-    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+#elif JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
+    #if JKJ_STD_REPLACEMENT_HAS_IS_CONSTANT_EVALUATED
+        #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
+        #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
+        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+    #elif JKJ_HAS_IF_CONSTEXPR
+        #define JKJ_IF_CONSTEVAL if constexpr (false)
+        #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
+        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+    #else
+        #define JKJ_IF_CONSTEVAL if (false)
+        #define JKJ_IF_NOT_CONSTEVAL if (true)
+        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+    #endif
 #else
-    #define JKJ_IF_CONSTEVAL if (false)
-    #define JKJ_IF_NOT_CONSTEVAL if (true)
-    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+    #if defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
+        #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
+        #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
+        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+    #elif JKJ_HAS_IF_CONSTEXPR
+        #define JKJ_IF_CONSTEVAL if constexpr (false)
+        #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
+        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+    #else
+        #define JKJ_IF_CONSTEVAL if (false)
+        #define JKJ_IF_NOT_CONSTEVAL if (true)
+        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+    #endif
 #endif
 
 #if JKJ_CAN_BRANCH_ON_CONSTEVAL && JKJ_HAS_BIT_CAST
@@ -157,30 +196,82 @@
 namespace jkj {
     namespace dragonbox {
         ////////////////////////////////////////////////////////////////////////////////////////
-        // Some general utilities for C++11-compatibility
+        // The Compatibility layer for toolchains without standard C++ headers.
+        ////////////////////////////////////////////////////////////////////////////////////////
+        namespace detail {
+            namespace stdr {
+                // <bit>
+#if JKJ_STD_REPLACEMENT_HAS_BIT_CAST
+                using JKJ_STD_REPLACEMENT_NAMESPACE::bit_cast;
+#endif
+
+                // <cassert>
+                // We need assert() macro, but it is not namespaced anyway, so nothing to do here.
+
+                // <cstdint>
+                using JKJ_STD_REPLACEMENT_NAMESPACE::int_least32_t;
+                using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least32_t;
+                using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least64_t;
+                // We need UINT32_C and UINT64_C macros too, but again there is nothing to do here.
+
+                // <cstring>
+                using JKJ_STD_REPLACEMENT_NAMESPACE::size_t;
+                using JKJ_STD_REPLACEMENT_NAMESPACE::memcpy;
+
+                // <limits>
+                template <class T>
+                using numeric_limits = JKJ_STD_REPLACEMENT_NAMESPACE::numeric_limits<T>;
+
+                // <type_traits>
+                template <bool cond, class T = void>
+                using enable_if = JKJ_STD_REPLACEMENT_NAMESPACE::enable_if<cond, T>;
+                template <class T>
+                using add_rvalue_reference = JKJ_STD_REPLACEMENT_NAMESPACE::add_rvalue_reference<T>;
+                template <bool cond, class T_true, class T_false>
+                using conditional = JKJ_STD_REPLACEMENT_NAMESPACE::conditional<cond, T_true, T_false>;
+                template <class Base, class Derived>
+                using is_base_of = JKJ_STD_REPLACEMENT_NAMESPACE::is_base_of<Base, Derived>;
+#if JKJ_STD_REPLACEMENT_HAS_IS_CONSTANT_EVALUATED
+                using JKJ_STD_REPLACEMENT_NAMESPACE::is_constant_evaluated;
+#endif
+                template <class T1, class T2>
+                using is_same = JKJ_STD_REPLACEMENT_NAMESPACE::is_same<T1, T2>;
+#if !JKJ_HAS_BIT_CAST
+                template <class T>
+                using is_trivially_copyable = JKJ_STD_REPLACEMENT_NAMESPACE::is_trivially_copyable<T>;
+#endif
+                template <class T>
+                using is_unsigned = JKJ_STD_REPLACEMENT_NAMESPACE::is_unsigned<T>;
+            }
+        }
+
+
+        ////////////////////////////////////////////////////////////////////////////////////////
+        // Some general utilities for C++11-compatibility.
         ////////////////////////////////////////////////////////////////////////////////////////
         namespace detail {
 #if !JKJ_HAS_CONSTEXPR17
-            template <std::size_t... indices>
+            template <stdr::size_t... indices>
             struct index_sequence {};
 
-            template <std::size_t current, std::size_t total, class Dummy, std::size_t... indices>
+            template <stdr::size_t current, stdr::size_t total, class Dummy, stdr::size_t... indices>
             struct make_index_sequence_impl {
                 using type = typename make_index_sequence_impl<current + 1, total, Dummy, indices...,
                                                                current>::type;
             };
 
-            template <std::size_t total, class Dummy, std::size_t... indices>
+            template <stdr::size_t total, class Dummy, stdr::size_t... indices>
             struct make_index_sequence_impl<total, total, Dummy, indices...> {
                 using type = index_sequence<indices...>;
             };
 
-            template <std::size_t N>
+            template <stdr::size_t N>
             using make_index_sequence = typename make_index_sequence_impl<0, N, void>::type;
 #endif
 
+            // Available since C++11, but including <utility> just for this is an overkill.
             template <class T>
-            typename std::add_rvalue_reference<T>::type declval() noexcept;
+            typename stdr::add_rvalue_reference<T>::type declval() noexcept;
         }
 
 
@@ -190,25 +281,25 @@ namespace jkj {
         namespace detail {
             template <class T>
             struct physical_bits {
-                static constexpr std::size_t value =
-                    sizeof(T) * std::numeric_limits<unsigned char>::digits;
+                static constexpr stdr::size_t value =
+                    sizeof(T) * stdr::numeric_limits<unsigned char>::digits;
             };
             template <class T>
             struct value_bits {
-                static constexpr std::size_t value = std::numeric_limits<
-                    typename std::enable_if<std::is_unsigned<T>::value, T>::type>::digits;
+                static constexpr stdr::size_t value = stdr::numeric_limits<
+                    typename stdr::enable_if<stdr::is_unsigned<T>::value, T>::type>::digits;
             };
 
             template <typename To, typename From>
             JKJ_CONSTEXPR20 To bit_cast(const From& from) {
 #if JKJ_HAS_BIT_CAST
-                return std::bit_cast<To>(from);
+                return stdr::bit_cast<To>(from);
 #else
                 static_assert(sizeof(From) == sizeof(To), "");
-                static_assert(std::is_trivially_copyable<To>::value, "");
-                static_assert(std::is_trivially_copyable<From>::value, "");
+                static_assert(stdr::is_trivially_copyable<To>::value, "");
+                static_assert(stdr::is_trivially_copyable<From>::value, "");
                 To to;
-                std::memcpy(&to, &from, sizeof(To));
+                stdr::memcpy(&to, &from, sizeof(To));
                 return to;
 #endif
             }
@@ -243,7 +334,8 @@ namespace jkj {
         struct default_float_traits {
             // I don't know if there is a truly reliable way of detecting
             // IEEE-754 binary32/binary64 formats; I just did my best here.
-            static_assert(std::numeric_limits<T>::is_iec559 && std::numeric_limits<T>::radix == 2 &&
+            static_assert(detail::stdr::numeric_limits<T>::is_iec559 &&
+                              detail::stdr::numeric_limits<T>::radix == 2 &&
                               (detail::physical_bits<T>::value == 32 ||
                                detail::physical_bits<T>::value == 64),
                           "default_ieee754_traits only works for 32-bits or 64-bits types "
@@ -253,13 +345,15 @@ namespace jkj {
             using type = T;
 
             // Refers to the format specification class.
-            using format = typename std::conditional<detail::physical_bits<T>::value == 32,
-                                                     ieee754_binary32, ieee754_binary64>::type;
+            using format = typename detail::stdr::conditional<detail::physical_bits<T>::value == 32,
+                                                              ieee754_binary32, ieee754_binary64>::type;
 
             // Defines an unsigned integer type that is large enough to carry a variable of type T.
             // Most of the operations will be done on this integer type.
-            using carrier_uint = typename std::conditional<detail::physical_bits<T>::value == 32,
-                                                           std::uint32_t, std::uint64_t>::type;
+            using carrier_uint =
+                typename detail::stdr::conditional<detail::physical_bits<T>::value == 32,
+                                                   detail::stdr::uint_least32_t,
+                                                   detail::stdr::uint_least64_t>::type;
             static_assert(sizeof(carrier_uint) == sizeof(T), "");
 
             // Number of bits in the above unsigned integer type.
@@ -458,13 +552,11 @@ namespace jkj {
 
             namespace bits {
                 // Most compilers should be able to optimize this into the ROR instruction.
-                inline JKJ_CONSTEXPR14 std::uint32_t rotr(std::uint32_t n, std::uint32_t r) noexcept {
-                    r &= 31;
-                    return (n >> r) | (n << (32 - r));
-                }
-                inline JKJ_CONSTEXPR14 std::uint64_t rotr(std::uint64_t n, std::uint32_t r) noexcept {
-                    r &= 63;
-                    return (n >> r) | (n << (64 - r));
+                template <stdr::size_t bit_width, class UInt>
+                JKJ_CONSTEXPR14 UInt rotr(UInt n, unsigned int r) noexcept {
+                    static_assert(bit_width <= value_bits<UInt>::value, "rotation bit width too large");
+                    r &= (bit_width - 1);
+                    return (n >> r) | (n << (bit_width - r));
                 }
             }
 
@@ -492,26 +584,31 @@ namespace jkj {
                 struct uint128 {
                     uint128() = default;
 
-                    std::uint64_t high_;
-                    std::uint64_t low_;
+                    stdr::uint_least64_t high_;
+                    stdr::uint_least64_t low_;
 
-                    constexpr uint128(std::uint64_t high, std::uint64_t low) noexcept
+                    constexpr uint128(stdr::uint_least64_t high, stdr::uint_least64_t low) noexcept
                         : high_{high}, low_{low} {}
 
-                    constexpr std::uint64_t high() const noexcept { return high_; }
-                    constexpr std::uint64_t low() const noexcept { return low_; }
+                    constexpr stdr::uint_least64_t high() const noexcept { return high_; }
+                    constexpr stdr::uint_least64_t low() const noexcept { return low_; }
 
-                    JKJ_CONSTEXPR20 uint128& operator+=(std::uint64_t n) & noexcept {
+                    JKJ_CONSTEXPR20 uint128& operator+=(stdr::uint_least64_t n) & noexcept {
                         auto const generic_impl = [&] {
-                            auto sum = low_ + n;
+                            auto sum = (low_ + n) & UINT64_C(0xffffffffffffffff);
                             high_ += (sum < low_ ? 1 : 0);
                             low_ = sum;
                         };
+                        // To suppress warning.
+                        static_cast<void>(generic_impl);
+
                         JKJ_IF_CONSTEVAL {
                             generic_impl();
                             return *this;
                         }
 #if JKJ_HAS_BUILTIN(__builtin_addcll)
+                        static_assert(stdr::is_same<unsigned long long, stdr::uint_least64_t>::value &&
+                                      value_bits<stdr::uint_least64_t>::value == 64);
                         unsigned long long carry{};
                         low_ = __builtin_addcll(low_, n, 0, &carry);
                         high_ = __builtin_addcll(high_, 0, carry, &carry);
@@ -531,36 +628,41 @@ namespace jkj {
                     }
                 };
 
-                inline JKJ_CONSTEXPR20 std::uint64_t umul64(std::uint32_t x, std::uint32_t y) noexcept {
+                inline JKJ_CONSTEXPR20 stdr::uint_least64_t umul64(stdr::uint_least32_t x,
+                                                                   stdr::uint_least32_t y) noexcept {
 #if defined(_MSC_VER) && defined(_M_IX86)
                     JKJ_IF_NOT_CONSTEVAL { return __emulu(x, y); }
 #endif
-                    return x * std::uint64_t(y);
+                    return x * stdr::uint_least64_t(y);
                 }
 
                 // Get 128-bit result of multiplication of two 64-bit unsigned integers.
-                JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128 umul128(std::uint64_t x,
-                                                                       std::uint64_t y) noexcept {
+                JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128
+                umul128(stdr::uint_least64_t x, stdr::uint_least64_t y) noexcept {
                     auto const generic_impl = [&]() -> uint128 {
-                        auto a = std::uint32_t(x >> 32);
-                        auto b = std::uint32_t(x);
-                        auto c = std::uint32_t(y >> 32);
-                        auto d = std::uint32_t(y);
+                        auto a = stdr::uint_least32_t(x >> 32);
+                        auto b = stdr::uint_least32_t(x);
+                        auto c = stdr::uint_least32_t(y >> 32);
+                        auto d = stdr::uint_least32_t(y);
 
                         auto ac = umul64(a, c);
                         auto bc = umul64(b, c);
                         auto ad = umul64(a, d);
                         auto bd = umul64(b, d);
 
-                        auto intermediate = (bd >> 32) + std::uint32_t(ad) + std::uint32_t(bc);
+                        auto intermediate =
+                            (bd >> 32) + stdr::uint_least32_t(ad) + stdr::uint_least32_t(bc);
 
                         return {ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32),
-                                (intermediate << 32) + std::uint32_t(bd)};
+                                (intermediate << 32) + stdr::uint_least32_t(bd)};
                     };
+                    // To suppress warning.
+                    static_cast<void>(generic_impl);
+
                     JKJ_IF_CONSTEVAL { return generic_impl(); }
 #if defined(__SIZEOF_INT128__)
                     auto result = builtin_uint128_t(x) * builtin_uint128_t(y);
-                    return {std::uint64_t(result >> 64), std::uint64_t(result)};
+                    return {stdr::uint_least64_t(result >> 64), stdr::uint_least64_t(result)};
 #elif defined(_MSC_VER) && defined(_M_X64)
                     uint128 result;
                     result.low_ = _umul128(x, y, &result.high_);
@@ -570,27 +672,31 @@ namespace jkj {
 #endif
                 }
 
-                JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 std::uint64_t
-                umul128_upper64(std::uint64_t x, std::uint64_t y) noexcept {
-                    auto const generic_impl = [&]() -> std::uint64_t {
-                        auto a = std::uint32_t(x >> 32);
-                        auto b = std::uint32_t(x);
-                        auto c = std::uint32_t(y >> 32);
-                        auto d = std::uint32_t(y);
+                JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 stdr::uint_least64_t
+                umul128_upper64(stdr::uint_least64_t x, stdr::uint_least64_t y) noexcept {
+                    auto const generic_impl = [&]() -> stdr::uint_least64_t {
+                        auto a = stdr::uint_least32_t(x >> 32);
+                        auto b = stdr::uint_least32_t(x);
+                        auto c = stdr::uint_least32_t(y >> 32);
+                        auto d = stdr::uint_least32_t(y);
 
                         auto ac = umul64(a, c);
                         auto bc = umul64(b, c);
                         auto ad = umul64(a, d);
                         auto bd = umul64(b, d);
 
-                        auto intermediate = (bd >> 32) + std::uint32_t(ad) + std::uint32_t(bc);
+                        auto intermediate =
+                            (bd >> 32) + stdr::uint_least32_t(ad) + stdr::uint_least32_t(bc);
 
                         return ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32);
                     };
+                    // To suppress warning.
+                    static_cast<void>(generic_impl);
+
                     JKJ_IF_CONSTEVAL { return generic_impl(); }
 #if defined(__SIZEOF_INT128__)
                     auto result = builtin_uint128_t(x) * builtin_uint128_t(y);
-                    return std::uint64_t(result >> 64);
+                    return stdr::uint_least64_t(result >> 64);
 #elif defined(_MSC_VER) && defined(_M_X64)
                     return __umulh(x, y);
 #else
@@ -600,7 +706,7 @@ namespace jkj {
 
                 // Get upper 128-bits of multiplication of a 64-bit unsigned integer and a 128-bit
                 // unsigned integer.
-                JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128 umul192_upper128(std::uint64_t x,
+                JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128 umul192_upper128(stdr::uint_least64_t x,
                                                                                 uint128 y) noexcept {
                     auto r = umul128(x, y.high());
                     r += umul128_upper64(x, y.low());
@@ -609,13 +715,13 @@ namespace jkj {
 
                 // Get upper 64-bits of multiplication of a 32-bit unsigned integer and a 64-bit
                 // unsigned integer.
-                inline JKJ_CONSTEXPR20 std::uint64_t umul96_upper64(std::uint32_t x,
-                                                                    std::uint64_t y) noexcept {
+                inline JKJ_CONSTEXPR20 stdr::uint_least64_t
+                umul96_upper64(stdr::uint_least32_t x, stdr::uint_least64_t y) noexcept {
 #if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
-                    return umul128_upper64(std::uint64_t(x) << 32, y);
+                    return umul128_upper64(stdr::uint_least64_t(x) << 32, y);
 #else
-                    auto yh = std::uint32_t(y >> 32);
-                    auto yl = std::uint32_t(y);
+                    auto yh = stdr::uint_least32_t(y >> 32);
+                    auto yl = stdr::uint_least32_t(y);
 
                     auto xyh = umul64(x, yh);
                     auto xyl = umul64(x, yl);
@@ -626,17 +732,18 @@ namespace jkj {
 
                 // Get lower 128-bits of multiplication of a 64-bit unsigned integer and a 128-bit
                 // unsigned integer.
-                JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128 umul192_lower128(std::uint64_t x,
+                JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128 umul192_lower128(stdr::uint_least64_t x,
                                                                                 uint128 y) noexcept {
                     auto high = x * y.high();
                     auto high_low = umul128(x, y.low());
-                    return {high + high_low.high(), high_low.low()};
+                    return {(high + high_low.high()) & UINT64_C(0xffffffffffffffff), high_low.low()};
                 }
 
                 // Get lower 64-bits of multiplication of a 32-bit unsigned integer and a 64-bit
                 // unsigned integer.
-                constexpr std::uint64_t umul96_lower64(std::uint32_t x, std::uint64_t y) noexcept {
-                    return x * y;
+                constexpr stdr::uint_least64_t umul96_lower64(stdr::uint_least32_t x,
+                                                              stdr::uint_least64_t y) noexcept {
+                    return (x * y) & UINT64_C(0xffffffffffffffff);
                 }
             }
 
@@ -680,21 +787,24 @@ namespace jkj {
             ////////////////////////////////////////////////////////////////////////////////////////
 
             namespace log {
-                static_assert((-1 >> 1) == -1, "right-shift for signed integers must be arithmetic");
+                static_assert((stdr::int_least32_t(-1) >> 1) == stdr::int_least32_t(-1),
+                              "right-shift for signed integers must be arithmetic");
 
                 // Compute floor(e * c - s).
-                enum class multiply : std::uint32_t {};
-                enum class subtract : std::uint32_t {};
-                enum class shift : std::size_t {};
-                enum class min_exponent : std::int32_t {};
-                enum class max_exponent : std::int32_t {};
+                enum class multiply : stdr::uint_least32_t {};
+                enum class subtract : stdr::uint_least32_t {};
+                enum class shift : stdr::size_t {};
+                enum class min_exponent : stdr::int_least32_t {};
+                enum class max_exponent : stdr::int_least32_t {};
 
                 template <multiply m, subtract f, shift k, min_exponent e_min, max_exponent e_max>
                 constexpr int compute(int e) noexcept {
 #if JKJ_HAS_CONSTEXPR14
-                    assert(std::int32_t(e_min) <= e && e <= std::int32_t(e_max));
+                    assert(stdr::int_least32_t(e_min) <= e && e <= stdr::int_least32_t(e_max));
 #endif
-                    return int((std::int32_t(e) * std::int32_t(m) - std::int32_t(f)) >> std::size_t(k));
+                    return int(
+                        (stdr::int_least32_t(e) * stdr::int_least32_t(m) - stdr::int_least32_t(f)) >>
+                        stdr::size_t(k));
                 }
 
                 // For constexpr computation.
@@ -717,7 +827,7 @@ namespace jkj {
                 static constexpr int floor_log10_pow2_max_exponent = 2620;
                 constexpr int floor_log10_pow2(int e) noexcept {
                     using namespace log;
-                    return compute<multiply(315653), subtract(0), shift(20),
+                    return compute<multiply(UINT32_C(315653)), subtract(0), shift(20),
                                    min_exponent(floor_log10_pow2_min_exponent),
                                    max_exponent(floor_log10_pow2_max_exponent)>(e);
                 }
@@ -726,7 +836,7 @@ namespace jkj {
                 static constexpr int floor_log2_pow10_max_exponent = 1233;
                 constexpr int floor_log2_pow10(int e) noexcept {
                     using namespace log;
-                    return compute<multiply(1741647), subtract(0), shift(19),
+                    return compute<multiply(UINT32_C(1741647)), subtract(0), shift(19),
                                    min_exponent(floor_log2_pow10_min_exponent),
                                    max_exponent(floor_log2_pow10_max_exponent)>(e);
                 }
@@ -735,7 +845,7 @@ namespace jkj {
                 static constexpr int floor_log10_pow2_minus_log10_4_over_3_max_exponent = 2936;
                 constexpr int floor_log10_pow2_minus_log10_4_over_3(int e) noexcept {
                     using namespace log;
-                    return compute<multiply(631305), subtract(261663), shift(21),
+                    return compute<multiply(UINT32_C(631305)), subtract(UINT32_C(261663)), shift(21),
                                    min_exponent(floor_log10_pow2_minus_log10_4_over_3_min_exponent),
                                    max_exponent(floor_log10_pow2_minus_log10_4_over_3_max_exponent)>(e);
                 }
@@ -744,7 +854,7 @@ namespace jkj {
                 static constexpr int floor_log5_pow2_max_exponent = 1831;
                 constexpr int floor_log5_pow2(int e) noexcept {
                     using namespace log;
-                    return compute<multiply(225799), subtract(0), shift(19),
+                    return compute<multiply(UINT32_C(225799)), subtract(0), shift(19),
                                    min_exponent(floor_log5_pow2_min_exponent),
                                    max_exponent(floor_log5_pow2_max_exponent)>(e);
                 }
@@ -753,7 +863,7 @@ namespace jkj {
                 static constexpr int floor_log5_pow2_minus_log5_3_max_exponent = 2427;
                 constexpr int floor_log5_pow2_minus_log5_3(int e) noexcept {
                     using namespace log;
-                    return compute<multiply(451597), subtract(715764), shift(20),
+                    return compute<multiply(UINT32_C(451597)), subtract(UINT32_C(715764)), shift(20),
                                    min_exponent(floor_log5_pow2_minus_log5_3_min_exponent),
                                    max_exponent(floor_log5_pow2_minus_log5_3_max_exponent)>(e);
                 }
@@ -773,26 +883,28 @@ namespace jkj {
 
                 template <>
                 struct divide_by_pow10_info<1> {
-                    static constexpr std::uint32_t magic_number = 6554;
+                    static constexpr stdr::uint_least32_t magic_number = 6554;
                     static constexpr int shift_amount = 16;
                 };
 
                 template <>
                 struct divide_by_pow10_info<2> {
-                    static constexpr std::uint32_t magic_number = 656;
+                    static constexpr stdr::uint_least32_t magic_number = 656;
                     static constexpr int shift_amount = 16;
                 };
 
                 template <int N>
-                JKJ_CONSTEXPR14 bool check_divisibility_and_divide_by_pow10(std::uint32_t& n) noexcept {
+                JKJ_CONSTEXPR14 bool
+                check_divisibility_and_divide_by_pow10(stdr::uint_least32_t& n) noexcept {
                     // Make sure the computation for max_n does not overflow.
                     static_assert(N + 1 <= log::floor_log10_pow2(31), "");
-                    assert(n <= compute_power<N + 1>(std::uint32_t(10)));
+                    assert(n <= compute_power<N + 1>(stdr::uint_least32_t(10)));
 
                     using info = divide_by_pow10_info<N>;
                     n *= info::magic_number;
 
-                    constexpr auto mask = std::uint32_t(std::uint32_t(1) << info::shift_amount) - 1;
+                    constexpr auto mask =
+                        stdr::uint_least32_t(stdr::uint_least32_t(1) << info::shift_amount) - 1;
                     bool result = ((n & mask) < info::magic_number);
 
                     n >>= info::shift_amount;
@@ -802,10 +914,11 @@ namespace jkj {
                 // Compute floor(n / 10^N) for small n and N.
                 // Precondition: n <= 10^(N+1)
                 template <int N>
-                JKJ_CONSTEXPR14 std::uint32_t small_division_by_pow10(std::uint32_t n) noexcept {
+                JKJ_CONSTEXPR14 stdr::uint_least32_t
+                small_division_by_pow10(stdr::uint_least32_t n) noexcept {
                     // Make sure the computation for max_n does not overflow.
                     static_assert(N + 1 <= log::floor_log10_pow2(31), "");
-                    assert(n <= compute_power<N + 1>(std::uint32_t(10)));
+                    assert(n <= compute_power<N + 1>(stdr::uint_least32_t(10)));
 
                     return (n * divide_by_pow10_info<N>::magic_number) >>
                            divide_by_pow10_info<N>::shift_amount;
@@ -822,14 +935,14 @@ namespace jkj {
                     // "n / 100", but for some reason MSVC generates an inefficient code
                     // (mul + mov for no apparent reason, instead of single imul),
                     // so we does this manually.
-                    JKJ_IF_CONSTEXPR(std::is_same<UInt, std::uint32_t>::value && N == 2) {
-                        return std::uint32_t(wuint::umul64(n, std::uint32_t(1374389535)) >> 37);
+                    JKJ_IF_CONSTEXPR(stdr::is_same<UInt, stdr::uint_least32_t>::value && N == 2) {
+                        return stdr::uint_least32_t(wuint::umul64(n, UINT32_C(1374389535)) >> 37);
                     }
                     // Specialize for 64-bit division by 1000.
                     // Ensure that the correctness condition is met.
-                    else JKJ_IF_CONSTEXPR(std::is_same<UInt, std::uint64_t>::value && N == 3 &&
-                                          n_max <= std::uint64_t(15534100272597517998ull)) {
-                        return wuint::umul128_upper64(n, std::uint64_t(2361183241434822607ull)) >> 7;
+                    else JKJ_IF_CONSTEXPR(stdr::is_same<UInt, stdr::uint_least64_t>::value && N == 3 &&
+                                          n_max <= UINT64_C(15534100272597517998)) {
+                        return wuint::umul128_upper64(n, UINT64_C(2361183241434822607)) >> 7;
                     }
                     else {
                         constexpr auto divisor = compute_power<N>(UInt(10));
@@ -925,11 +1038,11 @@ namespace jkj {
 
             template <class Dummy>
             struct cache_holder<ieee754_binary32, Dummy> {
-                using cache_entry_type = std::uint64_t;
+                using cache_entry_type = stdr::uint_least64_t;
                 static constexpr int cache_bits = 64;
                 static constexpr int min_k = -31;
                 static constexpr int max_k = 46;
-                static constexpr cache_entry_type cache[max_k - min_k + 1] = {
+                static constexpr cache_entry_type cache[max_k - min_k + 1] JKJ_STATIC_DATA_SECTION = {
                     0x81ceb32c4b43fcf5, 0xa2425ff75e14fc32, 0xcad2f7f5359a3b3f, 0xfd87b5f28300ca0e,
                     0x9e74d1b791e07e49, 0xc612062576589ddb, 0xf79687aed3eec552, 0x9abe14cd44753b53,
                     0xc16d9a0095928a28, 0xf1c90080baf72cb2, 0x971da05074da7bef, 0xbce5086492111aeb,
@@ -963,7 +1076,7 @@ namespace jkj {
                 static constexpr int cache_bits = 128;
                 static constexpr int min_k = -292;
                 static constexpr int max_k = 326;
-                static constexpr cache_entry_type cache[max_k - min_k + 1] = {
+                static constexpr cache_entry_type cache[max_k - min_k + 1] JKJ_STATIC_DATA_SECTION = {
                     {0xff77b1fcbebcdc4f, 0x25e8e89c13bb0f7b}, {0x9faacf3df73609b1, 0x77b191618c54e9ad},
                     {0xc795830d75038c1d, 0xd59df5b9ef6a2418}, {0xf97ae3d0d2446f25, 0x4b0573286b44ad1e},
                     {0x9becce62836ac577, 0x4ee367f9430aec33}, {0xc2e801fb244576d5, 0x229c41f793cda740},
@@ -1285,7 +1398,7 @@ namespace jkj {
             template <class Dummy = void>
             struct compressed_cache_detail {
                 static constexpr int compression_ratio = 27;
-                static constexpr std::size_t compressed_table_size =
+                static constexpr stdr::size_t compressed_table_size =
                     (cache_holder<ieee754_binary64>::max_k - cache_holder<ieee754_binary64>::min_k +
                      compression_ratio) /
                     compression_ratio;
@@ -1294,39 +1407,39 @@ namespace jkj {
                     wuint::uint128 table[compressed_table_size];
                 };
                 struct pow5_holder_t {
-                    std::uint64_t table[compression_ratio];
+                    stdr::uint_least64_t table[compression_ratio];
                 };
 
 #if JKJ_HAS_CONSTEXPR17
-                static constexpr cache_holder_t cache = [] {
+                static constexpr cache_holder_t cache JKJ_STATIC_DATA_SECTION = [] {
                     cache_holder_t res{};
-                    for (std::size_t i = 0; i < compressed_table_size; ++i) {
+                    for (stdr::size_t i = 0; i < compressed_table_size; ++i) {
                         res.table[i] = cache_holder<ieee754_binary64>::cache[i * compression_ratio];
                     }
                     return res;
                 }();
-                static constexpr pow5_holder_t pow5 = [] {
+                static constexpr pow5_holder_t pow5 JKJ_STATIC_DATA_SECTION = [] {
                     pow5_holder_t res{};
-                    std::uint64_t p = 1;
-                    for (std::size_t i = 0; i < compression_ratio; ++i) {
+                    stdr::uint_least64_t p = 1;
+                    for (stdr::size_t i = 0; i < compression_ratio; ++i) {
                         res.table[i] = p;
                         p *= 5;
                     }
                     return res;
                 }();
 #else
-                template <std::size_t... indices>
+                template <stdr::size_t... indices>
                 static constexpr cache_holder_t make_cache_table(index_sequence<indices...>) {
                     return {cache_holder<ieee754_binary64>::cache[indices * compression_ratio]...};
                 }
-                static constexpr cache_holder_t cache =
+                static constexpr cache_holder_t cache JKJ_STATIC_DATA_SECTION =
                     make_cache_table(make_index_sequence<compressed_table_size>{});
 
-                template <std::size_t... indices>
+                template <stdr::size_t... indices>
                 static constexpr pow5_holder_t make_pow5_table(index_sequence<indices...>) {
-                    return {compute_power<indices>(std::uint64_t(5))...};
+                    return {compute_power<indices>(stdr::uint_least64_t(5))...};
                 }
-                static constexpr pow5_holder_t pow5 =
+                static constexpr pow5_holder_t pow5 JKJ_STATIC_DATA_SECTION =
                     make_pow5_table(make_index_sequence<compression_ratio>{});
 #endif
             };
@@ -1859,7 +1972,7 @@ namespace jkj {
                             assert(k >= cache_holder<FloatFormat>::min_k &&
                                    k <= cache_holder<FloatFormat>::max_k);
 #endif
-                            return cache_holder<FloatFormat>::cache[std::size_t(
+                            return cache_holder<FloatFormat>::cache[stdr::size_t(
                                 k - cache_holder<FloatFormat>::min_k)];
                         }
                     };
@@ -1880,9 +1993,9 @@ namespace jkj {
                             static JKJ_CONSTEXPR20 cache_holder<ieee754_binary64>::cache_entry_type
                             get_cache(int k) noexcept {
                                 // Compute the base index.
-                                auto const cache_index =
-                                    int(std::uint32_t(k - cache_holder<ieee754_binary64>::min_k) /
-                                        compressed_cache_detail<>::compression_ratio);
+                                auto const cache_index = int(
+                                    stdr::uint_least32_t(k - cache_holder<ieee754_binary64>::min_k) /
+                                    compressed_cache_detail<>::compression_ratio);
                                 auto const kb =
                                     cache_index * compressed_cache_detail<>::compression_ratio +
                                     cache_holder<ieee754_binary64>::min_k;
@@ -1908,14 +2021,17 @@ namespace jkj {
 
                                     recovered_cache += middle_low.high();
 
-                                    auto const high_to_middle = recovered_cache.high() << (64 - alpha);
-                                    auto const middle_to_low = recovered_cache.low() << (64 - alpha);
+                                    auto const high_to_middle =
+                                        (recovered_cache.high() << (64 - alpha)) &
+                                        UINT64_C(0xffffffffffffffff);
+                                    auto const middle_to_low = (recovered_cache.low() << (64 - alpha)) &
+                                                               UINT64_C(0xffffffffffffffff);
 
                                     recovered_cache = wuint::uint128{
                                         (recovered_cache.low() >> alpha) | high_to_middle,
                                         ((middle_low.low() >> alpha) | middle_to_low)};
 
-                                    assert(recovered_cache.low() + 1 != 0);
+                                    assert(recovered_cache.low() != UINT64_C(0xffffffffffffffff));
                                     recovered_cache = {recovered_cache.high(),
                                                        recovered_cache.low() + 1};
 
@@ -2020,7 +2136,7 @@ namespace jkj {
                 using format::exponent_bias;
                 using format::decimal_digits;
 
-                static constexpr int kappa = std::is_same<format, ieee754_binary32>::value ? 1 : 2;
+                static constexpr int kappa = stdr::is_same<format, ieee754_binary32>::value ? 1 : 2;
                 static_assert(kappa >= 1, "");
                 static_assert(carrier_bits >= significand_bits + 2 + log::floor_log2_pow10(kappa + 1),
                               "");
@@ -2116,8 +2232,8 @@ namespace jkj {
                     // Step 2: Try larger divisor; remove trailing zeros if necessary
                     //////////////////////////////////////////////////////////////////////
 
-                    constexpr auto big_divisor = compute_power<kappa + 1>(std::uint32_t(10));
-                    constexpr auto small_divisor = compute_power<kappa>(std::uint32_t(10));
+                    constexpr auto big_divisor = compute_power<kappa + 1>(stdr::uint_least32_t(10));
+                    constexpr auto small_divisor = compute_power<kappa>(stdr::uint_least32_t(10));
 
                     // Using an upper bound on zi, we might be able to optimize the division
                     // better than the compiler; we are computing zi / big_divisor here.
@@ -2125,13 +2241,14 @@ namespace jkj {
                         div::divide_by_pow10<kappa + 1, carrier_uint,
                                              (carrier_uint(1) << (significand_bits + 1)) * big_divisor -
                                                  1>(z_result.integer_part);
-                    auto r = std::uint32_t(z_result.integer_part - big_divisor * decimal_significand);
+                    auto r =
+                        stdr::uint_least32_t(z_result.integer_part - big_divisor * decimal_significand);
 
                     do {
                         if (r < deltai) {
                             // Exclude the right endpoint if necessary.
-                            if (r == 0 &&
-                                (z_result.is_integer & !interval_type.include_right_endpoint())) {
+                            if ((r | !z_result.is_integer | interval_type.include_right_endpoint()) ==
+                                0) {
                                 JKJ_IF_CONSTEXPR(
                                     BinaryToDecimalRoundingPolicy::tag ==
                                     policy_impl::binary_to_decimal_rounding::tag_t::do_not_care) {
@@ -2318,7 +2435,7 @@ namespace jkj {
                     // and 29711844 * 2^-81
                     // = 1.2288530660000000001731007559513386695471126586198806762695... * 10^-17
                     // for binary32.
-                    JKJ_IF_CONSTEXPR(std::is_same<format, ieee754_binary32>::value) {
+                    JKJ_IF_CONSTEXPR(stdr::is_same<format, ieee754_binary32>::value) {
                         if (binary_exponent <= -80) {
                             x_result.is_integer = false;
                         }
@@ -2332,7 +2449,7 @@ namespace jkj {
                     // Step 2: Try larger divisor; remove trailing zeros if necessary
                     //////////////////////////////////////////////////////////////////////
 
-                    constexpr auto big_divisor = compute_power<kappa + 1>(std::uint32_t(10));
+                    constexpr auto big_divisor = compute_power<kappa + 1>(stdr::uint_least32_t(10));
 
                     // Using an upper bound on xi, we might be able to optimize the division
                     // better than the compiler; we are computing xi / big_divisor here.
@@ -2340,7 +2457,8 @@ namespace jkj {
                         div::divide_by_pow10<kappa + 1, carrier_uint,
                                              (carrier_uint(1) << (significand_bits + 1)) * big_divisor -
                                                  1>(x_result.integer_part);
-                    auto r = std::uint32_t(x_result.integer_part - big_divisor * decimal_significand);
+                    auto r =
+                        stdr::uint_least32_t(x_result.integer_part - big_divisor * decimal_significand);
 
                     if (r != 0) {
                         ++decimal_significand;
@@ -2409,7 +2527,7 @@ namespace jkj {
                     // Step 2: Try larger divisor; remove trailing zeros if necessary
                     //////////////////////////////////////////////////////////////////////
 
-                    constexpr auto big_divisor = compute_power<kappa + 1>(std::uint32_t(10));
+                    constexpr auto big_divisor = compute_power<kappa + 1>(stdr::uint_least32_t(10));
 
                     // Using an upper bound on zi, we might be able to optimize the division better
                     // than the compiler; we are computing zi / big_divisor here.
@@ -2417,7 +2535,7 @@ namespace jkj {
                         div::divide_by_pow10<kappa + 1, carrier_uint,
                                              (carrier_uint(1) << (significand_bits + 1)) * big_divisor -
                                                  1>(zi);
-                    auto const r = std::uint32_t(zi - big_divisor * decimal_significand);
+                    auto const r = stdr::uint_least32_t(zi - big_divisor * decimal_significand);
 
                     do {
                         if (r > deltai) {
@@ -2453,14 +2571,14 @@ namespace jkj {
                 remove_trailing_zeros(carrier_uint& n) noexcept {
                     assert(n != 0);
 
-                    JKJ_IF_CONSTEXPR(std::is_same<format, ieee754_binary32>::value) {
-                        constexpr auto mod_inv_5 = std::uint32_t(0xcccccccd);
-                        constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
+                    JKJ_IF_CONSTEXPR(stdr::is_same<format, ieee754_binary32>::value) {
+                        constexpr auto mod_inv_5 = UINT32_C(0xcccccccd);
+                        constexpr auto mod_inv_25 = (mod_inv_5 * mod_inv_5) & UINT32_C(0xffffffff);
 
                         int s = 0;
                         while (true) {
-                            auto q = bits::rotr(n * mod_inv_25, 2);
-                            if (q <= std::numeric_limits<std::uint32_t>::max() / 100) {
+                            auto q = bits::rotr<32>((n * mod_inv_25) & UINT32_C(0xffffffff), 2);
+                            if (q <= UINT32_C(0xffffffff) / 100) {
                                 n = q;
                                 s += 2;
                             }
@@ -2468,8 +2586,8 @@ namespace jkj {
                                 break;
                             }
                         }
-                        auto q = bits::rotr(n * mod_inv_5, 1);
-                        if (q <= std::numeric_limits<std::uint32_t>::max() / 10) {
+                        auto q = bits::rotr<32>((n * mod_inv_5) & UINT32_C(0xffffffff), 1);
+                        if (q <= UINT32_C(0xffffffff) / 10) {
                             n = q;
                             s |= 1;
                         }
@@ -2478,7 +2596,7 @@ namespace jkj {
                     }
                     else {
 #if JKJ_HAS_IF_CONSTEXPR
-                        static_assert(std::is_same<format, ieee754_binary64>::value, "");
+                        static_assert(stdr::is_same<format, ieee754_binary64>::value, "");
 #endif
 
                         // Divide by 10^8 and reduce to 32-bits if divisible.
@@ -2486,22 +2604,22 @@ namespace jkj {
                         // n is at most of 16 digits.
 
                         // This magic number is ceil(2^90 / 10^8).
-                        constexpr auto magic_number = std::uint64_t(12379400392853802749ull);
+                        constexpr auto magic_number = UINT64_C(12379400392853802749);
                         auto nm = wuint::umul128(n, magic_number);
 
                         // Is n is divisible by 10^8?
-                        if ((nm.high() & ((std::uint64_t(1) << (90 - 64)) - 1)) == 0 &&
+                        if ((nm.high() & ((stdr::uint_least64_t(1) << (90 - 64)) - 1)) == 0 &&
                             nm.low() < magic_number) {
                             // If yes, work with the quotient.
-                            auto n32 = std::uint32_t(nm.high() >> (90 - 64));
+                            auto n32 = stdr::uint_least32_t(nm.high() >> (90 - 64));
 
-                            constexpr auto mod_inv_5 = std::uint32_t(0xcccccccd);
-                            constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
+                            constexpr auto mod_inv_5 = UINT32_C(0xcccccccd);
+                            constexpr auto mod_inv_25 = (mod_inv_5 * mod_inv_5) & UINT32_C(0xffffffff);
 
                             int s = 8;
                             while (true) {
-                                auto q = bits::rotr(n32 * mod_inv_25, 2);
-                                if (q <= std::numeric_limits<std::uint32_t>::max() / 100) {
+                                auto q = bits::rotr<32>((n32 * mod_inv_25) & UINT32_C(0xffffffff), 2);
+                                if (q <= UINT32_C(0xffffffff) / 100) {
                                     n32 = q;
                                     s += 2;
                                 }
@@ -2509,8 +2627,8 @@ namespace jkj {
                                     break;
                                 }
                             }
-                            auto q = bits::rotr(n32 * mod_inv_5, 1);
-                            if (q <= std::numeric_limits<std::uint32_t>::max() / 10) {
+                            auto q = bits::rotr<32>((n32 * mod_inv_5) & UINT32_C(0xffffffff), 1);
+                            if (q <= UINT32_C(0xffffffff) / 10) {
                                 n32 = q;
                                 s |= 1;
                             }
@@ -2520,13 +2638,14 @@ namespace jkj {
                         }
 
                         // If n is not divisible by 10^8, work with n itself.
-                        constexpr auto mod_inv_5 = std::uint64_t(0xcccccccccccccccd);
-                        constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
+                        constexpr auto mod_inv_5 = UINT64_C(0xcccccccccccccccd);
+                        constexpr auto mod_inv_25 =
+                            (mod_inv_5 * mod_inv_5) & UINT64_C(0xffffffffffffffff);
 
                         int s = 0;
                         while (true) {
-                            auto q = bits::rotr(n * mod_inv_25, 2);
-                            if (q <= std::numeric_limits<std::uint64_t>::max() / 100) {
+                            auto q = bits::rotr<64>((n * mod_inv_25) & UINT64_C(0xffffffffffffffff), 2);
+                            if (q <= UINT64_C(0xffffffffffffffff) / 100) {
                                 n = q;
                                 s += 2;
                             }
@@ -2534,8 +2653,8 @@ namespace jkj {
                                 break;
                             }
                         }
-                        auto q = bits::rotr(n * mod_inv_5, 1);
-                        if (q <= std::numeric_limits<std::uint64_t>::max() / 10) {
+                        auto q = bits::rotr<64>((n * mod_inv_5) & UINT64_C(0xffffffffffffffff), 1);
+                        if (q <= UINT64_C(0xffffffffffffffff) / 10) {
                             n = q;
                             s |= 1;
                         }
@@ -2552,9 +2671,9 @@ namespace jkj {
                         return {carrier_uint(r >> 32), carrier_uint(r) == 0};
                     }
 
-                    static constexpr std::uint32_t compute_delta(cache_entry_type const& cache,
-                                                                 int beta) noexcept {
-                        return std::uint32_t(cache >> (cache_bits - 1 - beta));
+                    static constexpr stdr::uint_least32_t compute_delta(cache_entry_type const& cache,
+                                                                        int beta) noexcept {
+                        return stdr::uint_least32_t(cache >> (cache_bits - 1 - beta));
                     }
 
                     static JKJ_CONSTEXPR20 compute_mul_parity_result compute_mul_parity(
@@ -2563,7 +2682,8 @@ namespace jkj {
                         assert(beta < 64);
 
                         auto r = wuint::umul96_lower64(two_f, cache);
-                        return {((r >> (64 - beta)) & 1) != 0, std::uint32_t(r >> (32 - beta)) == 0};
+                        return {((r >> (64 - beta)) & 1) != 0,
+                                (UINT32_C(0xffffffff) & (r >> (32 - beta))) == 0};
                     }
 
                     static constexpr carrier_uint
@@ -2596,9 +2716,9 @@ namespace jkj {
                         return {r.high(), r.low() == 0};
                     }
 
-                    static constexpr std::uint32_t compute_delta(cache_entry_type const& cache,
-                                                                 int beta) noexcept {
-                        return std::uint32_t(cache.high() >> (carrier_bits - 1 - beta));
+                    static constexpr stdr::uint_least32_t compute_delta(cache_entry_type const& cache,
+                                                                        int beta) noexcept {
+                        return stdr::uint_least32_t(cache.high() >> (carrier_bits - 1 - beta));
                     }
 
                     static JKJ_CONSTEXPR20 compute_mul_parity_result compute_mul_parity(
@@ -2608,7 +2728,8 @@ namespace jkj {
 
                         auto r = wuint::umul192_lower128(two_f, cache);
                         return {((r.high() >> (64 - beta)) & 1) != 0,
-                                ((r.high() << beta) | (r.low() >> (64 - beta))) == 0};
+                                (((r.high() << beta) & UINT64_C(0xffffffffffffffff)) |
+                                 (r.low() >> (64 - beta))) == 0};
                     }
 
                     static constexpr carrier_uint
@@ -2708,9 +2829,9 @@ namespace jkj {
                     template <class FoundPolicyInfo, class FirstPolicy, class... RemainingPolicies>
                     struct get_found_policy_pair_impl<FoundPolicyInfo, FirstPolicy,
                                                       RemainingPolicies...> {
-                        using type = typename std::conditional<
-                            std::is_base_of<Base, FirstPolicy>::value,
-                            typename std::conditional<
+                        using type = typename stdr::conditional<
+                            stdr::is_base_of<Base, FirstPolicy>::value,
+                            typename stdr::conditional<
                                 FoundPolicyInfo::found_info == policy_found_info::not_found,
                                 typename get_found_policy_pair_impl<
                                     found_policy_pair<FirstPolicy, policy_found_info::unique>,
@@ -2741,7 +2862,7 @@ namespace jkj {
                 constexpr bool check_policy_validity(
                     Policy,
                     base_default_pair_list<FirstBaseDefaultPair, RemainingBaseDefaultPairs...>) {
-                    return std::is_base_of<typename FirstBaseDefaultPair::base, Policy>::value ||
+                    return stdr::is_base_of<typename FirstBaseDefaultPair::base, Policy>::value ||
                            check_policy_validity(
                                Policy{}, base_default_pair_list<RemainingBaseDefaultPairs...>{});
                 }
@@ -2955,8 +3076,8 @@ namespace jkj {
                         // 10^-308. This is indeed of the shortest length, and it is the unique
                         // one closest to the true value among valid representations of the same
                         // length.
-                        static_assert(std::is_same<format, ieee754_binary32>::value ||
-                                          std::is_same<format, ieee754_binary64>::value,
+                        static_assert(stdr::is_same<format, ieee754_binary32>::value ||
+                                          stdr::is_same<format, ieee754_binary64>::value,
                                       "");
 
                         if (two_fc == 0) {
@@ -3093,5 +3214,15 @@ namespace jkj {
 #undef JKJ_HAS_CONSTEXPR17
 #undef JKJ_CONSTEXPR14
 #undef JKJ_HAS_CONSTEXPR14
+#if JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
+    #undef JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
+#else
+    #undef JKJ_STD_REPLACEMENT_NAMESPACE
+#endif
+#if JKJ_STATIC_DATA_SECTION_DEFINED
+    #undef JKJ_STATIC_DATA_SECTION_DEFINED
+#else
+    #undef JKJ_STATIC_DATA_SECTION
+#endif
 
 #endif
