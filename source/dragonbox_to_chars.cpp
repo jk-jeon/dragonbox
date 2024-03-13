@@ -53,7 +53,7 @@ namespace jkj {
             // These "//"'s are to prevent clang-format to ruin this nice alignment.
             // Thanks to reddit user u/mcmcc:
             // https://www.reddit.com/r/cpp/comments/so3wx9/dragonbox_110_is_released_a_fast_floattostring/hw8z26r/?context=3
-            static constexpr char radix_100_table[] JKJ_STATIC_DATA_SECTION = {
+            static constexpr char radix_100_table[200] JKJ_STATIC_DATA_SECTION = {
                 '0', '0', '0', '1', '0', '2', '0', '3', '0', '4', //
                 '0', '5', '0', '6', '0', '7', '0', '8', '0', '9', //
                 '1', '0', '1', '1', '1', '2', '1', '3', '1', '4', //
@@ -75,7 +75,7 @@ namespace jkj {
                 '9', '0', '9', '1', '9', '2', '9', '3', '9', '4', //
                 '9', '5', '9', '6', '9', '7', '9', '8', '9', '9'  //
             };
-            static constexpr char radix_100_head_table[] JKJ_STATIC_DATA_SECTION = {
+            static constexpr char radix_100_head_table[200] JKJ_STATIC_DATA_SECTION = {
                 '0', '.', '1', '.', '2', '.', '3', '.', '4', '.', //
                 '5', '.', '6', '.', '7', '.', '8', '.', '9', '.', //
                 '1', '.', '1', '.', '1', '.', '1', '.', '1', '.', //
