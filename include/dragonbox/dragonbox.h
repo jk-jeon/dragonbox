@@ -1722,9 +1722,12 @@ namespace jkj {
                 cache_holder<ieee754_binary64, Dummy>::cache[];
 #endif
 
-            // Compressed cache for double
-            template <class Dummy = void>
-            struct compressed_cache_detail {
+            // Compressed cache.
+            template <class FloatFormat, class Dummy = void>
+            struct compressed_cache_detail;
+
+            template <class Dummy>
+            struct compressed_cache_detail<ieee754_binary64, Dummy> {
                 static constexpr int compression_ratio = 27;
                 static constexpr stdr::size_t compressed_table_size =
                     (cache_holder<ieee754_binary64>::max_k - cache_holder<ieee754_binary64>::min_k +
@@ -1773,11 +1776,11 @@ namespace jkj {
             };
 #if !JKJ_HAS_INLINE_VARIABLE
             template <class Dummy>
-            constexpr typename compressed_cache_detail<Dummy>::cache_holder_t
-                compressed_cache_detail<Dummy>::cache;
+            constexpr typename compressed_cache_detail<ieee754_binary64, Dummy>::cache_holder_t
+                compressed_cache_detail<ieee754_binary64, Dummy>::cache;
             template <class Dummy>
-            constexpr typename compressed_cache_detail<Dummy>::pow5_holder_t
-                compressed_cache_detail<Dummy>::pow5;
+            constexpr typename compressed_cache_detail<ieee754_binary64, Dummy>::pow5_holder_t
+                compressed_cache_detail<ieee754_binary64, Dummy>::pow5;
 #endif
         }
 
@@ -2323,15 +2326,16 @@ namespace jkj {
                                 // Compute the base index.
                                 auto const cache_index = int(
                                     stdr::uint_least32_t(k - cache_holder<ieee754_binary64>::min_k) /
-                                    compressed_cache_detail<>::compression_ratio);
+                                    compressed_cache_detail<ieee754_binary64>::compression_ratio);
                                 auto const kb =
-                                    cache_index * compressed_cache_detail<>::compression_ratio +
+                                    cache_index *
+                                        compressed_cache_detail<ieee754_binary64>::compression_ratio +
                                     cache_holder<ieee754_binary64>::min_k;
                                 auto const offset = k - kb;
 
                                 // Get the base cache.
                                 auto const base_cache =
-                                    compressed_cache_detail<>::cache.table[cache_index];
+                                    compressed_cache_detail<ieee754_binary64>::cache.table[cache_index];
 
                                 if (offset == 0) {
                                     return base_cache;
@@ -2343,7 +2347,8 @@ namespace jkj {
                                     assert(alpha > 0 && alpha < 64);
 
                                     // Try to recover the real cache.
-                                    auto const pow5 = compressed_cache_detail<>::pow5.table[offset];
+                                    auto const pow5 =
+                                        compressed_cache_detail<ieee754_binary64>::pow5.table[offset];
                                     auto recovered_cache = wuint::umul128(base_cache.high(), pow5);
                                     auto const middle_low = wuint::umul128(base_cache.low(), pow5);
 
