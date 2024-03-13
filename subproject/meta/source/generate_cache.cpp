@@ -84,7 +84,7 @@ int main() {
 
         out << "static constexpr int min_k = " << std::dec << impl<float_type>::min_k << ";\n";
         out << "static constexpr int max_k = " << std::dec << impl<float_type>::max_k << ";\n";
-        out << "static constexpr cache_entry_type cache[] = {";
+        out << "static constexpr cache_entry_type cache[max_k - min_k + 1] JKJ_STATIC_DATA_SECTION = {";
         for (int k = impl<float_type>::min_k; k < impl<float_type>::max_k; ++k) {
             auto idx = std::size_t(k - impl<float_type>::min_k);
             out << "\n\t";
@@ -103,7 +103,8 @@ int main() {
         auto binary32_cache = generate_cache<jkj::dragonbox::default_float_traits<float>>();
         write_file(out, jkj::dragonbox::default_float_traits<float>{}, binary32_cache, "binary32",
                    [](std::ofstream& out, jkj::big_uint const& value) {
-                       out << "0x" << std::hex << std::setw(16) << std::setfill('0') << value[0];
+                       out << "UINT64_C(0x" << std::hex << std::setw(16) << std::setfill('0')
+                           << value[0] << ")";
                    });
         out.close();
 
@@ -111,9 +112,9 @@ int main() {
         auto binary64_cache = generate_cache<jkj::dragonbox::default_float_traits<double>>();
         write_file(out, jkj::dragonbox::default_float_traits<double>{}, binary64_cache, "binary64",
                    [](std::ofstream& out, jkj::big_uint const& value) {
-                       out << "{ 0x" << std::hex << std::setw(16) << std::setfill('0') << value[1]
-                           << ", 0x" << std::hex << std::setw(16) << std::setfill('0') << value[0]
-                           << " }";
+                       out << "{ UINT64_C(0x" << std::hex << std::setw(16) << std::setfill('0')
+                           << value[1] << "), UINT64_C(0x" << std::hex << std::setw(16)
+                           << std::setfill('0') << value[0] << ") }";
                    });
         out.close();
     }
