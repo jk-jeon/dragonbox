@@ -25,9 +25,10 @@
 #include <vector>
 
 int main() {
-    // We are trying to verify that an appropriate shift of phi_k * 5^a
-    // can be used instead of phi_(a+k). Since phi_k is defined in terms of ceiling,
-    // the shift of phi_k * 5^a will be phi_(a+k) + (error) for some nonnegative error.
+    // We are trying to verify that an appropriate right-shift of phi_k * 5^a plus one
+    // can be used instead of phi_(a+k). (Here, phi_k and phi_(a+k) are supposed to be the "tilde" ones;
+    // tilde is omitted for simplicity.) Since phi_k is defined in terms of ceiling, what we get from
+    // phi_k * 5^a will be phi_(a+k) + (error) for some nonnegative (error).
     //
     // For correct multiplication, the margin for binary32 is at least
     // 2^64 * 5091154818982829 / 12349290596248284087255008291061760 = 7.60...,
@@ -38,7 +39,7 @@ int main() {
     // = 13.26..., so we are safe if the error is up to 13.
     //
     // For correct integer checks, the case b > n_max is fine because the only condition on the
-    // recovered cache is a lower bound which must be already true for phi_k.
+    // recovered cache is a lower bound which must be already true for phi_(a+k).
     // For the case b <= n_max, we only need to check the upper bound
     // (recovered_cache) < 2^(Q-beta) * a/b + 2^(q-beta)/(floor(nmax/b) * b),
     // so we check it manually for each e.
