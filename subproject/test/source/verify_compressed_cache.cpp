@@ -46,7 +46,7 @@ int main() {
 
     using namespace jkj::dragonbox::detail::log;
     using namespace jkj::dragonbox::detail::wuint;
-    using info = jkj::dragonbox::detail::compressed_cache_detail<>;
+    using info = jkj::dragonbox::detail::compressed_cache_detail<jkj::dragonbox::ieee754_binary64>;
     using impl = jkj::dragonbox::detail::impl<double>;
 
     std::cout << "[Verifying cache recovery for compressed cache...]\n";
