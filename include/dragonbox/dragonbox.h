@@ -1725,7 +1725,7 @@ namespace jkj {
 #endif
 
             // Compressed cache.
-            template <class FloatFormat, class Dummy = void>
+            template <class FloatFormat = ieee754_binary64, class Dummy = void>
             struct compressed_cache_detail;
 
             template <class Dummy>

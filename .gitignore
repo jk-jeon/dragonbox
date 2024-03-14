@@ -1,4 +1,4 @@
-﻿# TODO: clean
+# TODO: clean
 
 # VS generated CMake settings
 CMakeSettings.json
@@ -51,6 +51,9 @@ build/
 # .idea/modules
 # *.iml
 # *.ipr
+
+# Qt Creator
+build-*/
 
 # CMake
 cmake-build-*/
