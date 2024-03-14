@@ -607,8 +607,10 @@ namespace jkj {
                             return *this;
                         }
 #if JKJ_HAS_BUILTIN(__builtin_addcll)
-                        static_assert(stdr::is_same<unsigned long long, stdr::uint_least64_t>::value &&
-                                      value_bits<stdr::uint_least64_t>::value == 64);
+                        static_assert(
+                            (std::numeric_limits<unsigned long long>::max() ==
+                                std::numeric_limits<stdr::uint_least64_t>::max()) &&
+                            value_bits<stdr::uint_least64_t>::value == 64);
                         unsigned long long carry{};
                         low_ = __builtin_addcll(low_, n, 0, &carry);
                         high_ = __builtin_addcll(high_, 0, carry, &carry);
