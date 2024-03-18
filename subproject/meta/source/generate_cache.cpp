@@ -81,7 +81,6 @@ int main() {
 
     auto write_file = [](std::ofstream& out, auto type_tag, auto const& cache_array,
                          auto&& ieee_754_type_name_string, auto&& element_printer) {
-        using float_type = typename decltype(type_tag)::type;
         using impl_type = jkj::dragonbox::detail::impl<typename decltype(type_tag)::format,
                                                        typename decltype(type_tag)::carrier_uint>;
 
