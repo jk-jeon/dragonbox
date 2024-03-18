@@ -2527,7 +2527,7 @@ namespace jkj {
                 template <class FloatFormat2, class Dummy = void>
                 struct compute_mul_impl;
 
-                //// The main algorithm assumes the input is a normal/subnormal finite number
+                //// The main algorithm assumes the input is a normal/subnormal finite number.
 
                 template <class ReturnType, class IntervalType, class TrailingZeroPolicy,
                           class BinaryToDecimalRoundingPolicy, class CachePolicy,
@@ -2536,7 +2536,7 @@ namespace jkj {
                 compute_nearest_normal(carrier_uint const two_fc, int const binary_exponent,
                                        AdditionalArgs... additional_args) noexcept {
                     //////////////////////////////////////////////////////////////////////
-                    // Step 1: Schubfach multiplier calculation
+                    // Step 1: Schubfach multiplier calculation.
                     //////////////////////////////////////////////////////////////////////
 
                     IntervalType interval_type{additional_args...};
@@ -2564,7 +2564,7 @@ namespace jkj {
 
 
                     //////////////////////////////////////////////////////////////////////
-                    // Step 2: Try larger divisor; remove trailing zeros if necessary
+                    // Step 2: Try larger divisor; remove trailing zeros if necessary.
                     //////////////////////////////////////////////////////////////////////
 
                     constexpr auto big_divisor = compute_power<kappa + 1>(stdr::uint_least32_t(10));
@@ -2621,7 +2621,7 @@ namespace jkj {
 
 
                     //////////////////////////////////////////////////////////////////////
-                    // Step 3: Find the significand with the smaller divisor
+                    // Step 3: Find the significand with the smaller divisor.
                     //////////////////////////////////////////////////////////////////////
 
                     decimal_significand *= 10;
@@ -2751,7 +2751,7 @@ namespace jkj {
                 JKJ_FORCEINLINE JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 ReturnType
                 compute_left_closed_directed(carrier_uint const two_fc, int binary_exponent) noexcept {
                     //////////////////////////////////////////////////////////////////////
-                    // Step 1: Schubfach multiplier calculation
+                    // Step 1: Schubfach multiplier calculation.
                     //////////////////////////////////////////////////////////////////////
 
                     // Compute k and beta.
@@ -2781,7 +2781,7 @@ namespace jkj {
                     }
 
                     //////////////////////////////////////////////////////////////////////
-                    // Step 2: Try larger divisor; remove trailing zeros if necessary
+                    // Step 2: Try larger divisor; remove trailing zeros if necessary.
                     //////////////////////////////////////////////////////////////////////
 
                     constexpr auto big_divisor = compute_power<kappa + 1>(stdr::uint_least32_t(10));
@@ -2826,7 +2826,7 @@ namespace jkj {
 
 
                     //////////////////////////////////////////////////////////////////////
-                    // Step 3: Find the significand with the smaller divisor
+                    // Step 3: Find the significand with the smaller divisor.
                     //////////////////////////////////////////////////////////////////////
 
                     decimal_significand *= 10;
@@ -2840,7 +2840,7 @@ namespace jkj {
                 compute_right_closed_directed(carrier_uint const two_fc, int const binary_exponent,
                                               bool shorter_interval) noexcept {
                     //////////////////////////////////////////////////////////////////////
-                    // Step 1: Schubfach multiplier calculation
+                    // Step 1: Schubfach multiplier calculation.
                     //////////////////////////////////////////////////////////////////////
 
                     // Compute k and beta.
@@ -2859,7 +2859,7 @@ namespace jkj {
 
 
                     //////////////////////////////////////////////////////////////////////
-                    // Step 2: Try larger divisor; remove trailing zeros if necessary
+                    // Step 2: Try larger divisor; remove trailing zeros if necessary.
                     //////////////////////////////////////////////////////////////////////
 
                     constexpr auto big_divisor = compute_power<kappa + 1>(stdr::uint_least32_t(10));
@@ -2892,7 +2892,7 @@ namespace jkj {
 
 
                     //////////////////////////////////////////////////////////////////////
-                    // Step 3: Find the significand with the small divisor
+                    // Step 3: Find the significand with the small divisor.
                     //////////////////////////////////////////////////////////////////////
 
                     decimal_significand *= 10;
