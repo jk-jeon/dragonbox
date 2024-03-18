@@ -2522,7 +2522,9 @@ namespace jkj {
                     bool parity;
                     bool is_integer;
                 };
-                template <class FloatFormat, class Dummy = void>
+                // FloatFormat2 is supposed to be FloatFormat, but need to use a different name to avoid
+                // shadowing.
+                template <class FloatFormat2, class Dummy = void>
                 struct compute_mul_impl;
 
                 //// The main algorithm assumes the input is a normal/subnormal finite number
@@ -3357,10 +3359,10 @@ namespace jkj {
                 operator()(Args... args) noexcept {
                     return impl<typename FloatTraits::format, typename FloatTraits::carrier_uint>::
                         template compute_nearest_normal<
-                        unsigned_return_type, typename IntervalTypeProvider::normal_interval_type,
-                        typename PolicyHolder::trailing_zero_policy,
-                        typename PolicyHolder::binary_to_decimal_rounding_policy,
-                        typename PolicyHolder::cache_policy>(args...);
+                            unsigned_return_type, typename IntervalTypeProvider::normal_interval_type,
+                            typename PolicyHolder::trailing_zero_policy,
+                            typename PolicyHolder::binary_to_decimal_rounding_policy,
+                            typename PolicyHolder::cache_policy>(args...);
                 }
             };
 
@@ -3454,8 +3456,8 @@ namespace jkj {
                         signed_significand_bits,
                         detail::impl<typename FloatTraits::format, typename FloatTraits::carrier_uint>::
                             template compute_left_closed_directed<
-                            unsigned_return_type, typename PolicyHolder::trailing_zero_policy,
-                            typename PolicyHolder::cache_policy>(two_fc, exponent));
+                                unsigned_return_type, typename PolicyHolder::trailing_zero_policy,
+                                typename PolicyHolder::cache_policy>(two_fc, exponent));
                 }
                 else {
 #if JKJ_HAS_IF_CONSTEXPR
@@ -3481,8 +3483,9 @@ namespace jkj {
                         signed_significand_bits,
                         detail::impl<typename FloatTraits::format, typename FloatTraits::carrier_uint>::
                             template compute_right_closed_directed<
-                            unsigned_return_type, typename PolicyHolder::trailing_zero_policy,
-                            typename PolicyHolder::cache_policy>(two_fc, exponent, shorter_interval));
+                                unsigned_return_type, typename PolicyHolder::trailing_zero_policy,
+                                typename PolicyHolder::cache_policy>(two_fc, exponent,
+                                                                     shorter_interval));
                 }
             }
 
