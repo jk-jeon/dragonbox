@@ -292,7 +292,7 @@ bool analyze(std::ostream& out) {
                     std::cout << "\n    n is smaller than " << threshold
                               << ", so this case is a false positive.";
                 }
-                else if (ec.e == -81 && n == 29711844 || ec.e == -80 && n == 29711844) {
+                else if ((ec.e == -81 && n == 29711844) || (ec.e == -80 && n == 29711844)) {
                     std::cout << "\n    This case has been carefully addressed.";
                 }
                 else {
