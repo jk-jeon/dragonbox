@@ -75,7 +75,7 @@ int main() {
             auto const pow5 = info::pow5.table[offset];
 
             // Compute the required amount of bit-shifts.
-            auto const alpha = floor_log2_pow10(kb + offset) - floor_log2_pow10(kb) - offset;
+            auto const alpha = floor_log2_pow10(k) - floor_log2_pow10(kb) - offset;
             assert(alpha > 0 && alpha < 64);
 
             // Try to recover the real cache.
@@ -91,7 +91,8 @@ int main() {
                                       ((middle_low.low() >> alpha) | middle_to_low)};
 
             if (recovered_cache.low() + 1 == 0) {
-                std::cout << "Overflow detected.\n";
+                std::cout << "Overflow detected - taking the ceil requires addition-with-carry (e = "
+                          << e << ")\n ";
                 return -1;
             }
             else {

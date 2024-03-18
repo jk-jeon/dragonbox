@@ -2342,8 +2342,8 @@ namespace jkj {
                                 }
                                 else {
                                     // Compute the required amount of bit-shift.
-                                    auto const alpha = log::floor_log2_pow10(kb + offset) -
-                                                       log::floor_log2_pow10(kb) - offset;
+                                    auto const alpha =
+                                        log::floor_log2_pow10(k) - log::floor_log2_pow10(kb) - offset;
                                     assert(alpha > 0 && alpha < 64);
 
                                     // Try to recover the real cache.
