@@ -23,9 +23,10 @@
 
 template <class Float, class CachePolicy>
 static bool verify_fast_multiplication_xz(CachePolicy&& cache_policy) {
-    using impl = jkj::dragonbox::detail::impl<Float>;
-    using format = typename impl::format;
-    using carrier_uint = typename impl::carrier_uint;
+    using traits_type = jkj::dragonbox::default_float_traits<Float>;
+    using format = typename traits_type::format;
+    using carrier_uint = typename traits_type::carrier_uint;
+    using impl = jkj::dragonbox::detail::impl<format, carrier_uint>;
 
     constexpr auto four_fl = (carrier_uint(1) << (impl::significand_bits + 2)) - 1;
     constexpr auto two_fr = (carrier_uint(1) << (impl::significand_bits + 1)) + 1;
@@ -95,8 +96,10 @@ static bool verify_fast_multiplication_xz(CachePolicy&& cache_policy) {
 
 template <class Float, class CachePolicy>
 static bool verify_fast_multiplication_yru(CachePolicy&& cache_policy) {
-    using impl = jkj::dragonbox::detail::impl<Float>;
-    using format = typename impl::format;
+    using traits_type = jkj::dragonbox::default_float_traits<Float>;
+    using format = typename traits_type::format;
+    using carrier_uint = typename traits_type::carrier_uint;
+    using impl = jkj::dragonbox::detail::impl<format, carrier_uint>;
     bool success = true;
 
     for (int k = impl::min_k; k <= impl::max_k; ++k) {

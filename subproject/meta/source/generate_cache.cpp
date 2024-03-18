@@ -25,7 +25,10 @@
 
 template <class FloatTraits>
 auto generate_cache() {
-    using impl = jkj::dragonbox::detail::impl<typename FloatTraits::type, FloatTraits>;
+    using traits_type = FloatTraits;
+    using format = typename traits_type::format;
+    using carrier_uint = typename traits_type::carrier_uint;
+    using impl = jkj::dragonbox::detail::impl<format, carrier_uint>;
 
     std::vector<jkj::big_uint> results;
     jkj::unsigned_rational<jkj::big_uint> target_number;
@@ -76,17 +79,17 @@ auto generate_cache() {
 int main() {
     std::cout << "[Generating cache...]\n";
 
-    using jkj::dragonbox::detail::impl;
-
     auto write_file = [](std::ofstream& out, auto type_tag, auto const& cache_array,
                          auto&& ieee_754_type_name_string, auto&& element_printer) {
         using float_type = typename decltype(type_tag)::type;
+        using impl_type = jkj::dragonbox::detail::impl<typename decltype(type_tag)::format,
+                                                       typename decltype(type_tag)::carrier_uint>;
 
-        out << "static constexpr int min_k = " << std::dec << impl<float_type>::min_k << ";\n";
-        out << "static constexpr int max_k = " << std::dec << impl<float_type>::max_k << ";\n";
+        out << "static constexpr int min_k = " << std::dec << impl_type::min_k << ";\n";
+        out << "static constexpr int max_k = " << std::dec << impl_type::max_k << ";\n";
         out << "static constexpr cache_entry_type cache[max_k - min_k + 1] JKJ_STATIC_DATA_SECTION = {";
-        for (int k = impl<float_type>::min_k; k < impl<float_type>::max_k; ++k) {
-            auto idx = std::size_t(k - impl<float_type>::min_k);
+        for (int k = impl_type::min_k; k < impl_type::max_k; ++k) {
+            auto idx = std::size_t(k - impl_type::min_k);
             out << "\n\t";
             element_printer(out, cache_array[idx]);
             out << ",";

@@ -23,8 +23,11 @@
 template <class Float>
 static bool verify_check_divisibility_and_divide_by_pow10() {
     using namespace jkj::dragonbox::detail;
+    using traits_type = jkj::dragonbox::default_float_traits<Float>;
+    using format = typename traits_type::format;
+    using carrier_uint = typename traits_type::carrier_uint;
 
-    constexpr int kappa = impl<Float>::kappa;
+    constexpr int kappa = impl<format, carrier_uint>::kappa;
     constexpr auto max_n = compute_power<kappa + 1>(std::uint32_t(10));
     constexpr auto divisor = compute_power<kappa>(std::uint32_t(10));
 
@@ -61,8 +64,11 @@ static bool verify_check_divisibility_and_divide_by_pow10() {
 template <class Float>
 static bool verify_divide_by_pow10() {
     using namespace jkj::dragonbox::detail;
+    using traits_type = jkj::dragonbox::default_float_traits<Float>;
+    using format = typename traits_type::format;
+    using carrier_uint = typename traits_type::carrier_uint;
 
-    constexpr int kappa = impl<Float>::kappa;
+    constexpr int kappa = impl<format, carrier_uint>::kappa;
     constexpr auto max_n = compute_power<kappa + 1>(std::uint32_t(10));
     constexpr auto divisor = compute_power<kappa>(std::uint32_t(10));
 

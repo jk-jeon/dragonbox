@@ -40,9 +40,8 @@
 namespace jkj {
     namespace dragonbox {
         namespace detail {
-            template <class Float, class FloatTraits>
-            extern char* to_chars(typename FloatTraits::carrier_uint significand, int exponent,
-                                  char* buffer) noexcept;
+            template <class FloatFormat, class CarrierUInt>
+            extern char* to_chars(CarrierUInt significand, int exponent, char* buffer) noexcept;
 
             // Avoid needless ABI overhead incurred by tag dispatch.
             template <class PolicyHolder, class Float, class FloatTraits>
@@ -61,8 +60,9 @@ namespace jkj {
                             typename PolicyHolder::decimal_to_binary_rounding_policy{},
                             typename PolicyHolder::binary_to_decimal_rounding_policy{},
                             typename PolicyHolder::cache_policy{});
-                        return to_chars<Float, FloatTraits>(result.significand, result.exponent,
-                                                            buffer);
+                        return to_chars<typename FloatTraits::format,
+                                        typename FloatTraits::carrier_uint>(result.significand,
+                                                                            result.exponent, buffer);
                     }
                     else {
                         stdr::memcpy(buffer, "0E0", 3);

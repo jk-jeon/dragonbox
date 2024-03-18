@@ -99,9 +99,7 @@ namespace jkj {
             };
 
             static void print_1_digit(int n, char* buffer) noexcept {
-                JKJ_IF_CONSTEXPR(('0' & 0xf) == 0) {
-                    *buffer = char('0' | n);
-                }
+                JKJ_IF_CONSTEXPR(('0' & 0xf) == 0) { *buffer = char('0' | n); }
                 else {
                     *buffer = char('0' + n);
                 }
@@ -308,8 +306,9 @@ namespace jkj {
             }
 
             template <>
-            char* to_chars<float, default_float_traits<float>>(stdr::uint_least32_t s32, int exponent,
-                                                               char* buffer) noexcept {
+            char* to_chars<ieee754_binary32, stdr::uint_least32_t>(stdr::uint_least32_t s32,
+                                                                   int exponent,
+                                                                   char* buffer) noexcept {
                 // Print significand.
                 print_9_digits(s32, exponent, buffer);
 
@@ -337,8 +336,9 @@ namespace jkj {
             }
 
             template <>
-            char* to_chars<double, default_float_traits<double>>(stdr::uint_least64_t const significand,
-                                                                 int exponent, char* buffer) noexcept {
+            char*
+            to_chars<ieee754_binary64, stdr::uint_least64_t>(stdr::uint_least64_t const significand,
+                                                             int exponent, char* buffer) noexcept {
                 // Print significand by decomposing it into a 9-digit block and a 8-digit block.
                 stdr::uint_least32_t first_block, second_block;
                 bool no_second_block;

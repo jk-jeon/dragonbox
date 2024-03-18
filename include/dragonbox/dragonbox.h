@@ -1791,7 +1791,7 @@ namespace jkj {
 
         namespace detail {
             // Forward declare the implementation class.
-            template <class Float, class FloatTraits = default_float_traits<Float>>
+            template <class FloatFormat, class CarrierUInt>
             struct impl;
 
             namespace policy_impl {
@@ -2457,12 +2457,12 @@ namespace jkj {
             // The main algorithm.
             ////////////////////////////////////////////////////////////////////////////////////////
 
-            template <class Float, class FloatTraits>
-            struct impl : private FloatTraits, private FloatTraits::format {
-                using format = typename FloatTraits::format;
-                using carrier_uint = typename FloatTraits::carrier_uint;
+            template <class FloatFormat, class CarrierUInt>
+            struct impl : private FloatFormat {
+                using format = FloatFormat;
+                using carrier_uint = CarrierUInt;
+                static constexpr int carrier_bits = int(physical_bits<carrier_uint>::value);
 
-                using FloatTraits::carrier_bits;
                 using format::significand_bits;
                 using format::min_exponent;
                 using format::max_exponent;
@@ -3330,7 +3330,7 @@ namespace jkj {
                            to_decimal_policy_holder<Policies...>::return_has_sign,
                            to_decimal_policy_holder<Policies...>::report_trailing_zeros>;
 
-            template <class Float, class FloatTraits, class PolicyHolder, class IntervalTypeProvider>
+            template <class FloatTraits, class PolicyHolder, class IntervalTypeProvider>
             struct invoke_shorter_dispatcher {
                 using unsigned_return_type = decimal_fp<typename FloatTraits::carrier_uint, false,
                                                         PolicyHolder::report_trailing_zeros>;
@@ -3338,15 +3338,16 @@ namespace jkj {
                 template <class... Args>
                 JKJ_FORCEINLINE JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 unsigned_return_type
                 operator()(Args... args) noexcept {
-                    return impl<Float, FloatTraits>::template compute_nearest_shorter<
-                        unsigned_return_type, typename IntervalTypeProvider::shorter_interval_type,
-                        typename PolicyHolder::trailing_zero_policy,
-                        typename PolicyHolder::binary_to_decimal_rounding_policy,
-                        typename PolicyHolder::cache_policy>(args...);
+                    return impl<typename FloatTraits::format, typename FloatTraits::carrier_uint>::
+                        template compute_nearest_shorter<
+                            unsigned_return_type, typename IntervalTypeProvider::shorter_interval_type,
+                            typename PolicyHolder::trailing_zero_policy,
+                            typename PolicyHolder::binary_to_decimal_rounding_policy,
+                            typename PolicyHolder::cache_policy>(args...);
                 }
             };
 
-            template <class Float, class FloatTraits, class PolicyHolder, class IntervalTypeProvider>
+            template <class FloatTraits, class PolicyHolder, class IntervalTypeProvider>
             struct invoke_normal_dispatcher {
                 using unsigned_return_type = decimal_fp<typename FloatTraits::carrier_uint, false,
                                                         PolicyHolder::report_trailing_zeros>;
@@ -3354,7 +3355,8 @@ namespace jkj {
                 template <class... Args>
                 JKJ_FORCEINLINE JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 unsigned_return_type
                 operator()(Args... args) noexcept {
-                    return impl<Float, FloatTraits>::template compute_nearest_normal<
+                    return impl<typename FloatTraits::format, typename FloatTraits::carrier_uint>::
+                        template compute_nearest_normal<
                         unsigned_return_type, typename IntervalTypeProvider::normal_interval_type,
                         typename PolicyHolder::trailing_zero_policy,
                         typename PolicyHolder::binary_to_decimal_rounding_policy,
@@ -3418,7 +3420,7 @@ namespace jkj {
                                 signed_significand_bits,
                                 IntervalTypeProvider::invoke_shorter_interval_case(
                                     signed_significand_bits,
-                                    invoke_shorter_dispatcher<Float, FloatTraits, PolicyHolder,
+                                    invoke_shorter_dispatcher<FloatTraits, PolicyHolder,
                                                               IntervalTypeProvider>{},
                                     exponent));
                         }
@@ -3434,8 +3436,7 @@ namespace jkj {
                         signed_significand_bits,
                         IntervalTypeProvider::invoke_normal_interval_case(
                             signed_significand_bits,
-                            invoke_normal_dispatcher<Float, FloatTraits, PolicyHolder,
-                                                     IntervalTypeProvider>{},
+                            invoke_normal_dispatcher<FloatTraits, PolicyHolder, IntervalTypeProvider>{},
                             two_fc, exponent));
                 }
                 else JKJ_IF_CONSTEXPR(tag == decimal_to_binary_rounding::tag_t::left_closed_directed) {
@@ -3451,7 +3452,8 @@ namespace jkj {
 
                     return PolicyHolder::handle_sign(
                         signed_significand_bits,
-                        detail::impl<Float, FloatTraits>::template compute_left_closed_directed<
+                        detail::impl<typename FloatTraits::format, typename FloatTraits::carrier_uint>::
+                            template compute_left_closed_directed<
                             unsigned_return_type, typename PolicyHolder::trailing_zero_policy,
                             typename PolicyHolder::cache_policy>(two_fc, exponent));
                 }
@@ -3477,7 +3479,8 @@ namespace jkj {
 
                     return PolicyHolder::handle_sign(
                         signed_significand_bits,
-                        detail::impl<Float, FloatTraits>::template compute_right_closed_directed<
+                        detail::impl<typename FloatTraits::format, typename FloatTraits::carrier_uint>::
+                            template compute_right_closed_directed<
                             unsigned_return_type, typename PolicyHolder::trailing_zero_policy,
                             typename PolicyHolder::cache_policy>(two_fc, exponent, shorter_interval));
                 }

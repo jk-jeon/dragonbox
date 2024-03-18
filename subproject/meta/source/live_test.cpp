@@ -66,7 +66,7 @@ static void live_test(std::streamsize hex_width) {
 }
 
 int main() {
-    constexpr enum { test_float, test_double } test = test_double;
+    constexpr enum { test_float, test_double } test = test_float;
 
     if (test == test_float) {
         std::cout << "[Start live test for float's]\n";
