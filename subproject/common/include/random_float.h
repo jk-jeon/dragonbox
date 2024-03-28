@@ -133,7 +133,7 @@ Float randomly_generate_float_with_given_digits(unsigned int digits, RandGen& rg
     using signed_int_t = std::make_signed_t<carrier_uint>;
 
     assert(digits >= 1);
-    assert(digits <= ieee754_traits::format::decimal_digits);
+    assert(digits <= conversion_traits::format::decimal_digits);
 
     // Generate sign uniformly randomly
     signed_int_t sign = std::uniform_int_distribution<signed_int_t>{0, 1}(rg) == 0 ? 1 : -1;
