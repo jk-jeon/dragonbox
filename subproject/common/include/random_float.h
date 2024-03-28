@@ -75,27 +75,27 @@ inline std::mt19937_64 generate_correctly_seeded_mt19937_64() {
 
 template <class Float, class RandGen>
 Float uniformly_randomly_generate_finite_float(RandGen& rg) {
-    using ieee754_traits = jkj::dragonbox::default_float_traits<Float>;
-    using ieee754_format_info = typename ieee754_traits::format;
-    using carrier_uint = typename ieee754_traits::carrier_uint;
+    using default_float_bit_carrier_conversion_traits =
+        jkj::dragonbox::default_float_bit_carrier_conversion_traits<Float>;
+    using format = typename default_float_bit_carrier_conversion_traits::format;
+    using carrier_uint = typename default_float_bit_carrier_conversion_traits::carrier_uint;
+    using format_traits = jkj::dragonbox::ieee754_binary_traits<format, carrier_uint>;
     using uniform_distribution = std::uniform_int_distribution<carrier_uint>;
 
     // Generate sign bit
     auto sign_bit = uniform_distribution{0, 1}(rg);
 
     // Generate exponent bits
-    auto exponent_bits =
-        uniform_distribution{0, (carrier_uint(1) << ieee754_format_info::exponent_bits) - 2}(rg);
+    auto exponent_bits = uniform_distribution{0, (carrier_uint(1) << format::exponent_bits) - 2}(rg);
 
     // Generate significand bits
     auto significand_bits =
-        uniform_distribution{0, (carrier_uint(1) << ieee754_format_info::significand_bits) - 1}(rg);
+        uniform_distribution{0, (carrier_uint(1) << format_traits::significand_bits) - 1}(rg);
 
-    auto bit_representation = (sign_bit << (ieee754_traits::carrier_bits - 1)) |
-                              (exponent_bits << (ieee754_format_info::significand_bits)) |
-                              significand_bits;
+    auto bit_representation = (sign_bit << (format_traits::carrier_bits - 1)) |
+                              (exponent_bits << (format_traits::significand_bits)) | significand_bits;
 
-    return ieee754_traits::carrier_to_float(bit_representation);
+    return default_float_bit_carrier_conversion_traits::carrier_to_float(bit_representation);
 }
 
 template <class Float, class RandGen>
