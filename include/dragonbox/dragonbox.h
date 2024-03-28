@@ -3422,7 +3422,7 @@ namespace jkj {
 
                 template <class BaseDefaultPairList, class... Policies>
                 constexpr convert_to_policy_holder<policy_pair_list<BaseDefaultPairList, Policies...>>
-                make_policy_holder(BaseDefaultPairList, Policies... policies) {
+                make_policy_holder(BaseDefaultPairList, Policies...) {
                     static_assert(check_policy_list_validity(BaseDefaultPairList{}, Policies{}...),
                                   "jkj::dragonbox: an invalid policy is specified");
 
