@@ -44,10 +44,11 @@ namespace jkj {
             extern char* to_chars(CarrierUInt significand, int exponent, char* buffer) noexcept;
 
             // Avoid needless ABI overhead incurred by tag dispatch.
-            template <class PolicyHolder, class Float, class FloatTraits>
-            char* to_chars_n_impl(float_bits<Float, FloatTraits> br, char* buffer) noexcept {
+            template <class DecimalToBinaryRoundingPolicy, class BinaryToDecimalRoundingPolicy,
+                      class CachePolicy, class FormatTraits>
+            char* to_chars_n_impl(float_bits<FormatTraits> br, char* buffer) noexcept {
                 auto const exponent_bits = br.extract_exponent_bits();
-                auto const s = br.remove_exponent_bits(exponent_bits);
+                auto const s = br.remove_exponent_bits();
 
                 if (br.is_finite(exponent_bits)) {
                     if (s.is_negative()) {
@@ -55,14 +56,13 @@ namespace jkj {
                         ++buffer;
                     }
                     if (br.is_nonzero()) {
-                        auto result = to_decimal<Float, FloatTraits>(
-                            s, exponent_bits, policy::sign::ignore, policy::trailing_zero::ignore,
-                            typename PolicyHolder::decimal_to_binary_rounding_policy{},
-                            typename PolicyHolder::binary_to_decimal_rounding_policy{},
-                            typename PolicyHolder::cache_policy{});
-                        return to_chars<typename FloatTraits::format,
-                                        typename FloatTraits::carrier_uint>(result.significand,
-                                                                            result.exponent, buffer);
+                        auto result = to_decimal_ex(s, exponent_bits, policy::sign::ignore,
+                                                    policy::trailing_zero::ignore,
+                                                    DecimalToBinaryRoundingPolicy{},
+                                                    BinaryToDecimalRoundingPolicy{}, CachePolicy{});
+                        return to_chars<typename FormatTraits::format,
+                                        typename FormatTraits::carrier_uint>(result.significand,
+                                                                             result.exponent, buffer);
                     }
                     else {
                         stdr::memcpy(buffer, "0E0", 3);
@@ -87,7 +87,11 @@ namespace jkj {
         }
 
         // Returns the next-to-end position
-        template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
+        template <class Float,
+                  class ConversionTraits = default_float_bit_carrier_conversion_traits<Float>,
+                  class FormatTraits = ieee754_binary_traits<typename ConversionTraits::format,
+                                                             typename ConversionTraits::carrier_uint>,
+                  class... Policies>
         char* to_chars_n(Float x, char* buffer, Policies... policies) noexcept {
             using namespace jkj::dragonbox::detail::policy_impl;
             using policy_holder = decltype(make_policy_holder(
@@ -98,13 +102,20 @@ namespace jkj {
                                        base_default_pair<cache::base, cache::full>>{},
                 policies...));
 
-            return detail::to_chars_n_impl<policy_holder>(float_bits<Float, FloatTraits>(x), buffer);
+            return detail::to_chars_n_impl<typename policy_holder::decimal_to_binary_rounding_policy,
+                                           typename policy_holder::binary_to_decimal_rounding_policy,
+                                           typename policy_holder::cache_policy>(
+                make_float_bits<Float, ConversionTraits, FormatTraits>(x), buffer);
         }
 
         // Null-terminate and bypass the return value of fp_to_chars_n
-        template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
+        template <class Float,
+                  class ConversionTraits = default_float_bit_carrier_conversion_traits<Float>,
+                  class FormatTraits = ieee754_binary_traits<typename ConversionTraits::format,
+                                                             typename ConversionTraits::carrier_uint>,
+                  class... Policies>
         char* to_chars(Float x, char* buffer, Policies... policies) noexcept {
-            auto ptr = to_chars_n<Float, FloatTraits>(x, buffer, policies...);
+            auto ptr = to_chars_n<Float, ConversionTraits, FormatTraits>(x, buffer, policies...);
             *ptr = '\0';
             return ptr;
         }
