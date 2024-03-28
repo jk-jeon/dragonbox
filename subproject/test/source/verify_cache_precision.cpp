@@ -65,13 +65,11 @@ struct analysis_result {
     std::vector<error_case> error_cases;
 };
 
-template <class FloatTraits>
-bool analyze(std::ostream& out) {
+template <class FormatTraits>
+bool analyze(std::ostream& out, std::size_t cache_bits) {
     out << "e,bits_for_multiplication,bits_for_integer_check\n";
 
-    using format = typename FloatTraits::format;
-    using carrier_uint = typename FloatTraits::carrier_uint;
-    using impl = jkj::dragonbox::detail::impl<format, carrier_uint>;
+    using impl = jkj::dragonbox::detail::impl<FormatTraits>;
     using namespace jkj::dragonbox::detail::log;
 
     auto n_max = jkj::big_uint::power_of_2(impl::significand_bits + 2);
@@ -134,10 +132,10 @@ bool analyze(std::ostream& out) {
                 // We want to find the largest v <= n_max such that va == -1 (mod b).
                 // To obtain such v, we first find the smallest positive v0 such that
                 // v0 * a == -1 (mod b). Then v = v0 + floor((n_max - v0)/b) * b.
-                auto v0 = jkj::find_best_rational_approx<
-                              jkj::rational_continued_fractions<jkj::big_uint>>(
-                              unit, unit.denominator - 1)
-                              .above.denominator;
+                auto v0 =
+                    jkj::find_best_rational_approx<jkj::rational_continued_fractions<jkj::big_uint>>(
+                        unit, unit.denominator - 1)
+                        .above.denominator;
                 auto v = v0 + ((n_max - v0) / unit.denominator) * unit.denominator;
 
                 auto div_result = div(v * unit.numerator + 1, unit.denominator);
@@ -151,8 +149,8 @@ bool analyze(std::ostream& out) {
         }
         else {
             auto [below, above] =
-                jkj::find_best_rational_approx<jkj::rational_continued_fractions<jkj::big_uint>>(
-                    unit, n_max);
+                jkj::find_best_rational_approx<jkj::rational_continued_fractions<jkj::big_uint>>(unit,
+                                                                                                 n_max);
 
             upper_bound = std::move(above);
             upper_bound.denominator *= jkj::big_uint::power_of_2(beta);
@@ -163,7 +161,7 @@ bool analyze(std::ostream& out) {
                         .multiply_2_until(unit.denominator));
 
             // Collect all cases where cache_bits seems insufficient.
-            if (sufficient_bits_for_integer_checks > impl::cache_bits) {
+            if (sufficient_bits_for_integer_checks > cache_bits) {
                 result.error_cases.push_back({e, k, target, unit});
             }
         }
@@ -181,9 +179,9 @@ bool analyze(std::ostream& out) {
 
         // Tentatively decrease the above result to find the minimum admissible value.
         while (sufficient_bits_for_multiplication > 0) {
-            auto r = (jkj::big_uint::power_of_2(sufficient_bits_for_multiplication - 1) *
-                      target.numerator) %
-                     target.denominator;
+            auto r =
+                (jkj::big_uint::power_of_2(sufficient_bits_for_multiplication - 1) * target.numerator) %
+                target.denominator;
             if (!r.is_zero()) {
                 r = target.denominator - r;
             }
@@ -221,8 +219,7 @@ bool analyze(std::ostream& out) {
     }
 
     // Analyze all error cases.
-    auto reciprocal_error_threshold =
-        jkj::big_uint::power_of_2(impl::cache_bits - impl::carrier_bits);
+    auto reciprocal_error_threshold = jkj::big_uint::power_of_2(cache_bits - impl::carrier_bits);
     for (auto& ec : result.error_cases) {
         // We want to find all n such that
         // d:= na/b - floor(na/b) < 2^(q-Q).
@@ -277,7 +274,7 @@ bool analyze(std::ostream& out) {
     std::cout << "A lower bound on the margin is " << distance_to_upper_bound.numerator << " / "
               << distance_to_upper_bound.denominator << ".\n";
 
-    if (impl::cache_bits < larger) {
+    if (cache_bits < larger) {
         auto success = true;
         std::cout << "Error cases:\n";
         auto threshold = jkj::big_uint::power_of_2(impl::significand_bits + 1) - 1;
@@ -306,13 +303,12 @@ bool analyze(std::ostream& out) {
         }
 
         if (!success) {
-            std::cout << "Verification failed. " << impl::cache_bits
-                      << "-bits are not sufficient.\n\n";
+            std::cout << "Verification failed. " << cache_bits << "-bits are not sufficient.\n\n";
             return false;
         }
     }
 
-    std::cout << "Verified. " << impl::cache_bits << "-bits are sufficient.\n\n";
+    std::cout << "Verified. " << cache_bits << "-bits are sufficient.\n\n";
     return true;
 }
 
@@ -324,14 +320,16 @@ int main() {
 
     std::cout << "[Verifying sufficiency of cache precision for binary32...]\n";
     out.open("results/binary32.csv");
-    if (!analyze<jkj::dragonbox::default_float_traits<float>>(out)) {
+    if (!analyze<jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary32,
+                                                       std::uint_least32_t>>(out, 64)) {
         success = false;
     }
     out.close();
 
     std::cout << "[Verifying sufficiency of cache precision for binary64...]\n";
     out.open("results/binary64.csv");
-    if (!analyze<jkj::dragonbox::default_float_traits<double>>(out)) {
+    if (!analyze<jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary64,
+                                                        std::uint_least64_t>>(out, 128)) {
         success = false;
     }
     out.close();

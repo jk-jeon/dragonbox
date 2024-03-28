@@ -28,9 +28,9 @@ void reference_implementation(double x, char* buffer) { d2s_buffered(x, buffer);
 
 template <class Float, class... Args>
 static bool test_all_shorter_interval_cases_impl(Args&&... args) {
-    using ieee754_traits = jkj::dragonbox::default_float_traits<Float>;
-    using ieee754_format_info = typename ieee754_traits::format;
-    using carrier_uint = typename ieee754_traits::carrier_uint;
+    using conversion_traits = jkj::dragonbox::default_float_bit_carrier_conversion_traits<Float>;
+    using ieee754_format_info = typename conversion_traits::format;
+    using carrier_uint = typename conversion_traits::carrier_uint;
 
     char buffer1[64];
     char buffer2[64];
@@ -40,7 +40,7 @@ static bool test_all_shorter_interval_cases_impl(Args&&... args) {
         // Compose a floating-point number
         carrier_uint br = carrier_uint(e - ieee754_format_info::exponent_bias)
                           << ieee754_format_info::significand_bits;
-        auto x = jkj::dragonbox::float_bits<Float>{br}.to_float();
+        auto x = conversion_traits::carrier_to_float(br);
 
         jkj::dragonbox::to_chars(x, buffer1, std::forward<Args>(args)...);
         reference_implementation(x, buffer2);

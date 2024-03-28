@@ -243,9 +243,11 @@ int main() {
         }
     }
 
-    std::cout << "Done.\n\n\n";
-
-    if (!success) {
+    if (success) {
+        std::cout << "Done. No error detected.\n\n\n";
+    }
+    else {
+        std::cout << "Error detected.\n\n\n";
         return -1;
     }
 }

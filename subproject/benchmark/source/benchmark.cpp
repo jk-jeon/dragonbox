@@ -72,8 +72,8 @@ public:
                 auto out_itr = (*result_array_itr).second[digits].begin();
 
                 if (digits == 0) {
-                    std::cout << "Benchmarking " << name_func_pair.first
-                              << " with uniformly random " << float_name << "'s...\n";
+                    std::cout << "Benchmarking " << name_func_pair.first << " with uniformly random "
+                              << float_name << "'s...\n";
                 }
                 else {
                     std::cout << "Benchmarking " << name_func_pair.first
@@ -123,13 +123,13 @@ register_function_for_benchmark::register_function_for_benchmark(std::string_vie
 };
 
 register_function_for_benchmark::register_function_for_benchmark(std::string_view name,
-                                                                 void (*func_double)(double,
-                                                                                     char*)) {
+                                                                 void (*func_double)(double, char*)) {
     benchmark_holder<double>::get_instance().register_function(name, func_double);
 };
 
-register_function_for_benchmark::register_function_for_benchmark(
-    std::string_view name, void (*func_float)(float, char*), void (*func_double)(double, char*)) {
+register_function_for_benchmark::register_function_for_benchmark(std::string_view name,
+                                                                 void (*func_float)(float, char*),
+                                                                 void (*func_double)(double, char*)) {
     benchmark_holder<float>::get_instance().register_function(name, func_float);
     benchmark_holder<double>::get_instance().register_function(name, func_double);
 };
@@ -169,7 +169,7 @@ static void benchmark_test(std::string_view float_name, std::size_t number_of_un
     out_file << "name,sample,bit_representation,time\n";
 
     char buffer[64];
-    typename jkj::dragonbox::default_float_traits<Float>::carrier_uint br;
+    typename jkj::dragonbox::default_float_bit_carrier_conversion_traits<Float>::carrier_uint br;
     for (auto& name_result_pair : out) {
         for (auto const& data_time_pair : name_result_pair.second[0]) {
             std::memcpy(&br, &data_time_pair.first, sizeof(Float));
@@ -198,8 +198,8 @@ static void benchmark_test(std::string_view float_name, std::size_t number_of_un
         for (unsigned int digits = 1; digits <= benchmark_holder<Float>::max_digits; ++digits) {
             for (auto const& data_time_pair : name_result_pair.second[digits]) {
                 jkj::dragonbox::to_chars(data_time_pair.first, buffer);
-                out_file << "\"" << name_result_pair.first << "\"," << digits << "," << buffer
-                         << "," << data_time_pair.second << "\n";
+                out_file << "\"" << name_result_pair.first << "\"," << digits << "," << buffer << ","
+                         << data_time_pair.second << "\n";
             }
         }
     }

@@ -46,8 +46,9 @@ int main() {
 
     using namespace jkj::dragonbox::detail::log;
     using namespace jkj::dragonbox::detail::wuint;
-    using info = jkj::dragonbox::detail::compressed_cache_detail<jkj::dragonbox::ieee754_binary64>;
-    using impl = jkj::dragonbox::detail::impl<jkj::dragonbox::ieee754_binary64, std::uint_least64_t>;
+    using info = jkj::dragonbox::compressed_cache_holder<jkj::dragonbox::ieee754_binary64>;
+    using impl = jkj::dragonbox::detail::impl<
+        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary64, std::uint_least64_t>>;
 
     std::cout << "[Verifying cache recovery for compressed cache...]\n";
 
@@ -72,7 +73,7 @@ int main() {
 
         if (offset != 0) {
             // Obtain the corresponding power of 5.
-            auto const pow5 = info::pow5.table[offset];
+            auto const pow5 = info::pow5_table.table[offset];
 
             // Compute the required amount of bit-shifts.
             auto const alpha = floor_log2_pow10(k) - floor_log2_pow10(kb) - offset;
@@ -140,7 +141,7 @@ int main() {
                     auto const rc = jkj::big_uint{recovered_cache.low(), recovered_cache.high()};
                     auto const left_hand_side =
                         unit.denominator * rc -
-                        jkj::big_uint::power_of_2(impl::cache_bits - beta) * unit.numerator;
+                        jkj::big_uint::power_of_2(info::cache_bits - beta) * unit.numerator;
 
                     if (left_hand_side * (n_max / unit.denominator) >=
                         jkj::big_uint::power_of_2(impl::carrier_bits - beta)) {

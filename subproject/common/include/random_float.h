@@ -100,13 +100,14 @@ Float uniformly_randomly_generate_finite_float(RandGen& rg) {
 
 template <class Float, class RandGen>
 Float uniformly_randomly_generate_general_float(RandGen& rg) {
-    using ieee754_traits = jkj::dragonbox::default_float_traits<Float>;
-    using carrier_uint = typename ieee754_traits::carrier_uint;
+    using default_float_bit_carrier_conversion_traits =
+        jkj::dragonbox::default_float_bit_carrier_conversion_traits<Float>;
+    using carrier_uint = typename default_float_bit_carrier_conversion_traits::carrier_uint;
     using uniform_distribution = std::uniform_int_distribution<carrier_uint>;
 
     // Generate sign bit
     auto bit_representation = uniform_distribution{0, std::numeric_limits<carrier_uint>::max()}(rg);
-    return ieee754_traits::carrier_to_float(bit_representation);
+    return default_float_bit_carrier_conversion_traits::carrier_to_float(bit_representation);
 }
 
 template <class Float>
@@ -127,8 +128,8 @@ struct std_string_to_float<double> {
 // However, I don't think there is an easy way to do it correctly.
 template <class Float, class RandGen>
 Float randomly_generate_float_with_given_digits(unsigned int digits, RandGen& rg) {
-    using ieee754_traits = jkj::dragonbox::default_float_traits<Float>;
-    using carrier_uint = typename ieee754_traits::carrier_uint;
+    using conversion_traits = jkj::dragonbox::default_float_bit_carrier_conversion_traits<Float>;
+    using carrier_uint = typename conversion_traits::carrier_uint;
     using signed_int_t = std::make_signed_t<carrier_uint>;
 
     assert(digits >= 1);

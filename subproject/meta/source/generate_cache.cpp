@@ -23,12 +23,9 @@
 #include <stdexcept>
 #include <vector>
 
-template <class FloatTraits>
-auto generate_cache() {
-    using traits_type = FloatTraits;
-    using format = typename traits_type::format;
-    using carrier_uint = typename traits_type::carrier_uint;
-    using impl = jkj::dragonbox::detail::impl<format, carrier_uint>;
+template <class FormatTraits>
+auto generate_cache(std::size_t cache_bits) {
+    using impl = jkj::dragonbox::detail::impl<FormatTraits>;
 
     std::vector<jkj::big_uint> results;
     jkj::unsigned_rational<jkj::big_uint> target_number;
@@ -53,7 +50,7 @@ auto generate_cache() {
             target_number.denominator *= jkj::big_uint::power_of_2(-exp_2);
         }
 
-        auto div_res = div(jkj::big_uint::power_of_2(impl::cache_bits) * target_number.numerator,
+        auto div_res = div(jkj::big_uint::power_of_2(cache_bits) * target_number.numerator,
                            target_number.denominator);
         auto m = std::move(div_res.quot);
         if (!div_res.rem.is_zero()) {
@@ -61,8 +58,8 @@ auto generate_cache() {
         }
 
         // Recheck that m is in the correct range.
-        if (m < jkj::big_uint::power_of_2(impl::cache_bits - 1) ||
-            m >= jkj::big_uint::power_of_2(impl::cache_bits)) {
+        if (m < jkj::big_uint::power_of_2(cache_bits - 1) ||
+            m >= jkj::big_uint::power_of_2(cache_bits)) {
             throw std::logic_error{"Generated cache entry is not in the correct range"};
         }
 
@@ -79,10 +76,10 @@ auto generate_cache() {
 int main() {
     std::cout << "[Generating cache...]\n";
 
-    auto write_file = [](std::ofstream& out, auto type_tag, auto const& cache_array,
+    auto write_file = [](std::ofstream& out, std::size_t cache_bits, auto type_tag,
                          auto&& ieee_754_type_name_string, auto&& element_printer) {
-        using impl_type = jkj::dragonbox::detail::impl<typename decltype(type_tag)::format,
-                                                       typename decltype(type_tag)::carrier_uint>;
+        using impl_type = jkj::dragonbox::detail::impl<decltype(type_tag)>;
+        auto const cache_array = generate_cache<decltype(type_tag)>(cache_bits);
 
         out << "static constexpr int min_k = " << std::dec << impl_type::min_k << ";\n";
         out << "static constexpr int max_k = " << std::dec << impl_type::max_k << ";\n";
@@ -102,21 +99,23 @@ int main() {
 
     try {
         out.open("results/binary32_generated_cache.txt");
-        auto binary32_cache = generate_cache<jkj::dragonbox::default_float_traits<float>>();
-        write_file(out, jkj::dragonbox::default_float_traits<float>{}, binary32_cache, "binary32",
-                   [](std::ofstream& out, jkj::big_uint const& value) {
+        write_file(out, 64,
+                   jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary32,
+                                                         std::uint_least32_t>{},
+                   "binary32", [](std::ofstream& out, jkj::big_uint const& value) {
                        out << "UINT64_C(0x" << std::hex << std::setw(16) << std::setfill('0')
                            << value[0] << ")";
                    });
         out.close();
 
         out.open("results/binary64_generated_cache.txt");
-        auto binary64_cache = generate_cache<jkj::dragonbox::default_float_traits<double>>();
-        write_file(out, jkj::dragonbox::default_float_traits<double>{}, binary64_cache, "binary64",
-                   [](std::ofstream& out, jkj::big_uint const& value) {
-                       out << "{ UINT64_C(0x" << std::hex << std::setw(16) << std::setfill('0')
+        write_file(out, 128,
+                   jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary64,
+                                                         std::uint_least64_t>{},
+                   "binary64", [](std::ofstream& out, jkj::big_uint const& value) {
+                       out << "{UINT64_C(0x" << std::hex << std::setw(16) << std::setfill('0')
                            << value[1] << "), UINT64_C(0x" << std::hex << std::setw(16)
-                           << std::setfill('0') << value[0] << ") }";
+                           << std::setfill('0') << value[0] << ")}";
                    });
         out.close();
     }

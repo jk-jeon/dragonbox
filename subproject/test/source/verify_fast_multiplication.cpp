@@ -21,12 +21,16 @@
 
 #include <iostream>
 
-template <class Float, class CachePolicy>
+template <class FormatTraits, class CachePolicy>
 static bool verify_fast_multiplication_xz(CachePolicy&& cache_policy) {
-    using traits_type = jkj::dragonbox::default_float_traits<Float>;
-    using format = typename traits_type::format;
-    using carrier_uint = typename traits_type::carrier_uint;
-    using impl = jkj::dragonbox::detail::impl<format, carrier_uint>;
+    using format = typename FormatTraits::format;
+    using carrier_uint = typename FormatTraits::carrier_uint;
+    using impl = jkj::dragonbox::detail::impl<FormatTraits>;
+    using cache_holder_type =
+        typename std::decay<CachePolicy>::type::template cache_holder_type<format>;
+    using multiplication_traits = jkj::dragonbox::multiplication_traits<
+        FormatTraits, typename cache_holder_type::cache_entry_type, cache_holder_type::cache_bits>;
+
 
     constexpr auto four_fl = (carrier_uint(1) << (impl::significand_bits + 2)) - 1;
     constexpr auto two_fr = (carrier_uint(1) << (impl::significand_bits + 1)) + 1;
@@ -47,10 +51,10 @@ static bool verify_fast_multiplication_xz(CachePolicy&& cache_policy) {
         auto const cache = cache_policy.template get_cache<format>(k);
 
         // Compute the endpoints using the fast method.
-        auto x_fast = impl::template compute_mul_impl<
-            format>::compute_left_endpoint_for_shorter_interval_case(cache, beta);
-        auto z_fast = impl::template compute_mul_impl<
-            format>::compute_right_endpoint_for_shorter_interval_case(cache, beta);
+        auto x_fast =
+            multiplication_traits::compute_left_endpoint_for_shorter_interval_case(cache, beta);
+        auto z_fast =
+            multiplication_traits::compute_right_endpoint_for_shorter_interval_case(cache, beta);
 
         // Precisely compute the endpoints.
         jkj::unsigned_rational<jkj::big_uint> precise_multiplier{1, 1};
@@ -67,10 +71,8 @@ static bool verify_fast_multiplication_xz(CachePolicy&& cache_policy) {
             precise_multiplier.denominator *= jkj::big_uint::power_of_2(-e - k);
         }
 
-        auto x_exact =
-            (four_fl * precise_multiplier.numerator) / (4 * precise_multiplier.denominator);
-        auto z_exact =
-            (two_fr * precise_multiplier.numerator) / (2 * precise_multiplier.denominator);
+        auto x_exact = (four_fl * precise_multiplier.numerator) / (4 * precise_multiplier.denominator);
+        auto z_exact = (two_fr * precise_multiplier.numerator) / (2 * precise_multiplier.denominator);
 
         if (x_exact != x_fast) {
             std::cout << "(e = " << e << ") left endpoint is not correct; computed = " << x_fast
@@ -94,12 +96,13 @@ static bool verify_fast_multiplication_xz(CachePolicy&& cache_policy) {
     return success;
 }
 
-template <class Float, class CachePolicy>
+template <class FormatTraits, class CachePolicy>
 static bool verify_fast_multiplication_yru(CachePolicy&& cache_policy) {
-    using traits_type = jkj::dragonbox::default_float_traits<Float>;
-    using format = typename traits_type::format;
-    using carrier_uint = typename traits_type::carrier_uint;
-    using impl = jkj::dragonbox::detail::impl<format, carrier_uint>;
+    using format = typename FormatTraits::format;
+    using impl = jkj::dragonbox::detail::impl<FormatTraits>;
+    using cache_holder_type =
+        typename std::decay<CachePolicy>::type::template cache_holder_type<format>;
+
     bool success = true;
 
     for (int k = impl::min_k; k <= impl::max_k; ++k) {
@@ -118,7 +121,8 @@ static bool verify_fast_multiplication_yru(CachePolicy&& cache_policy) {
 
         // If the lower half is zero, we need to check if the cache is precise.
         if (lower_half == 0) {
-            if (k < 0 || k > jkj::dragonbox::detail::log::floor_log5_pow2(impl::cache_bits)) {
+            if (k < 0 ||
+                k > jkj::dragonbox::detail::log::floor_log5_pow2(cache_holder_type::cache_bits)) {
                 std::cout << "(k = " << k << ") computation might be incorrect\n";
                 success = false;
             }
@@ -140,32 +144,44 @@ int main() {
 
     std::cout << "[Verifying fast computation of xi and zi for the shorter interval case "
                  "with full cache (binary32)...]\n";
-    success &= verify_fast_multiplication_xz<float>(jkj::dragonbox::policy::cache::full);
+    success &= verify_fast_multiplication_xz<
+        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary32, std::uint_least32_t>>(
+        jkj::dragonbox::policy::cache::full);
     std::cout << "Done.\n\n\n";
 
     std::cout << "[Verifying fast computation of yru for the shorter interval case "
                  "with full cache (binary32)...]\n";
-    success &= verify_fast_multiplication_yru<float>(jkj::dragonbox::policy::cache::full);
+    success &= verify_fast_multiplication_yru<
+        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary32, std::uint_least32_t>>(
+        jkj::dragonbox::policy::cache::full);
     std::cout << "Done.\n\n\n";
 
     std::cout << "[Verifying fast computation of xi and zi for the shorter interval case "
                  "with full cache (binary64)...]\n";
-    success &= verify_fast_multiplication_xz<double>(jkj::dragonbox::policy::cache::full);
+    success &= verify_fast_multiplication_xz<
+        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary64, std::uint_least64_t>>(
+        jkj::dragonbox::policy::cache::full);
     std::cout << "Done.\n\n\n";
 
     std::cout << "[Verifying fast computation of xi and zi for the shorter interval case "
                  "with compressed cache (binary64)...]\n";
-    success &= verify_fast_multiplication_xz<double>(jkj::dragonbox::policy::cache::compact);
+    success &= verify_fast_multiplication_xz<
+        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary64, std::uint_least64_t>>(
+        jkj::dragonbox::policy::cache::compact);
     std::cout << "Done.\n\n\n";
 
     std::cout << "[Verifying fast computation of yru for the shorter interval case "
                  "with full cache (binary64)...]\n";
-    success &= verify_fast_multiplication_yru<double>(jkj::dragonbox::policy::cache::full);
+    success &= verify_fast_multiplication_yru<
+        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary64, std::uint_least64_t>>(
+        jkj::dragonbox::policy::cache::full);
     std::cout << "Done.\n\n\n";
 
     std::cout << "[Verifying fast computation of yru for the shorter interval case "
                  "with compressed cache (binary64)...]\n";
-    success &= verify_fast_multiplication_yru<double>(jkj::dragonbox::policy::cache::compact);
+    success &= verify_fast_multiplication_yru<
+        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary64, std::uint_least64_t>>(
+        jkj::dragonbox::policy::cache::compact);
     std::cout << "Done.\n\n\n";
 
     if (!success) {
