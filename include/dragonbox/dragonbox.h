@@ -133,33 +133,40 @@
     #define JKJ_IF_CONSTEVAL if consteval
     #define JKJ_IF_NOT_CONSTEVAL if !consteval
     #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+    #define JKJ_USE_IS_CONSTANT_EVALUATED 0
 #elif JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
     #if JKJ_STD_REPLACEMENT_HAS_IS_CONSTANT_EVALUATED
         #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
         #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
         #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+        #define JKJ_USE_IS_CONSTANT_EVALUATED 1
     #elif JKJ_HAS_IF_CONSTEXPR
         #define JKJ_IF_CONSTEVAL if constexpr (false)
         #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
         #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
     #else
         #define JKJ_IF_CONSTEVAL if (false)
         #define JKJ_IF_NOT_CONSTEVAL if (true)
         #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
     #endif
 #else
     #if defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
         #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
         #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
         #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+        #define JKJ_USE_IS_CONSTANT_EVALUATED 1
     #elif JKJ_HAS_IF_CONSTEXPR
         #define JKJ_IF_CONSTEVAL if constexpr (false)
         #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
         #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
     #else
         #define JKJ_IF_CONSTEVAL if (false)
         #define JKJ_IF_NOT_CONSTEVAL if (true)
         #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
     #endif
 #endif
 
@@ -201,7 +208,7 @@ namespace jkj {
         namespace detail {
             namespace stdr {
                 // <bit>
-#if JKJ_STD_REPLACEMENT_HAS_BIT_CAST
+#if JKJ_HAS_BIT_CAST
                 using JKJ_STD_REPLACEMENT_NAMESPACE::bit_cast;
 #endif
 
@@ -231,7 +238,7 @@ namespace jkj {
                 using conditional = JKJ_STD_REPLACEMENT_NAMESPACE::conditional<cond, T_true, T_false>;
                 template <class Base, class Derived>
                 using is_base_of = JKJ_STD_REPLACEMENT_NAMESPACE::is_base_of<Base, Derived>;
-#if JKJ_STD_REPLACEMENT_HAS_IS_CONSTANT_EVALUATED
+#if JKJ_USE_IS_CONSTANT_EVALUATED
                 using JKJ_STD_REPLACEMENT_NAMESPACE::is_constant_evaluated;
 #endif
                 template <class T1, class T2>
@@ -3530,6 +3537,7 @@ namespace jkj {
 #undef JKJ_FORCEINLINE
 #undef JKJ_SAFEBUFFERS
 #undef JKJ_CONSTEXPR20
+#undef JKJ_USE_IS_CONSTANT_EVALUATED
 #undef JKJ_CAN_BRANCH_ON_CONSTEVAL
 #undef JKJ_IF_NOT_CONSTEVAL
 #undef JKJ_IF_CONSTEVAL
