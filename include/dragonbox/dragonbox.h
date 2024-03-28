@@ -1727,7 +1727,7 @@ namespace jkj {
         // Compressed cache.
         template <class FloatFormat, class Dummy = void>
         struct compressed_cache_holder {
-            using cache_entry_type = cache_holder<FloatFormat>::cache_entry_type;
+            using cache_entry_type = typename cache_holder<FloatFormat>::cache_entry_type;
             static constexpr int cache_bits = cache_holder<FloatFormat>::cache_bits;
             static constexpr int min_k = cache_holder<FloatFormat>::min_k;
             static constexpr int max_k = cache_holder<FloatFormat>::max_k;
