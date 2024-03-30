@@ -173,7 +173,8 @@ In my machine (Intel Core i7-7700HQ 2.80GHz, Windows 10), it defeats or is on pa
 
 The following benchmark result (performed on 03/30/2024) is obtained using Milo's dtoa benchmark framework ([https://github.com/miloyip/dtoa-benchmark](https://github.com/miloyip/dtoa-benchmark)). The complete source code for the benchmark below is available [here](https://github.com/jk-jeon/dtoa-benchmark).
 
-![corei7_7700hq@2.80_win64_vc2019_randomdigit_time](other_files/milo_benchmark.png)
+![corei7_7700hq@2.80_win64_vc2019_randomdigit_time](other_files/unknown_win64_vc2019_randomdigit_time.png)
+![corei7_7700hq@2.80_win64_vc2019_randomdigit_time](other_files/unknown_win64_vc2019_randomdigit_timedigit.png)
 
 Note 1: `dragonbox` is the performance of Dragonbox with the full cache table, and `dragonbox_comp` is the performance of Dragonbox with the compact cache table.
 
