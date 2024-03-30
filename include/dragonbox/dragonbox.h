@@ -657,7 +657,7 @@ namespace jkj {
                 // Get 128-bit result of multiplication of two 64-bit unsigned integers.
                 JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128
                 umul128(stdr::uint_least64_t x, stdr::uint_least64_t y) noexcept {
-                    auto const generic_impl = [&]() -> uint128 {
+                    auto const generic_impl = [=]() -> uint128 {
                         auto a = stdr::uint_least32_t(x >> 32);
                         auto b = stdr::uint_least32_t(x);
                         auto c = stdr::uint_least32_t(y >> 32);
@@ -674,25 +674,36 @@ namespace jkj {
                         return {ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32),
                                 (intermediate << 32) + stdr::uint_least32_t(bd)};
                     };
-                    // To suppress warning.
+                    // To silence warning.
                     static_cast<void>(generic_impl);
 
-                    JKJ_IF_CONSTEVAL { return generic_impl(); }
 #if defined(__SIZEOF_INT128__)
                     auto result = builtin_uint128_t(x) * builtin_uint128_t(y);
                     return {stdr::uint_least64_t(result >> 64), stdr::uint_least64_t(result)};
 #elif defined(_MSC_VER) && defined(_M_X64)
+                    JKJ_IF_CONSTEVAL {
+                        // This redundant variable is to workaround MSVC's codegen bug caused by the
+                        // interaction of NRVO and intrinsics.
+                        auto result = generic_impl();
+                        return result;
+                    }
                     uint128 result;
+    #if defined(__AVX2__)
+                    result.low_ = _mulx_u64(x, y, &result.high_);
+    #else
                     result.low_ = _umul128(x, y, &result.high_);
+    #endif
                     return result;
 #else
                     return generic_impl();
 #endif
                 }
 
+                // Get high half of the 128-bit result of multiplication of two 64-bit unsigned
+                // integers.
                 JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 stdr::uint_least64_t
                 umul128_upper64(stdr::uint_least64_t x, stdr::uint_least64_t y) noexcept {
-                    auto const generic_impl = [&]() -> stdr::uint_least64_t {
+                    auto const generic_impl = [=]() -> stdr::uint_least64_t {
                         auto a = stdr::uint_least32_t(x >> 32);
                         auto b = stdr::uint_least32_t(x);
                         auto c = stdr::uint_least32_t(y >> 32);
@@ -708,15 +719,26 @@ namespace jkj {
 
                         return ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32);
                     };
-                    // To suppress warning.
+                    // To silence warning.
                     static_cast<void>(generic_impl);
 
-                    JKJ_IF_CONSTEVAL { return generic_impl(); }
 #if defined(__SIZEOF_INT128__)
                     auto result = builtin_uint128_t(x) * builtin_uint128_t(y);
                     return stdr::uint_least64_t(result >> 64);
 #elif defined(_MSC_VER) && defined(_M_X64)
-                    return __umulh(x, y);
+                    JKJ_IF_CONSTEVAL {
+                        // This redundant variable is to workaround MSVC's codegen bug caused by the
+                        // interaction of NRVO and intrinsics.
+                        auto result = generic_impl();
+                        return result;
+                    }
+                    stdr::uint_least64_t result;
+    #if defined(__AVX2__)
+                    _mulx_u64(x, y, &result);
+    #else
+                    result = __umulh(x, y);
+    #endif
+                    return result;
 #else
                     return generic_impl();
 #endif
@@ -2594,7 +2616,6 @@ namespace jkj {
                 static constexpr int min_k = min(
                     -log::floor_log10_pow2_minus_log10_4_over_3(int(max_exponent - significand_bits)),
                     -log::floor_log10_pow2(int(max_exponent - significand_bits)) + kappa);
-                static_assert(min_k >= cache_holder<format>::min_k, "");
 
                 // We do invoke shorter_interval_case for exponent == min_exponent case,
                 // so we should not add 1 here.
@@ -2602,7 +2623,6 @@ namespace jkj {
                     max(-log::floor_log10_pow2_minus_log10_4_over_3(
                             int(min_exponent - significand_bits /*+ 1*/)),
                         -log::floor_log10_pow2(int(min_exponent - significand_bits)) + kappa);
-                static_assert(max_k <= cache_holder<format>::max_k, "");
 
                 static constexpr int case_shorter_interval_left_endpoint_lower_threshold = 2;
                 static constexpr int case_shorter_interval_left_endpoint_upper_threshold =
@@ -2635,6 +2655,9 @@ namespace jkj {
                     compute_nearest(signed_significand_bits<FormatTraits> s,
                                     unsigned int exponent_bits) noexcept {
                     using cache_holder_type = typename CachePolicy::template cache_holder_type<format>;
+                    static_assert(
+                        min_k >= cache_holder_type::min_k && max_k <= cache_holder_type::max_k, "");
+
                     using multiplication_traits_ =
                         multiplication_traits<FormatTraits,
                                               typename cache_holder_type::cache_entry_type,
@@ -2908,6 +2931,9 @@ namespace jkj {
                     compute_left_closed_directed(signed_significand_bits<FormatTraits> s,
                                                  unsigned int exponent_bits) noexcept {
                     using cache_holder_type = typename CachePolicy::template cache_holder_type<format>;
+                    static_assert(
+                        min_k >= cache_holder_type::min_k && max_k <= cache_holder_type::max_k, "");
+
                     using multiplication_traits_ =
                         multiplication_traits<FormatTraits,
                                               typename cache_holder_type::cache_entry_type,
@@ -3020,6 +3046,9 @@ namespace jkj {
                     compute_right_closed_directed(signed_significand_bits<FormatTraits> s,
                                                   unsigned int exponent_bits) noexcept {
                     using cache_holder_type = typename CachePolicy::template cache_holder_type<format>;
+                    static_assert(
+                        min_k >= cache_holder_type::min_k && max_k <= cache_holder_type::max_k, "");
+
                     using multiplication_traits_ =
                         multiplication_traits<FormatTraits,
                                               typename cache_holder_type::cache_entry_type,
