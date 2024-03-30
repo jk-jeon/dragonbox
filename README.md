@@ -18,7 +18,7 @@ The algorithm guarantees three things:
 The core idea of Schubfach, which Dragonbox is based on, is a continuous analogue of discrete [pigeonhole principle](https://en.wikipedia.org/wiki/Pigeonhole_principle). The name *Schubfach* is coming from the German name of the pigeonhole principle, *Schubfachprinzip*, meaning "drawer principle". Since another name of the pigeonhole principle is *Dirichlet's box principle*, I decided to call my algorithm "Dragonbox" to honor its origins: Schubfach (box) and Grisu (dragon).
 
 # How to Use
-Although Dragonbox is intended for float-to-string conversion routines, the actual string generation is not officially a part of the algorithm. Dragonbox just outputs two integers (the decimal significand/exponent) that can be consumed by a string generation procedure. The header file [`include/dragonbox/dragonbox.h`](include/dragonbox/dragonbox.h) includes everything needed for this (it is header-only). Nevertheless, a string generation procedure is included in the library. There are two additional files needed for that: [`include/dragonbox/dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) and [`source/dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp). Since there are only three files, it should be not difficult to set up this library manually if you want, but you can also use it via CMake as explained below.
+Although Dragonbox is intended for float-to-string conversion routines, the actual string generation is not officially a part of the algorithm. Dragonbox just outputs two integers (the decimal significand/exponent) that can be consumed by a string generation procedure. The header file [`include/dragonbox/dragonbox.h`](include/dragonbox/dragonbox.h) includes everything needed for this (it is header-only). Nevertheless, a string generation procedure is included in the library. There are two additional files needed for that: [`include/dragonbox/dragonbox_to_chars.h`](include/dragonbox/dragonbox_to_chars.h) and [`source/dragonbox_to_chars.cpp`](source/dragonbox_to_chars.cpp). Since there are only three files, it should be not difficult to set up this library manually if you want, but you can also use it via CMake as explained below. If you are not familiar with CMake, I recommend you to have a look at [this](https://cliutils.gitlab.io/modern-cmake/) wonderful introduction.
 
 ## Installing Dragonbox
 The following will create platform-specific build files on your directory:
@@ -114,7 +114,6 @@ Policy parameters (e.g., `jkj::dragonbox::policy::sign::ignore` in the above exa
 Determines whether or not `jkj::dragonbox::to_decimal` will extract and return the sign of the input parameter.
 
 - `jkj::dragonbox::policy::sign::ignore`: There is no `is_negative` member in the returned struct and the sign of the input is not returned. A string generation routine might anyway need to deal with the sign by itself, so often this member will not be needed. In that case, omitting `is_negative` member can reduce some overhead. `jkj::dragonbox::to_chars` and `jkj::dragonbox::to_chars_n` use this policy internally. In the implementation of `jkj::dragonbox::to_decimal`, the sign of the input is relevant only for deciding the rounding interval under certain rounding mode policies. Under the default rounding mode policies, the sign is completely ignored.
-
 - `jkj::dragonbox::policy::sign::return_sign`: **This is the default policy.** The sign of the input will be written in the `is_negative` member of the returned struct.
 
 You cannot specify sign policy to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
@@ -122,10 +121,8 @@ You cannot specify sign policy to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to
 ## Trailing zero policy
 Determines what `jkj::dragonbox::to_decimal` will do with possible trailing decimal zeros.
 
-- `jkj::dragonbox::policy::trailing_zero::ignore`: Do not care about trailing zeros; the output significand may contain trailing zeros. Since trailing zero removal is a relatively heavy operation involving lots of divisions, and a string generation routine will need to perform divisions anyway, it is possible to get a better overall performance by omitting trailing zero removal from `jkj::dragonbox::to_decimal` and taking care of that in other places. `jkj::dragonbox::to_chars` and `jkj::dragonbox::to_chars_n` use this policy internally for IEEE-754 binary64 format (aka `double`).
- 
+- `jkj::dragonbox::policy::trailing_zero::ignore`: Do not care about trailing zeros; the output significand may contain trailing zeros. Since trailing zero removal is a relatively heavy operation involving lots of divisions, and a string generation routine will need to perform divisions anyway, it would be possible to get a better overall performance by omitting trailing zero removal from `jkj::dragonbox::to_decimal` and taking care of that in other places.
 - `jkj::dragonbox::policy::trailing_zero::remove`: **This is the default policy.** Remove all trailing zeros in the output. `jkj::dragonbox::to_chars` and `jkj::dragonbox::to_chars_n` use this policy internally for IEEE-754 binary32 format (aka `float`).
-
 - `jkj::dragonbox::policy::trailing_zero::report`: The output significand may contain trailing zeros, but such possibility will be reported in the additional member `may_have_trailing_zeros` of the returned struct. This member will be set to `true` if there might be trailing zeros, and it will be set to `false` if there should be no trailing zero. By how the algorithm works, it is guaranteed that whenever there might be trailing zeros, the maximum number of trailing zeros is 7 for binary32 and 15 for binary64.
 
 You cannot specify trailing zero policy to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
@@ -134,31 +131,19 @@ You cannot specify trailing zero policy to `jkj::dragonbox::to_chars`/`jkj::drag
 Dragonbox provides a roundtrip guarantee. This means that if we convert the output of Dragonbox back to IEEE-754 binary floating-point format, the result should be equal to the original input to Dragonbox. However, converting the decimal output of Dragonbox back into binary floating-point number requires a rounding, so in order to ensure the roundtrip guarantee, Dragonbox must assume which kind of rounding will be performed for *the inverse, decimal-to-binary conversion*.
 
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even`: **This is the default policy.** Use *round-to-nearest, tie-to-even* rounding mode.
-
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_odd`: Use *round-to-nearest, tie-to-odd* rounding mode.
-
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_toward_plus_infinity`: Use *round-to-nearest, tie-toward-plus-infinity* rounding mode.
-
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_toward_minus_infinity`: Use *round-to-nearest, tie-toward-minus-infinity* rounding mode.
-
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_toward_zero`: Use *round-to-nearest, tie-toward-zero* rounding mode. This will produce the fastest code among all *round-to-nearest* rounding modes.
-
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_away_from_zero`: Use *round-to-nearest, tie-away-from-zero* rounding mode.
-
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_static_boundary`: Use *round-to-nearest, tie-to-even* rounding mode, but there will be completely independent code paths for even inputs and odd inputs. This will produce a bigger binary, but might run faster than `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even` for some situation.
-
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_odd_static_boundary`: Use *round-to-nearest, tie-to-odd* rounding mode, but there will be completely independent code paths for even inputs and odd inputs. This will produce a bigger binary, but might run faster than `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_odd` for some situation.
-
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_toward_plus_infinity_static_boundary`: Use *round-to-nearest, tie-toward-plus-infinity* rounding mode, but there will be completely independent code paths for positive inputs and negative inputs. This will produce a bigger binary, but might run faster than `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_toward_plus_infinity` for some situation.
-
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_toward_minus_infinity_static_boundary`: Use *round-to-nearest, tie-toward-plus-infinity* rounding mode, but there will be completely independent code paths for positive inputs and negative inputs. This will produce a bigger binary, but might run faster than `jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_toward_minus_infinity` for some situation.
 
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::toward_plus_infinity`: Use *round-toward-plus-infinity* rounding mode.
-
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::toward_minus_infinity`: Use *round-toward-minus-infinity* rounding mode.
-
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::toward_zero`: Use *round-toward-zero* rounding mode.
-
 - `jkj::dragonbox::policy::decimal_to_binary_rounding::away_from_zero`: Use *away-from-zero* rounding mode.
 
 All of these policies can be specified also to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
@@ -167,13 +152,9 @@ All of these policies can be specified also to `jkj::dragonbox::to_chars`/`jkj::
 Determines what `jkj::dragonbox::to_decimal` will do when rounding tie occurs while obtaining the decimal significand. This policy will be completely ignored if the specified binary-to-decimal rounding policy is not one of the round-to-nearest policies (because for other policies rounding tie simply doesn't exist).
 
 - `jkj::dragonbox::policy::binary_to_decimal_rounding::do_not_care`: Do not care about correct rounding at all and just find any shortest output with the correct roundtrip. It will produce a faster code, but the performance difference will not be big.
-
 - `jkj::dragonbox::policy::binary_to_decimal_rounding::to_even`: **This is the default policy.** Choose the even number when rounding tie occurs.
-
 - `jkj::dragonbox::policy::binary_to_decimal_rounding::to_odd`: Choose the odd number when rounding tie occurs.
-
 - `jkj::dragonbox::policy::binary_to_decimal_rounding::away_from_zero`: Choose the number with the bigger absolute value when rounding tie occurs.
-
 - `jkj::dragonbox::policy::binary_to_decimal_rounding::toward_zero`: Choose the number with the smaller absolute value when rounding tie occurs.
 
 All of these policies can be specified also to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
@@ -182,7 +163,6 @@ All of these policies can be specified also to `jkj::dragonbox::to_chars`/`jkj::
 Choose between the full cache table and the compressed one. Using the compressed cache will result in about 20% slower code, but it can significantly reduce the amount of required static data. It currently has no effect for binary32 (`float`) inputs. For binary64 (`double`) inputs, `jkj::dragonbox::cache_policy::full` will cause `jkj::dragonbox::to_decimal` to use `619*16 = 9904` bytes of static data table, while the corresponding amount for `jkj::dragonbox::cache_policy::compact` is `23*16 + 27*8 = 584` bytes.
 
 - `jkj::dragonbox::policy::cache::full`: **This is the default policy.** Use the full table.
-
 - `jkj::dragonbox::policy::cache::compact`: Use the compressed table.
 
 All of these policies can be specified also to `jkj::dragonbox::to_chars`/`jkj::dragonbox::to_chars_n`.
@@ -191,7 +171,7 @@ All of these policies can be specified also to `jkj::dragonbox::to_chars`/`jkj::
 # Performance
 In my machine (Intel Core i7-7700HQ 2.80GHz, Windows 10), it defeats or is on par with other contemporary algorithms including Grisu-Exact, Ryu, and Schubfach.
 
-The following benchmark result (performed on 08/11/2023) is obtained using Milo's dtoa benchmark framework ([https://github.com/miloyip/dtoa-benchmark](https://github.com/miloyip/dtoa-benchmark)). The complete source code for the benchmark below is available [here](https://github.com/jk-jeon/dtoa-benchmark).
+The following benchmark result (performed on 03/30/2024) is obtained using Milo's dtoa benchmark framework ([https://github.com/miloyip/dtoa-benchmark](https://github.com/miloyip/dtoa-benchmark)). The complete source code for the benchmark below is available [here](https://github.com/jk-jeon/dtoa-benchmark).
 
 ![corei7_7700hq@2.80_win64_vc2019_randomdigit_time](other_files/milo_benchmark.png)
 
@@ -199,7 +179,7 @@ Note 1: `dragonbox` is the performance of Dragonbox with the full cache table, a
 
 Note 2: [`fmt`](https://github.com/fmtlib/fmt) internally uses Dragonbox with an implementation almost identical to that in this repository.
 
-There is also a benchmark done by myself (also performed on 08/11/2023):
+There is also a benchmark done by myself (also performed on 03/30/2024):
 
 (top: benchmark for ````float```` data, bottom: benchmark for ````double```` data; solid lines are the averages, dashed lines are the medians, and the shaded regions show 30%, 50%, and 70% percentiles):
 
