@@ -31,9 +31,9 @@ end
 measured_times = zeros(number_of_algorithms, samples);
 for algorithm_idx=1:number_of_algorithms
     offset = (algorithm_idx-1) * samples;
-    measured_times(algorithm_idx,:) = table{offset+1:offset+samples, 4};
+    measured_times(algorithm_idx,:) = table{offset+1:offset+samples, 3};
 end
-bit_representations = sscanf(strjoin(string(table{1:samples, 3})', ' '), '%lu');
+bit_representations = sscanf(strjoin(string(table{1:samples, 2})', ' '), '%lu');
 
 color_array = {[.8 .06 .1],[.1 .7 .06],[.06 .1 .8],[.6 .2 .8],[.8 .9 0],[.5 .6 .7],[.8 .2 .6]};
 

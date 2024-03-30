@@ -168,13 +168,11 @@ static void benchmark_test(std::string_view float_name, std::size_t number_of_un
     ;
     out_file << "name,sample,bit_representation,time\n";
 
-    char buffer[64];
     typename jkj::dragonbox::default_float_bit_carrier_conversion_traits<Float>::carrier_uint br;
     for (auto& name_result_pair : out) {
         for (auto const& data_time_pair : name_result_pair.second[0]) {
             std::memcpy(&br, &data_time_pair.first, sizeof(Float));
-            jkj::dragonbox::to_chars(data_time_pair.first, buffer);
-            out_file << "\"" << name_result_pair.first << "\"," << buffer << ","
+            out_file << "\"" << name_result_pair.first << "\","
                      << "0x" << std::hex << std::setfill('0');
             if constexpr (sizeof(Float) == 4)
                 out_file << std::setw(8);
@@ -191,15 +189,19 @@ static void benchmark_test(std::string_view float_name, std::size_t number_of_un
     filename += ".csv";
     out_file.open(filename);
     out_file << "number_of_samples_per_digits," << number_of_digits_samples_per_digits << std::endl;
-    ;
     out_file << "name,digits,sample,time\n";
 
     for (auto& name_result_pair : out) {
         for (unsigned int digits = 1; digits <= benchmark_holder<Float>::max_digits; ++digits) {
             for (auto const& data_time_pair : name_result_pair.second[digits]) {
-                jkj::dragonbox::to_chars(data_time_pair.first, buffer);
-                out_file << "\"" << name_result_pair.first << "\"," << digits << "," << buffer << ","
-                         << data_time_pair.second << "\n";
+                std::memcpy(&br, &data_time_pair.first, sizeof(Float));
+                out_file << "\"" << name_result_pair.first << "\"," << digits << ","
+                         << "0x" << std::hex << std::setfill('0');
+                if constexpr (sizeof(Float) == 4)
+                    out_file << std::setw(8);
+                else
+                    out_file << std::setw(16);
+                out_file << br << std::dec << "," << data_time_pair.second << "\n";
             }
         }
     }
