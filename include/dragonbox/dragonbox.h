@@ -342,7 +342,7 @@ namespace jkj {
             // The actual bits are assumed to be aligned to the LSB, and every other bits are assumed to
             // be zeroed.
             static_assert(detail::value_bits<CarrierUInt>::value >= Format::total_bits,
-                          "insufficient number of bits");
+                          "jkj::dragonbox: insufficient number of bits");
 
             using format = Format;
             using carrier_uint = CarrierUInt;
@@ -438,7 +438,7 @@ namespace jkj {
                               detail::stdr::numeric_limits<Float>::radix == 2 &&
                               (detail::physical_bits<Float>::value == 32 ||
                                detail::physical_bits<Float>::value == 64),
-                          "Float may not be of IEEE-754 binary32/binary64");
+                          "jkj::dragonbox: Float may not be of IEEE-754 binary32/binary64");
 
             // Specifies the unsigned integer type to hold bitwise value of Float.
             using carrier_uint =
@@ -570,7 +570,8 @@ namespace jkj {
                 // Most compilers should be able to optimize this into the ROR instruction.
                 template <stdr::size_t bit_width, class UInt>
                 JKJ_CONSTEXPR14 UInt rotr(UInt n, unsigned int r) noexcept {
-                    static_assert(bit_width <= value_bits<UInt>::value, "rotation bit width too large");
+                    static_assert(bit_width <= value_bits<UInt>::value,
+                                  "jkj::dragonbox: rotation bit width too large");
                     r &= (bit_width - 1);
                     return (n >> r) | (n << (bit_width - r));
                 }
@@ -624,7 +625,8 @@ namespace jkj {
                         }
 #if JKJ_HAS_BUILTIN(__builtin_addcll)
                         static_assert(stdr::is_same<unsigned long long, stdr::uint_least64_t>::value &&
-                                      value_bits<stdr::uint_least64_t>::value == 64);
+                                          value_bits<stdr::uint_least64_t>::value == 64,
+                                      "");
                         unsigned long long carry{};
                         low_ = __builtin_addcll(low_, n, 0, &carry);
                         high_ = __builtin_addcll(high_, 0, carry, &carry);
@@ -826,7 +828,7 @@ namespace jkj {
 
             namespace log {
                 static_assert((stdr::int_least32_t(-1) >> 1) == stdr::int_least32_t(-1),
-                              "right-shift for signed integers must be arithmetic");
+                              "jkj::dragonbox: right-shift for signed integers must be arithmetic");
 
                 // Compute floor(e * c - s).
                 enum class multiply : stdr::uint_least32_t {};
@@ -2365,7 +2367,7 @@ namespace jkj {
                         assert(k >= cache_holder_type<FloatFormat>::min_k &&
                                k <= cache_holder_type<FloatFormat>::max_k);
 #endif
-                        return cache_holder_type<FloatFormat>::cache[stdr::size_t(
+                        return cache_holder_type<FloatFormat>::cache[detail::stdr::size_t(
                             k - cache_holder_type<FloatFormat>::min_k)];
                     }
                 } full = {};
