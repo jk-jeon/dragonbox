@@ -1884,7 +1884,9 @@ namespace jkj {
                     using sign_policy = ignore_t;
                     static constexpr bool return_has_sign = false;
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
+                    // See
+                    // https://developercommunity.visualstudio.com/t/Failure-to-optimize-intrinsics/10628226
                     template <class SignedSignificandBits, class UInt>
                     static constexpr decimal_fp<UInt, false, false>
                     handle_sign(SignedSignificandBits, decimal_fp<UInt, false, false> r) noexcept {
