@@ -1870,186 +1870,303 @@ namespace jkj {
         // Policies.
         ////////////////////////////////////////////////////////////////////////////////////////
 
-        namespace detail {
-            namespace policy_impl {
-                // Sign policies.
-                namespace sign {
-                    struct base {};
+        namespace policy {
+            namespace sign {
+                struct base {};
 
-                    struct ignore : base {
-                        using sign_policy = ignore;
-                        static constexpr bool return_has_sign = false;
+                JKJ_INLINE_VARIABLE struct ignore_t : base {
+                    using sign_policy = ignore_t;
+                    static constexpr bool return_has_sign = false;
 
-                        template <class SignedSignificandBits, class UnsignedDecimalFp>
-                        static constexpr UnsignedDecimalFp handle_sign(SignedSignificandBits,
-                                                                       UnsignedDecimalFp r) noexcept {
-                            return r;
-                        }
-                    };
+                    template <class SignedSignificandBits, class UnsignedDecimalFp>
+                    static constexpr UnsignedDecimalFp handle_sign(SignedSignificandBits,
+                                                                   UnsignedDecimalFp r) noexcept {
+                        return r;
+                    }
+                } ignore = {};
 
-                    struct return_sign : base {
-                        using sign_policy = return_sign;
-                        static constexpr bool return_has_sign = true;
+                JKJ_INLINE_VARIABLE struct return_sign_t : base {
+                    using sign_policy = return_sign_t;
+                    static constexpr bool return_has_sign = true;
 
-                        template <class SignedSignificandBits, class UnsignedDecimalFp>
-                        static constexpr unsigned_decimal_fp_to_signed_t<UnsignedDecimalFp>
-                        handle_sign(SignedSignificandBits s, UnsignedDecimalFp r) noexcept {
-                            return add_sign_to_unsigned_decimal_fp(s.is_negative(), r);
-                        }
-                    };
-                }
+                    template <class SignedSignificandBits, class UnsignedDecimalFp>
+                    static constexpr detail::unsigned_decimal_fp_to_signed_t<UnsignedDecimalFp>
+                    handle_sign(SignedSignificandBits s, UnsignedDecimalFp r) noexcept {
+                        return add_sign_to_unsigned_decimal_fp(s.is_negative(), r);
+                    }
+                } return_sign = {};
+            }
 
-                // Trailing zero policies.
-                namespace trailing_zero {
-                    struct base {};
+            namespace trailing_zero {
+                struct base {};
 
-                    struct ignore : base {
-                        using trailing_zero_policy = ignore;
-                        static constexpr bool report_trailing_zeros = false;
+                JKJ_INLINE_VARIABLE struct ignore_t : base {
+                    using trailing_zero_policy = ignore_t;
+                    static constexpr bool report_trailing_zeros = false;
 
-                        template <class Impl>
-                        static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, false>
-                        on_trailing_zeros(typename Impl::carrier_uint significand,
-                                          int exponent) noexcept {
-                            return {significand, exponent};
-                        }
-
-                        template <class Impl>
-                        static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, false>
-                        no_trailing_zeros(typename Impl::carrier_uint significand,
-                                          int exponent) noexcept {
-                            return {significand, exponent};
-                        }
-                    };
-
-                    struct remove : base {
-                        using trailing_zero_policy = remove;
-                        static constexpr bool report_trailing_zeros = false;
-
-                        template <class Impl>
-                        JKJ_FORCEINLINE static JKJ_CONSTEXPR20
-                            unsigned_decimal_fp<typename Impl::carrier_uint, false>
-                            on_trailing_zeros(typename Impl::carrier_uint significand,
-                                              int exponent) noexcept {
-                            return (exponent += Impl::remove_trailing_zeros(significand)),
-                                   unsigned_decimal_fp<typename Impl::carrier_uint, false>{significand,
-                                                                                           exponent};
-                        }
-
-                        template <class Impl>
-                        static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, false>
-                        no_trailing_zeros(typename Impl::carrier_uint significand,
-                                          int exponent) noexcept {
-                            return {significand, exponent};
-                        }
-                    };
-
-                    struct report : base {
-                        using trailing_zero_policy = report;
-                        static constexpr bool report_trailing_zeros = true;
-
-                        template <class Impl>
-                        static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, true>
-                        on_trailing_zeros(typename Impl::carrier_uint significand,
-                                          int exponent) noexcept {
-                            return {significand, exponent, true};
-                        }
-
-                        template <class Impl, class ReturnType>
-                        static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, true>
-                        no_trailing_zeros(typename Impl::carrier_uint significand,
-                                          int exponent) noexcept {
-                            return {significand, exponent, false};
-                        }
-                    };
-                }
-
-                // Decimal-to-binary rounding mode policies.
-                namespace decimal_to_binary_rounding {
-                    struct base {};
-
-                    enum class tag_t { to_nearest, left_closed_directed, right_closed_directed };
-                    namespace interval_type {
-                        struct symmetric_boundary {
-                            static constexpr bool is_symmetric = true;
-                            bool is_closed;
-                            constexpr bool include_left_endpoint() const noexcept { return is_closed; }
-                            constexpr bool include_right_endpoint() const noexcept { return is_closed; }
-                        };
-                        struct asymmetric_boundary {
-                            static constexpr bool is_symmetric = false;
-                            bool is_left_closed;
-                            constexpr bool include_left_endpoint() const noexcept {
-                                return is_left_closed;
-                            }
-                            constexpr bool include_right_endpoint() const noexcept {
-                                return !is_left_closed;
-                            }
-                        };
-                        struct closed {
-                            static constexpr bool is_symmetric = true;
-                            static constexpr bool include_left_endpoint() noexcept { return true; }
-                            static constexpr bool include_right_endpoint() noexcept { return true; }
-                        };
-                        struct open {
-                            static constexpr bool is_symmetric = true;
-                            static constexpr bool include_left_endpoint() noexcept { return false; }
-                            static constexpr bool include_right_endpoint() noexcept { return false; }
-                        };
-                        struct left_closed_right_open {
-                            static constexpr bool is_symmetric = false;
-                            static constexpr bool include_left_endpoint() noexcept { return true; }
-                            static constexpr bool include_right_endpoint() noexcept { return false; }
-                        };
-                        struct right_closed_left_open {
-                            static constexpr bool is_symmetric = false;
-                            static constexpr bool include_left_endpoint() noexcept { return false; }
-                            static constexpr bool include_right_endpoint() noexcept { return true; }
-                        };
+                    template <class Impl>
+                    static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, false>
+                    on_trailing_zeros(typename Impl::carrier_uint significand, int exponent) noexcept {
+                        return {significand, exponent};
                     }
 
-                    struct nearest_to_even : base {
-                        using decimal_to_binary_rounding_policy = nearest_to_even;
-                        using interval_type_provider = nearest_to_even;
+                    template <class Impl>
+                    static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, false>
+                    no_trailing_zeros(typename Impl::carrier_uint significand, int exponent) noexcept {
+                        return {significand, exponent};
+                    }
+                } ignore = {};
+
+                JKJ_INLINE_VARIABLE struct remove_t : base {
+                    using trailing_zero_policy = remove_t;
+                    static constexpr bool report_trailing_zeros = false;
+
+                    template <class Impl>
+                    JKJ_FORCEINLINE static JKJ_CONSTEXPR20
+                        unsigned_decimal_fp<typename Impl::carrier_uint, false>
+                        on_trailing_zeros(typename Impl::carrier_uint significand,
+                                          int exponent) noexcept {
+                        return (exponent += Impl::remove_trailing_zeros(significand)),
+                               unsigned_decimal_fp<typename Impl::carrier_uint, false>{significand,
+                                                                                       exponent};
+                    }
+
+                    template <class Impl>
+                    static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, false>
+                    no_trailing_zeros(typename Impl::carrier_uint significand, int exponent) noexcept {
+                        return {significand, exponent};
+                    }
+                } remove = {};
+
+                JKJ_INLINE_VARIABLE struct report_t : base {
+                    using trailing_zero_policy = report_t;
+                    static constexpr bool report_trailing_zeros = true;
+
+                    template <class Impl>
+                    static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, true>
+                    on_trailing_zeros(typename Impl::carrier_uint significand, int exponent) noexcept {
+                        return {significand, exponent, true};
+                    }
+
+                    template <class Impl, class ReturnType>
+                    static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, true>
+                    no_trailing_zeros(typename Impl::carrier_uint significand, int exponent) noexcept {
+                        return {significand, exponent, false};
+                    }
+                } report = {};
+            }
+
+            namespace decimal_to_binary_rounding {
+                struct base {};
+
+                enum class tag_t { to_nearest, left_closed_directed, right_closed_directed };
+
+                namespace interval_type {
+                    struct symmetric_boundary {
+                        static constexpr bool is_symmetric = true;
+                        bool is_closed;
+                        constexpr bool include_left_endpoint() const noexcept { return is_closed; }
+                        constexpr bool include_right_endpoint() const noexcept { return is_closed; }
+                    };
+                    struct asymmetric_boundary {
+                        static constexpr bool is_symmetric = false;
+                        bool is_left_closed;
+                        constexpr bool include_left_endpoint() const noexcept { return is_left_closed; }
+                        constexpr bool include_right_endpoint() const noexcept {
+                            return !is_left_closed;
+                        }
+                    };
+                    struct closed {
+                        static constexpr bool is_symmetric = true;
+                        static constexpr bool include_left_endpoint() noexcept { return true; }
+                        static constexpr bool include_right_endpoint() noexcept { return true; }
+                    };
+                    struct open {
+                        static constexpr bool is_symmetric = true;
+                        static constexpr bool include_left_endpoint() noexcept { return false; }
+                        static constexpr bool include_right_endpoint() noexcept { return false; }
+                    };
+                    struct left_closed_right_open {
+                        static constexpr bool is_symmetric = false;
+                        static constexpr bool include_left_endpoint() noexcept { return true; }
+                        static constexpr bool include_right_endpoint() noexcept { return false; }
+                    };
+                    struct right_closed_left_open {
+                        static constexpr bool is_symmetric = false;
+                        static constexpr bool include_left_endpoint() noexcept { return false; }
+                        static constexpr bool include_right_endpoint() noexcept { return true; }
+                    };
+                }
+
+                JKJ_INLINE_VARIABLE struct nearest_to_even_t : base {
+                    using decimal_to_binary_rounding_policy = nearest_to_even_t;
+                    using interval_type_provider = nearest_to_even_t;
+                    static constexpr auto tag = tag_t::to_nearest;
+
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
+                        dragonbox::detail::declval<nearest_to_even_t>(), Args{}...))
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(nearest_to_even_t{}, args...);
+                    }
+
+                    template <class SignedSignificandBits>
+                    static constexpr interval_type::symmetric_boundary
+                    normal_interval(SignedSignificandBits s) noexcept {
+                        return {s.has_even_significand_bits()};
+                    }
+
+                    template <class SignedSignificandBits>
+                    static constexpr interval_type::closed
+                    shorter_interval(SignedSignificandBits) noexcept {
+                        return {};
+                    }
+                } nearest_to_even = {};
+
+                JKJ_INLINE_VARIABLE struct nearest_to_odd_t : base {
+                    using decimal_to_binary_rounding_policy = nearest_to_odd_t;
+                    using interval_type_provider = nearest_to_odd_t;
+                    static constexpr auto tag = tag_t::to_nearest;
+
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
+                        dragonbox::detail::declval<nearest_to_odd_t>(), Args{}...))
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(nearest_to_odd_t{}, args...);
+                    }
+
+                    template <class SignedSignificandBits>
+                    static constexpr interval_type::symmetric_boundary
+                    normal_interval(SignedSignificandBits s) noexcept {
+                        return {!s.has_even_significand_bits()};
+                    }
+                    template <class SignedSignificandBits>
+                    static constexpr interval_type::open
+                    shorter_interval(SignedSignificandBits) noexcept {
+                        return {};
+                    }
+                } nearest_to_odd = {};
+
+                JKJ_INLINE_VARIABLE struct nearest_toward_plus_infinity_t : base {
+                    using decimal_to_binary_rounding_policy = nearest_toward_plus_infinity_t;
+                    using interval_type_provider = nearest_toward_plus_infinity_t;
+                    static constexpr auto tag = tag_t::to_nearest;
+
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
+                        dragonbox::detail::declval<nearest_toward_plus_infinity_t>(), Args{}...))
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(nearest_toward_plus_infinity_t{}, args...);
+                    }
+
+                    template <class SignedSignificandBits>
+                    static constexpr interval_type::asymmetric_boundary
+                    normal_interval(SignedSignificandBits s) noexcept {
+                        return {!s.is_negative()};
+                    }
+                    template <class SignedSignificandBits>
+                    static constexpr interval_type::asymmetric_boundary
+                    shorter_interval(SignedSignificandBits s) noexcept {
+                        return {!s.is_negative()};
+                    }
+                } nearest_toward_plus_infinity = {};
+
+                JKJ_INLINE_VARIABLE struct nearest_toward_minus_infinity_t : base {
+                    using decimal_to_binary_rounding_policy = nearest_toward_minus_infinity_t;
+                    using interval_type_provider = nearest_toward_minus_infinity_t;
+                    static constexpr auto tag = tag_t::to_nearest;
+
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
+                        dragonbox::detail::declval<nearest_toward_minus_infinity_t>(), Args{}...))
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(nearest_toward_minus_infinity_t{}, args...);
+                    }
+
+                    template <class SignedSignificandBits>
+                    static constexpr interval_type::asymmetric_boundary
+                    normal_interval(SignedSignificandBits s) noexcept {
+                        return {!s.is_negative()};
+                    }
+                    template <class SignedSignificandBits>
+                    static constexpr interval_type::asymmetric_boundary
+                    shorter_interval(SignedSignificandBits s) noexcept {
+                        return {!s.is_negative()};
+                    }
+                } nearest_toward_minus_infinity = {};
+
+                JKJ_INLINE_VARIABLE struct nearest_toward_zero_t : base {
+                    using decimal_to_binary_rounding_policy = nearest_toward_zero_t;
+                    using interval_type_provider = nearest_toward_zero_t;
+                    static constexpr auto tag = tag_t::to_nearest;
+
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
+                        dragonbox::detail::declval<nearest_toward_zero_t>(), Args{}...))
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(nearest_toward_zero_t{}, args...);
+                    }
+
+                    template <class SignedSignificandBits>
+                    static constexpr interval_type::right_closed_left_open
+                    normal_interval(SignedSignificandBits) noexcept {
+                        return {};
+                    }
+                    template <class SignedSignificandBits>
+                    static constexpr interval_type::right_closed_left_open
+                    shorter_interval(SignedSignificandBits) noexcept {
+                        return {};
+                    }
+                } nearest_toward_zero = {};
+
+                JKJ_INLINE_VARIABLE struct nearest_away_from_zero_t : base {
+                    using decimal_to_binary_rounding_policy = nearest_away_from_zero_t;
+                    using interval_type_provider = nearest_away_from_zero_t;
+                    static constexpr auto tag = tag_t::to_nearest;
+
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
+                        dragonbox::detail::declval<nearest_away_from_zero_t>(), Args{}...))
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(nearest_away_from_zero_t{}, args...);
+                    }
+
+                    template <class SignedSignificandBits>
+                    static constexpr interval_type::left_closed_right_open
+                    normal_interval(SignedSignificandBits) noexcept {
+                        return {};
+                    }
+                    template <class SignedSignificandBits>
+                    static constexpr interval_type::left_closed_right_open
+                    shorter_interval(SignedSignificandBits) noexcept {
+                        return {};
+                    }
+                } nearest_away_from_zero = {};
+
+                namespace detail {
+                    struct nearest_always_closed_t {
+                        using interval_type_provider = nearest_always_closed_t;
                         static constexpr auto tag = tag_t::to_nearest;
 
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE
-                            JKJ_SAFEBUFFERS static constexpr decltype(Func{}(declval<nearest_to_even>(),
-                                                                             Args{}...))
-                            delegate(SignedSignificandBits, Func f, Args... args) noexcept {
-                            return f(nearest_to_even{}, args...);
-                        }
-
                         template <class SignedSignificandBits>
-                        static constexpr interval_type::symmetric_boundary
-                        normal_interval(SignedSignificandBits s) noexcept {
-                            return {s.has_even_significand_bits()};
+                        static constexpr interval_type::closed
+                        normal_interval(SignedSignificandBits) noexcept {
+                            return {};
                         }
-
                         template <class SignedSignificandBits>
                         static constexpr interval_type::closed
                         shorter_interval(SignedSignificandBits) noexcept {
                             return {};
                         }
                     };
-                    struct nearest_to_odd : base {
-                        using decimal_to_binary_rounding_policy = nearest_to_odd;
-                        using interval_type_provider = nearest_to_odd;
+                    struct nearest_always_open_t {
+                        using interval_type_provider = nearest_always_open_t;
                         static constexpr auto tag = tag_t::to_nearest;
 
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE
-                            JKJ_SAFEBUFFERS static constexpr decltype(Func{}(declval<nearest_to_odd>(),
-                                                                             Args{}...))
-                            delegate(SignedSignificandBits, Func f, Args... args) noexcept {
-                            return f(nearest_to_odd{}, args...);
-                        }
-
                         template <class SignedSignificandBits>
-                        static constexpr interval_type::symmetric_boundary
-                        normal_interval(SignedSignificandBits s) noexcept {
-                            return {!s.has_even_significand_bits()};
+                        static constexpr interval_type::open
+                        normal_interval(SignedSignificandBits) noexcept {
+                            return {};
                         }
                         template <class SignedSignificandBits>
                         static constexpr interval_type::open
@@ -2057,399 +2174,212 @@ namespace jkj {
                             return {};
                         }
                     };
-                    struct nearest_toward_plus_infinity : base {
-                        using decimal_to_binary_rounding_policy = nearest_toward_plus_infinity;
-                        using interval_type_provider = nearest_toward_plus_infinity;
-                        static constexpr auto tag = tag_t::to_nearest;
+                }
 
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
-                            declval<nearest_toward_plus_infinity>(), Args{}...))
-                        delegate(SignedSignificandBits, Func f, Args... args) noexcept {
-                            return f(nearest_toward_plus_infinity{}, args...);
-                        }
+                JKJ_INLINE_VARIABLE struct nearest_to_even_static_boundary_t : base {
+                    using decimal_to_binary_rounding_policy = nearest_to_even_static_boundary_t;
 
-                        template <class SignedSignificandBits>
-                        static constexpr interval_type::asymmetric_boundary
-                        normal_interval(SignedSignificandBits s) noexcept {
-                            return {!s.is_negative()};
-                        }
-                        template <class SignedSignificandBits>
-                        static constexpr interval_type::asymmetric_boundary
-                        shorter_interval(SignedSignificandBits s) noexcept {
-                            return {!s.is_negative()};
-                        }
-                    };
-                    struct nearest_toward_minus_infinity : base {
-                        using decimal_to_binary_rounding_policy = nearest_toward_minus_infinity;
-                        using interval_type_provider = nearest_toward_minus_infinity;
-                        static constexpr auto tag = tag_t::to_nearest;
-
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
-                            declval<nearest_toward_minus_infinity>(), Args{}...))
-                        delegate(SignedSignificandBits, Func f, Args... args) noexcept {
-                            return f(nearest_toward_minus_infinity{}, args...);
-                        }
-
-                        template <class SignedSignificandBits>
-                        static constexpr interval_type::asymmetric_boundary
-                        normal_interval(SignedSignificandBits s) noexcept {
-                            return {!s.is_negative()};
-                        }
-                        template <class SignedSignificandBits>
-                        static constexpr interval_type::asymmetric_boundary
-                        shorter_interval(SignedSignificandBits s) noexcept {
-                            return {!s.is_negative()};
-                        }
-                    };
-                    struct nearest_toward_zero : base {
-                        using decimal_to_binary_rounding_policy = nearest_toward_zero;
-                        using interval_type_provider = nearest_toward_zero;
-                        static constexpr auto tag = tag_t::to_nearest;
-
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
-                            declval<nearest_toward_zero>(), Args{}...))
-                        delegate(SignedSignificandBits, Func f, Args... args) noexcept {
-                            return f(nearest_toward_zero{}, args...);
-                        }
-
-                        template <class SignedSignificandBits>
-                        static constexpr interval_type::right_closed_left_open
-                        normal_interval(SignedSignificandBits) noexcept {
-                            return {};
-                        }
-                        template <class SignedSignificandBits>
-                        static constexpr interval_type::right_closed_left_open
-                        shorter_interval(SignedSignificandBits) noexcept {
-                            return {};
-                        }
-                    };
-                    struct nearest_away_from_zero : base {
-                        using decimal_to_binary_rounding_policy = nearest_away_from_zero;
-                        using interval_type_provider = nearest_away_from_zero;
-                        static constexpr auto tag = tag_t::to_nearest;
-
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
-                            declval<nearest_away_from_zero>(), Args{}...))
-                        delegate(SignedSignificandBits, Func f, Args... args) noexcept {
-                            return f(nearest_away_from_zero{}, args...);
-                        }
-
-                        template <class SignedSignificandBits>
-                        static constexpr interval_type::left_closed_right_open
-                        normal_interval(SignedSignificandBits) noexcept {
-                            return {};
-                        }
-                        template <class SignedSignificandBits>
-                        static constexpr interval_type::left_closed_right_open
-                        shorter_interval(SignedSignificandBits) noexcept {
-                            return {};
-                        }
-                    };
-
-                    namespace detail {
-                        struct nearest_always_closed {
-                            using interval_type_provider = nearest_always_closed;
-                            static constexpr auto tag = tag_t::to_nearest;
-
-                            template <class SignedSignificandBits>
-                            static constexpr interval_type::closed
-                            normal_interval(SignedSignificandBits) noexcept {
-                                return {};
-                            }
-                            template <class SignedSignificandBits>
-                            static constexpr interval_type::closed
-                            shorter_interval(SignedSignificandBits) noexcept {
-                                return {};
-                            }
-                        };
-                        struct nearest_always_open {
-                            using interval_type_provider = nearest_always_open;
-                            static constexpr auto tag = tag_t::to_nearest;
-
-                            template <class SignedSignificandBits>
-                            static constexpr interval_type::open
-                            normal_interval(SignedSignificandBits) noexcept {
-                                return {};
-                            }
-                            template <class SignedSignificandBits>
-                            static constexpr interval_type::open
-                            shorter_interval(SignedSignificandBits) noexcept {
-                                return {};
-                            }
-                        };
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
+                        detail::nearest_always_closed_t{}, Args{}...))
+                    delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
+                        return s.has_even_significand_bits()
+                                   ? f(detail::nearest_always_closed_t{}, args...)
+                                   : f(detail::nearest_always_open_t{}, args...);
                     }
+                } nearest_to_even_static_boundary = {};
 
-                    struct nearest_to_even_static_boundary : base {
-                        using decimal_to_binary_rounding_policy = nearest_to_even_static_boundary;
+                JKJ_INLINE_VARIABLE struct nearest_to_odd_static_boundary_t : base {
+                    using decimal_to_binary_rounding_policy = nearest_to_odd_static_boundary_t;
 
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
-                            detail::nearest_always_closed{}, Args{}...))
-                        delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
-                            return s.has_even_significand_bits()
-                                       ? f(detail::nearest_always_closed{}, args...)
-                                       : f(detail::nearest_always_open{}, args...);
-                        }
-                    };
-                    struct nearest_to_odd_static_boundary : base {
-                        using decimal_to_binary_rounding_policy = nearest_to_odd_static_boundary;
-
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
-                            detail::nearest_always_closed{}, Args{}...))
-                        delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
-                            return s.has_even_significand_bits()
-                                       ? f(detail::nearest_always_open{}, args...)
-                                       : f(detail::nearest_always_closed{}, args...);
-                        }
-                    };
-                    struct nearest_toward_plus_infinity_static_boundary : base {
-                        using decimal_to_binary_rounding_policy =
-                            nearest_toward_plus_infinity_static_boundary;
-
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE
-                            JKJ_SAFEBUFFERS static constexpr decltype(Func{}(nearest_toward_zero{},
-                                                                             Args{}...))
-                            delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
-                            return s.is_negative() ? f(nearest_toward_zero{}, args...)
-                                                   : f(nearest_away_from_zero{}, args...);
-                        }
-                    };
-                    struct nearest_toward_minus_infinity_static_boundary : base {
-                        using decimal_to_binary_rounding_policy =
-                            nearest_toward_minus_infinity_static_boundary;
-
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE
-                            JKJ_SAFEBUFFERS static constexpr decltype(Func{}(nearest_toward_zero{},
-                                                                             Args{}...))
-                            delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
-                            return s.is_negative() ? f(nearest_away_from_zero{}, args...)
-                                                   : f(nearest_toward_zero{}, args...);
-                        }
-                    };
-
-                    namespace detail {
-                        struct left_closed_directed {
-                            static constexpr auto tag = tag_t::left_closed_directed;
-                        };
-                        struct right_closed_directed {
-                            static constexpr auto tag = tag_t::right_closed_directed;
-                        };
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
+                        detail::nearest_always_closed_t{}, Args{}...))
+                    delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
+                        return s.has_even_significand_bits()
+                                   ? f(detail::nearest_always_open_t{}, args...)
+                                   : f(detail::nearest_always_closed_t{}, args...);
                     }
+                } nearest_to_odd_static_boundary = {};
 
-                    struct toward_plus_infinity : base {
-                        using decimal_to_binary_rounding_policy = toward_plus_infinity;
+                JKJ_INLINE_VARIABLE struct nearest_toward_plus_infinity_static_boundary_t : base {
+                    using decimal_to_binary_rounding_policy =
+                        nearest_toward_plus_infinity_static_boundary_t;
 
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
-                            detail::left_closed_directed{}, Args{}...))
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE
+                        JKJ_SAFEBUFFERS static constexpr decltype(Func{}(nearest_toward_zero,
+                                                                         Args{}...))
                         delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
-                            return s.is_negative() ? f(detail::left_closed_directed{}, args...)
-                                                   : f(detail::right_closed_directed{}, args...);
-                        }
-                    };
-                    struct toward_minus_infinity : base {
-                        using decimal_to_binary_rounding_policy = toward_minus_infinity;
+                        return s.is_negative() ? f(nearest_toward_zero, args...)
+                                               : f(nearest_away_from_zero, args...);
+                    }
+                } nearest_toward_plus_infinity_static_boundary = {};
 
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
-                            detail::left_closed_directed{}, Args{}...))
+                JKJ_INLINE_VARIABLE struct nearest_toward_minus_infinity_static_boundary_t : base {
+                    using decimal_to_binary_rounding_policy =
+                        nearest_toward_minus_infinity_static_boundary_t;
+
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE
+                        JKJ_SAFEBUFFERS static constexpr decltype(Func{}(nearest_toward_zero,
+                                                                         Args{}...))
                         delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
-                            return s.is_negative() ? f(detail::right_closed_directed{}, args...)
-                                                   : f(detail::left_closed_directed{}, args...);
-                        }
-                    };
-                    struct toward_zero : base {
-                        using decimal_to_binary_rounding_policy = toward_zero;
+                        return s.is_negative() ? f(nearest_away_from_zero, args...)
+                                               : f(nearest_away_from_zero, args...);
+                    }
+                } nearest_toward_minus_infinity_static_boundary = {};
 
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
-                            detail::left_closed_directed{}, Args{}...))
-                        delegate(SignedSignificandBits, Func f, Args... args) noexcept {
-                            return f(detail::left_closed_directed{}, args...);
-                        }
+                namespace detail {
+                    struct left_closed_directed_t {
+                        static constexpr auto tag = tag_t::left_closed_directed;
                     };
-                    struct away_from_zero : base {
-                        using decimal_to_binary_rounding_policy = away_from_zero;
-
-                        template <class SignedSignificandBits, class Func, class... Args>
-                        JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
-                            detail::right_closed_directed{}, Args{}...))
-                        delegate(SignedSignificandBits, Func f, Args... args) noexcept {
-                            return f(detail::right_closed_directed{}, args...);
-                        }
+                    struct right_closed_directed_t {
+                        static constexpr auto tag = tag_t::right_closed_directed;
                     };
                 }
 
-                // Binary-to-decimal rounding policies.
-                // (Always assumes nearest rounding modes, as there can be no tie for other rounding
-                // modes.)
-                namespace binary_to_decimal_rounding {
-                    struct base {};
+                JKJ_INLINE_VARIABLE struct toward_plus_infinity_t : base {
+                    using decimal_to_binary_rounding_policy = toward_plus_infinity_t;
 
-                    enum class tag_t { do_not_care, to_even, to_odd, away_from_zero, toward_zero };
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
+                        detail::left_closed_directed_t{}, Args{}...))
+                    delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
+                        return s.is_negative() ? f(detail::left_closed_directed_t{}, args...)
+                                               : f(detail::right_closed_directed_t{}, args...);
+                    }
+                } toward_plus_infinity = {};
 
-                    // The parameter significand corresponds to 10\tilde{s}+t in the paper.
+                JKJ_INLINE_VARIABLE struct toward_minus_infinity_t : base {
+                    using decimal_to_binary_rounding_policy = toward_minus_infinity_t;
 
-                    struct do_not_care : base {
-                        using binary_to_decimal_rounding_policy = do_not_care;
-                        static constexpr auto tag = tag_t::do_not_care;
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
+                        detail::left_closed_directed_t{}, Args{}...))
+                    delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
+                        return s.is_negative() ? f(detail::right_closed_directed_t{}, args...)
+                                               : f(detail::left_closed_directed_t{}, args...);
+                    }
+                } toward_minus_infinity = {};
 
-                        template <class CarrierUInt>
-                        static constexpr bool prefer_round_down(CarrierUInt) noexcept {
-                            return false;
-                        }
-                    };
+                JKJ_INLINE_VARIABLE struct toward_zero_t : base {
+                    using decimal_to_binary_rounding_policy = toward_zero_t;
 
-                    struct to_even : base {
-                        using binary_to_decimal_rounding_policy = to_even;
-                        static constexpr auto tag = tag_t::to_even;
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
+                        detail::left_closed_directed_t{}, Args{}...))
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(detail::left_closed_directed_t{}, args...);
+                    }
+                } toward_zero = {};
 
-                        template <class CarrierUInt>
-                        static constexpr bool prefer_round_down(CarrierUInt significand) noexcept {
-                            return significand % 2 != 0;
-                        }
-                    };
+                JKJ_INLINE_VARIABLE struct away_from_zero_t : base {
+                    using decimal_to_binary_rounding_policy = away_from_zero_t;
 
-                    struct to_odd : base {
-                        using binary_to_decimal_rounding_policy = to_odd;
-                        static constexpr auto tag = tag_t::to_odd;
-
-                        template <class CarrierUInt>
-                        static constexpr bool prefer_round_down(CarrierUInt significand) noexcept {
-                            return significand % 2 == 0;
-                        }
-                    };
-
-                    struct away_from_zero : base {
-                        using binary_to_decimal_rounding_policy = away_from_zero;
-                        static constexpr auto tag = tag_t::away_from_zero;
-
-                        template <class CarrierUInt>
-                        static constexpr bool prefer_round_down(CarrierUInt) noexcept {
-                            return false;
-                        }
-                    };
-
-                    struct toward_zero : base {
-                        using binary_to_decimal_rounding_policy = toward_zero;
-                        static constexpr auto tag = tag_t::toward_zero;
-
-                        template <class CarrierUInt>
-                        static constexpr bool prefer_round_down(CarrierUInt) noexcept {
-                            return true;
-                        }
-                    };
-                }
-
-                // Cache policies.
-                namespace cache {
-                    struct base {};
-
-                    struct full : base {
-                        using cache_policy = full;
-                        template <class FloatFormat>
-                        using cache_holder_type = cache_holder<FloatFormat>;
-
-                        template <class FloatFormat>
-                        static constexpr typename cache_holder_type<FloatFormat>::cache_entry_type
-                        get_cache(int k) noexcept {
-#if JKJ_HAS_CONSTEXPR14
-                            assert(k >= cache_holder_type<FloatFormat>::min_k &&
-                                   k <= cache_holder_type<FloatFormat>::max_k);
-#endif
-                            return cache_holder_type<FloatFormat>::cache[stdr::size_t(
-                                k - cache_holder_type<FloatFormat>::min_k)];
-                        }
-                    };
-
-                    struct compact : base {
-                        using cache_policy = compact;
-                        template <class FloatFormat>
-                        using cache_holder_type = compressed_cache_holder<FloatFormat>;
-
-                        template <class FloatFormat>
-                        static JKJ_CONSTEXPR20 typename cache_holder<FloatFormat>::cache_entry_type
-                        get_cache(int k) noexcept {
-                            assert(k >= cache_holder<FloatFormat>::min_k &&
-                                   k <= cache_holder<FloatFormat>::max_k);
-
-                            return cache_holder_type<FloatFormat>::get_cache(k);
-                        }
-                    };
-                }
-            }
-        }
-
-        namespace policy {
-            namespace sign {
-                JKJ_INLINE_VARIABLE auto ignore = detail::policy_impl::sign::ignore{};
-                JKJ_INLINE_VARIABLE auto return_sign = detail::policy_impl::sign::return_sign{};
-            }
-
-            namespace trailing_zero {
-                JKJ_INLINE_VARIABLE auto ignore = detail::policy_impl::trailing_zero::ignore{};
-                JKJ_INLINE_VARIABLE auto remove = detail::policy_impl::trailing_zero::remove{};
-                JKJ_INLINE_VARIABLE auto report = detail::policy_impl::trailing_zero::report{};
-            }
-
-            namespace decimal_to_binary_rounding {
-                JKJ_INLINE_VARIABLE auto nearest_to_even =
-                    detail::policy_impl::decimal_to_binary_rounding::nearest_to_even{};
-                JKJ_INLINE_VARIABLE auto nearest_to_odd =
-                    detail::policy_impl::decimal_to_binary_rounding::nearest_to_odd{};
-                JKJ_INLINE_VARIABLE auto nearest_toward_plus_infinity =
-                    detail::policy_impl::decimal_to_binary_rounding::nearest_toward_plus_infinity{};
-                JKJ_INLINE_VARIABLE auto nearest_toward_minus_infinity =
-                    detail::policy_impl::decimal_to_binary_rounding::nearest_toward_minus_infinity{};
-                JKJ_INLINE_VARIABLE auto nearest_toward_zero =
-                    detail::policy_impl::decimal_to_binary_rounding::nearest_toward_zero{};
-                JKJ_INLINE_VARIABLE auto nearest_away_from_zero =
-                    detail::policy_impl::decimal_to_binary_rounding::nearest_away_from_zero{};
-
-                JKJ_INLINE_VARIABLE auto nearest_to_even_static_boundary =
-                    detail::policy_impl::decimal_to_binary_rounding::nearest_to_even_static_boundary{};
-                JKJ_INLINE_VARIABLE auto nearest_to_odd_static_boundary =
-                    detail::policy_impl::decimal_to_binary_rounding::nearest_to_odd_static_boundary{};
-                JKJ_INLINE_VARIABLE auto nearest_toward_plus_infinity_static_boundary =
-                    detail::policy_impl::decimal_to_binary_rounding::
-                        nearest_toward_plus_infinity_static_boundary{};
-                JKJ_INLINE_VARIABLE auto nearest_toward_minus_infinity_static_boundary =
-                    detail::policy_impl::decimal_to_binary_rounding::
-                        nearest_toward_minus_infinity_static_boundary{};
-
-                JKJ_INLINE_VARIABLE auto toward_plus_infinity =
-                    detail::policy_impl::decimal_to_binary_rounding::toward_plus_infinity{};
-                JKJ_INLINE_VARIABLE auto toward_minus_infinity =
-                    detail::policy_impl::decimal_to_binary_rounding::toward_minus_infinity{};
-                JKJ_INLINE_VARIABLE auto toward_zero =
-                    detail::policy_impl::decimal_to_binary_rounding::toward_zero{};
-                JKJ_INLINE_VARIABLE auto away_from_zero =
-                    detail::policy_impl::decimal_to_binary_rounding::away_from_zero{};
+                    template <class SignedSignificandBits, class Func, class... Args>
+                    JKJ_FORCEINLINE JKJ_SAFEBUFFERS static constexpr decltype(Func{}(
+                        detail::right_closed_directed_t{}, Args{}...))
+                    delegate(SignedSignificandBits, Func f, Args... args) noexcept {
+                        return f(detail::right_closed_directed_t{}, args...);
+                    }
+                } away_from_zero = {};
             }
 
             namespace binary_to_decimal_rounding {
-                JKJ_INLINE_VARIABLE auto do_not_care =
-                    detail::policy_impl::binary_to_decimal_rounding::do_not_care{};
-                JKJ_INLINE_VARIABLE auto to_even =
-                    detail::policy_impl::binary_to_decimal_rounding::to_even{};
-                JKJ_INLINE_VARIABLE auto to_odd =
-                    detail::policy_impl::binary_to_decimal_rounding::to_odd{};
-                JKJ_INLINE_VARIABLE auto away_from_zero =
-                    detail::policy_impl::binary_to_decimal_rounding::away_from_zero{};
-                JKJ_INLINE_VARIABLE auto toward_zero =
-                    detail::policy_impl::binary_to_decimal_rounding::toward_zero{};
+                // (Always assumes nearest rounding modes, as there can be no tie for other rounding
+                // modes.)
+                struct base {};
+
+                enum class tag_t { do_not_care, to_even, to_odd, away_from_zero, toward_zero };
+
+                // The parameter significand corresponds to 10\tilde{s}+t in the paper.
+
+                JKJ_INLINE_VARIABLE struct do_not_care_t : base {
+                    using binary_to_decimal_rounding_policy = do_not_care_t;
+                    static constexpr auto tag = tag_t::do_not_care;
+
+                    template <class CarrierUInt>
+                    static constexpr bool prefer_round_down(CarrierUInt) noexcept {
+                        return false;
+                    }
+                } do_not_care = {};
+
+                JKJ_INLINE_VARIABLE struct to_even_t : base {
+                    using binary_to_decimal_rounding_policy = to_even_t;
+                    static constexpr auto tag = tag_t::to_even;
+
+                    template <class CarrierUInt>
+                    static constexpr bool prefer_round_down(CarrierUInt significand) noexcept {
+                        return significand % 2 != 0;
+                    }
+                } to_even = {};
+
+                JKJ_INLINE_VARIABLE struct to_odd_t : base {
+                    using binary_to_decimal_rounding_policy = to_odd_t;
+                    static constexpr auto tag = tag_t::to_odd;
+
+                    template <class CarrierUInt>
+                    static constexpr bool prefer_round_down(CarrierUInt significand) noexcept {
+                        return significand % 2 == 0;
+                    }
+                } to_odd = {};
+
+                JKJ_INLINE_VARIABLE struct away_from_zero_t : base {
+                    using binary_to_decimal_rounding_policy = away_from_zero_t;
+                    static constexpr auto tag = tag_t::away_from_zero;
+
+                    template <class CarrierUInt>
+                    static constexpr bool prefer_round_down(CarrierUInt) noexcept {
+                        return false;
+                    }
+                } away_from_zero = {};
+
+                JKJ_INLINE_VARIABLE struct toward_zero_t : base {
+                    using binary_to_decimal_rounding_policy = toward_zero_t;
+                    static constexpr auto tag = tag_t::toward_zero;
+
+                    template <class CarrierUInt>
+                    static constexpr bool prefer_round_down(CarrierUInt) noexcept {
+                        return true;
+                    }
+                } toward_zero = {};
             }
 
             namespace cache {
-                JKJ_INLINE_VARIABLE auto full = detail::policy_impl::cache::full{};
-                JKJ_INLINE_VARIABLE auto compact = detail::policy_impl::cache::compact{};
+                struct base {};
+
+                JKJ_INLINE_VARIABLE struct full_t : base {
+                    using cache_policy = full_t;
+                    template <class FloatFormat>
+                    using cache_holder_type = cache_holder<FloatFormat>;
+
+                    template <class FloatFormat>
+                    static constexpr typename cache_holder_type<FloatFormat>::cache_entry_type
+                    get_cache(int k) noexcept {
+#if JKJ_HAS_CONSTEXPR14
+                        assert(k >= cache_holder_type<FloatFormat>::min_k &&
+                               k <= cache_holder_type<FloatFormat>::max_k);
+#endif
+                        return cache_holder_type<FloatFormat>::cache[stdr::size_t(
+                            k - cache_holder_type<FloatFormat>::min_k)];
+                    }
+                } full = {};
+
+                JKJ_INLINE_VARIABLE struct compact_t : base {
+                    using cache_policy = compact_t;
+                    template <class FloatFormat>
+                    using cache_holder_type = compressed_cache_holder<FloatFormat>;
+
+                    template <class FloatFormat>
+                    static JKJ_CONSTEXPR20 typename cache_holder<FloatFormat>::cache_entry_type
+                    get_cache(int k) noexcept {
+                        assert(k >= cache_holder<FloatFormat>::min_k &&
+                               k <= cache_holder<FloatFormat>::max_k);
+
+                        return cache_holder_type<FloatFormat>::get_cache(k);
+                    }
+                } compact = {};
             }
         }
 
