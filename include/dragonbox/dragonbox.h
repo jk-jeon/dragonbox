@@ -1062,6 +1062,10 @@ namespace jkj {
         // Computed cache entries.
         ////////////////////////////////////////////////////////////////////////////////////////
 
+        // Before C++17, it was necessary to have external declarations for ODR-used static constexpr
+        // data members. To make external declarations to live in a header, those members need to be
+        // templated entities (otherwise it leads to ODR violation). Thus we need an additional dummy
+        // template parameter here to make the code C++11/14 compatible.
         template <class FloatFormat, class Dummy = void>
         struct cache_holder;
 
