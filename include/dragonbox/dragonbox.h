@@ -374,9 +374,8 @@ namespace jkj {
 
             // Shift the obtained signed significand bits to the left by 1 to remove the sign bit.
             static constexpr carrier_uint remove_sign_bit_and_shift(carrier_uint u) noexcept {
-                constexpr auto mask = carrier_bits == Format::total_bits
-                                          ? detail::stdr::numeric_limits<carrier_uint>::max()
-                                          : carrier_uint((carrier_uint(1) << Format::total_bits) - 1u);
+                constexpr auto mask =
+                    carrier_uint(((carrier_uint(1) << (Format::total_bits - 1)) << 1) - 1u);
                 return carrier_uint((carrier_uint(u) << 1) & mask);
             }
 
@@ -411,9 +410,8 @@ namespace jkj {
                 return exponent_bits != ((1u << format::exponent_bits) - 1u);
             }
             static constexpr bool has_all_zero_significand_bits(carrier_uint u) noexcept {
-                constexpr auto mask = carrier_bits == Format::total_bits
-                                          ? detail::stdr::numeric_limits<carrier_uint>::max()
-                                          : carrier_uint((carrier_uint(1) << Format::total_bits) - 1u);
+                constexpr auto mask =
+                    carrier_uint(((carrier_uint(1) << (Format::total_bits - 1)) << 1) - 1u);
                 return ((u << 1) & mask) == 0;
             }
             static constexpr bool has_even_significand_bits(carrier_uint u) noexcept {
@@ -2817,8 +2815,8 @@ namespace jkj {
                     do {
                         if (r < deltai) {
                             // Exclude the right endpoint if necessary.
-                            if ((r | !z_result.is_integer | interval_type.include_right_endpoint()) ==
-                                0) {
+                            if ((r | stdr::uint_least32_t(!z_result.is_integer) |
+                                 stdr::uint_least32_t(interval_type.include_right_endpoint())) == 0) {
                                 JKJ_IF_CONSTEXPR(
                                     BinaryToDecimalRoundingPolicy::tag ==
                                     policy_impl::binary_to_decimal_rounding::tag_t::do_not_care) {
