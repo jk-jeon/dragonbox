@@ -1871,10 +1871,6 @@ namespace jkj {
         ////////////////////////////////////////////////////////////////////////////////////////
 
         namespace detail {
-            // Forward declare the implementation class.
-            template <class FormatTraits>
-            struct impl;
-
             namespace policy_impl {
                 // Sign policies.
                 namespace sign {
