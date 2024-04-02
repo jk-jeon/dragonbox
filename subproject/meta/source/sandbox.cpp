@@ -16,12 +16,5 @@
 // KIND, either express or implied.
 
 #include "dragonbox/dragonbox_to_chars.h"
-#include <iostream>
-#include <charconv>
 
-int main() {
-    char str[] = "3.40282356779733661637539395458142568448e38";
-    float value = 0.0f;
-    auto result = std::from_chars(str, str + sizeof(str) - 1, value);
-    std::cout << std::hexfloat << value << "\n";
-}
+int main() {}
