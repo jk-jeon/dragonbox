@@ -1884,11 +1884,24 @@ namespace jkj {
                     using sign_policy = ignore_t;
                     static constexpr bool return_has_sign = false;
 
+#ifdef _MSC_VER
+                    template <class SignedSignificandBits, class UInt>
+                    static constexpr decimal_fp<UInt, false, false>
+                    handle_sign(SignedSignificandBits, decimal_fp<UInt, false, false> r) noexcept {
+                        return {r.significand, r.exponent};
+                    }
+                    template <class SignedSignificandBits, class UInt>
+                    static constexpr decimal_fp<UInt, false, true>
+                    handle_sign(SignedSignificandBits, decimal_fp<UInt, false, true> r) noexcept {
+                        return {r.significand, r.exponent, r.may_have_trailing_zeros};
+                    }
+#else
                     template <class SignedSignificandBits, class UnsignedDecimalFp>
                     static constexpr UnsignedDecimalFp handle_sign(SignedSignificandBits,
                                                                    UnsignedDecimalFp r) noexcept {
                         return r;
                     }
+#endif
                 } ignore = {};
 
                 JKJ_INLINE_VARIABLE struct return_sign_t : base {
