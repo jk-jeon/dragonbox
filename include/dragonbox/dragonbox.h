@@ -375,7 +375,7 @@ namespace jkj {
             // Shift the obtained signed significand bits to the left by 1 to remove the sign bit.
             static constexpr carrier_uint remove_sign_bit_and_shift(carrier_uint u) noexcept {
                 constexpr auto mask =
-                    carrier_uint(((carrier_uint(1) << (Format::total_bits - 1)) << 1) - 1u);
+                    carrier_uint((((carrier_uint(1) << (Format::total_bits - 1)) - 1u) << 1) | 1u);
                 return carrier_uint((carrier_uint(u) << 1) & mask);
             }
 
@@ -411,7 +411,7 @@ namespace jkj {
             }
             static constexpr bool has_all_zero_significand_bits(carrier_uint u) noexcept {
                 constexpr auto mask =
-                    carrier_uint(((carrier_uint(1) << (Format::total_bits - 1)) << 1) - 1u);
+                    carrier_uint((((carrier_uint(1) << (Format::total_bits - 1)) - 1u) << 1) | 1u);
                 return ((u << 1) & mask) == 0;
             }
             static constexpr bool has_even_significand_bits(carrier_uint u) noexcept {
