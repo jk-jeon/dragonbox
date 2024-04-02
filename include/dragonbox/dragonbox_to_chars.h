@@ -93,13 +93,13 @@ namespace jkj {
                                                              typename ConversionTraits::carrier_uint>,
                   class... Policies>
         char* to_chars_n(Float x, char* buffer, Policies... policies) noexcept {
-            using namespace jkj::dragonbox::detail::policy_impl;
-            using policy_holder = decltype(make_policy_holder(
-                base_default_pair_list<base_default_pair<decimal_to_binary_rounding::base,
-                                                         decimal_to_binary_rounding::nearest_to_even>,
-                                       base_default_pair<binary_to_decimal_rounding::base,
-                                                         binary_to_decimal_rounding::to_even>,
-                                       base_default_pair<cache::base, cache::full>>{},
+            using policy_holder = decltype(detail::make_policy_holder(
+                detail::base_default_pair_list<
+                    detail::base_default_pair<policy::decimal_to_binary_rounding::base,
+                                              policy::decimal_to_binary_rounding::nearest_to_even_t>,
+                    detail::base_default_pair<policy::binary_to_decimal_rounding::base,
+                                              policy::binary_to_decimal_rounding::to_even_t>,
+                    detail::base_default_pair<policy::cache::base, policy::cache::full_t>>{},
                 policies...));
 
             return detail::to_chars_n_impl<typename policy_holder::decimal_to_binary_rounding_policy,
