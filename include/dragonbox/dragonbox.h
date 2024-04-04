@@ -19,18 +19,18 @@
 #ifndef JKJ_HEADER_DRAGONBOX
 #define JKJ_HEADER_DRAGONBOX
 
-// Attribute for storing static data into a dedicated place, e.g. flash memory. Every ODR-used static
-// data declaration will be decorated with this macro. The users may define this macro, before including
-// the library headers, into whatever they want.
+// Attribute for storing static data into a dedicated place, e.g. flash memory. Every ODR-used
+// static data declaration will be decorated with this macro. The users may define this macro,
+// before including the library headers, into whatever they want.
 #ifndef JKJ_STATIC_DATA_SECTION
     #define JKJ_STATIC_DATA_SECTION
 #else
     #define JKJ_STATIC_DATA_SECTION_DEFINED 1
 #endif
 
-// To use the library with toolchains without standard C++ headers, the users may define this macro into
-// their custom namespace which contains the defintions of all the standard C++ library features used in
-// this header. (The list can be found below.)
+// To use the library with toolchains without standard C++ headers, the users may define this macro
+// into their custom namespace which contains the defintions of all the standard C++ library
+// features used in this header. (The list can be found below.)
 #ifndef JKJ_STD_REPLACEMENT_NAMESPACE
     #define JKJ_STD_REPLACEMENT_NAMESPACE std
     #include <cassert>
@@ -359,22 +359,19 @@ namespace jkj {
             // The result must be aligned to the LSB so that there is no additional zero paddings
             // on the right. The result does not contain the implicit bit.
             static constexpr carrier_uint extract_significand_bits(carrier_uint u) noexcept {
-                return carrier_uint(u &
-                                    carrier_uint((carrier_uint(1) << format::significand_bits) - 1u));
+                return carrier_uint(u & ((carrier_uint(1) << format::significand_bits) - 1u));
             }
 
             // Remove the exponent bits and extract significand bits together with the sign bit.
             static constexpr carrier_uint remove_exponent_bits(carrier_uint u) noexcept {
-                constexpr auto mask = carrier_uint(~carrier_uint(
-                    ((carrier_uint(1) << format::exponent_bits) - 1u) << format::significand_bits));
-                return carrier_uint(u & mask);
+                return carrier_uint(u & ~(((carrier_uint(1) << format::exponent_bits) - 1u)
+                                          << format::significand_bits));
             }
 
             // Shift the obtained signed significand bits to the left by 1 to remove the sign bit.
             static constexpr carrier_uint remove_sign_bit_and_shift(carrier_uint u) noexcept {
-                constexpr auto mask =
-                    carrier_uint((((carrier_uint(1) << (Format::total_bits - 1)) - 1u) << 1) | 1u);
-                return carrier_uint((carrier_uint(u) << 1) & mask);
+                return carrier_uint((carrier_uint(u) << 1) &
+                                    ((((carrier_uint(1) << (Format::total_bits - 1)) - 1u) << 1) | 1u));
             }
 
             // The actual value of exponent is obtained by adding this value to the extracted
@@ -408,9 +405,8 @@ namespace jkj {
                 return exponent_bits != ((1u << format::exponent_bits) - 1u);
             }
             static constexpr bool has_all_zero_significand_bits(carrier_uint u) noexcept {
-                constexpr auto mask =
-                    carrier_uint((((carrier_uint(1) << (Format::total_bits - 1)) - 1u) << 1) | 1u);
-                return ((u << 1) & mask) == 0;
+                return ((u << 1) &
+                        ((((carrier_uint(1) << (Format::total_bits - 1)) - 1u) << 1) | 1u)) == 0;
             }
             static constexpr bool has_even_significand_bits(carrier_uint u) noexcept {
                 return u % 2 == 0;
@@ -1806,18 +1802,18 @@ namespace jkj {
             }();
 #else
             template <detail::stdr::size_t... indices>
-            static constexpr cache_holder_t make_cache(index_sequence<indices...>) {
+            static constexpr cache_holder_t make_cache(detail::index_sequence<indices...>) {
                 return {cache_holder<ieee754_binary64>::cache[indices * compression_ratio]...};
             }
             static constexpr cache_holder_t cache JKJ_STATIC_DATA_SECTION =
-                make_cache(make_index_sequence<compressed_table_size>{});
+                make_cache(detail::make_index_sequence<compressed_table_size>{});
 
             template <detail::stdr::size_t... indices>
-            static constexpr pow5_holder_t make_pow5_table(index_sequence<indices...>) {
-                return {compute_power<indices>(detail::stdr::uint_least64_t(5))...};
+            static constexpr pow5_holder_t make_pow5_table(detail::index_sequence<indices...>) {
+                return {detail::compute_power<indices>(detail::stdr::uint_least64_t(5))...};
             }
             static constexpr pow5_holder_t pow5_table JKJ_STATIC_DATA_SECTION =
-                make_pow5_table(make_index_sequence<compression_ratio>{});
+                make_pow5_table(detail::make_index_sequence<compression_ratio>{});
 #endif
 
             static JKJ_CONSTEXPR20 cache_entry_type get_cache(int k) noexcept {
@@ -1868,7 +1864,7 @@ namespace jkj {
             compressed_cache_holder<ieee754_binary64, Dummy>::cache;
         template <class Dummy>
         constexpr typename compressed_cache_holder<ieee754_binary64, Dummy>::pow5_holder_t
-            compressed_cache_holder<ieee754_binary64, Dummy>::pow5;
+            compressed_cache_holder<ieee754_binary64, Dummy>::pow5_table;
 #endif
 
 
