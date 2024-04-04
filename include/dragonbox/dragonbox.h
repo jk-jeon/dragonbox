@@ -1925,15 +1925,17 @@ namespace jkj {
                     using trailing_zero_policy = ignore_t;
                     static constexpr bool report_trailing_zeros = false;
 
-                    template <class Impl>
-                    static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, false>
-                    on_trailing_zeros(typename Impl::carrier_uint significand, int exponent) noexcept {
+                    template <class FormatTraits>
+                    static constexpr unsigned_decimal_fp<typename FormatTraits::carrier_uint, false>
+                    on_trailing_zeros(typename FormatTraits::carrier_uint significand,
+                                      int exponent) noexcept {
                         return {significand, exponent};
                     }
 
-                    template <class Impl>
-                    static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, false>
-                    no_trailing_zeros(typename Impl::carrier_uint significand, int exponent) noexcept {
+                    template <class FormatTraits>
+                    static constexpr unsigned_decimal_fp<typename FormatTraits::carrier_uint, false>
+                    no_trailing_zeros(typename FormatTraits::carrier_uint significand,
+                                      int exponent) noexcept {
                         return {significand, exponent};
                     }
                 } ignore = {};
@@ -1942,19 +1944,130 @@ namespace jkj {
                     using trailing_zero_policy = remove_t;
                     static constexpr bool report_trailing_zeros = false;
 
-                    template <class Impl>
-                    JKJ_FORCEINLINE static JKJ_CONSTEXPR20
-                        unsigned_decimal_fp<typename Impl::carrier_uint, false>
-                        on_trailing_zeros(typename Impl::carrier_uint significand,
+                    // Remove trailing zeros from significand and add the number of removed zeros into
+                    // exponent.
+                    template <class FormatTraits>
+                    JKJ_FORCEINLINE static JKJ_CONSTEXPR14
+                        unsigned_decimal_fp<typename FormatTraits::carrier_uint, false>
+                        on_trailing_zeros(typename FormatTraits::carrier_uint significand,
                                           int exponent) noexcept {
-                        return (exponent += Impl::remove_trailing_zeros(significand)),
-                               unsigned_decimal_fp<typename Impl::carrier_uint, false>{significand,
-                                                                                       exponent};
+
+                        assert(significand != 0);
+                        using format = typename FormatTraits::format;
+
+                        JKJ_IF_CONSTEXPR(detail::stdr::is_same<format, ieee754_binary32>::value) {
+                            constexpr auto mod_inv_5 = UINT32_C(0xcccccccd);
+                            constexpr auto mod_inv_25 = detail::stdr::uint_least32_t(
+                                (mod_inv_5 * mod_inv_5) & UINT32_C(0xffffffff));
+
+                            while (true) {
+                                auto q = detail::bits::rotr<32>(
+                                    detail::stdr::uint_least32_t((significand * mod_inv_25) &
+                                                                 UINT32_C(0xffffffff)),
+                                    2);
+                                if (q <= UINT32_C(0xffffffff) / 100) {
+                                    significand = q;
+                                    exponent += 2;
+                                }
+                                else {
+                                    break;
+                                }
+                            }
+                            auto q = detail::bits::rotr<32>(
+                                detail::stdr::uint_least32_t((significand * mod_inv_5) &
+                                                             UINT32_C(0xffffffff)),
+                                1);
+                            if (q <= UINT32_C(0xffffffff) / 10) {
+                                significand = q;
+                                ++exponent;
+                            }
+                        }
+                        else {
+#if JKJ_HAS_IF_CONSTEXPR
+                            static_assert(detail::stdr::is_same<format, ieee754_binary64>::value, "");
+#endif
+                            // Divide by 10^8 and reduce to 32-bits if divisible.
+                            // Since significand <= (2^53 * 1000 - 1) / 1000 < 10^16, it is at most of
+                            // 16 digits.
+
+                            // This magic number is ceil(2^90 / 10^8).
+                            constexpr auto magic_number = UINT64_C(12379400392853802749);
+                            auto nm = detail::wuint::umul128(significand, magic_number);
+
+                            // Is significand divisible by 10^8?
+                            if ((nm.high() & ((detail::stdr::uint_least64_t(1) << (90 - 64)) - 1)) ==
+                                    0 &&
+                                nm.low() < magic_number) {
+                                // If yes, work with the quotient.
+                                auto n32 = detail::stdr::uint_least32_t(nm.high() >> (90 - 64));
+
+                                constexpr auto mod_inv_5 = UINT32_C(0xcccccccd);
+                                constexpr auto mod_inv_25 = detail::stdr::uint_least32_t(
+                                    (mod_inv_5 * mod_inv_5) & UINT32_C(0xffffffff));
+
+                                exponent += 8;
+                                while (true) {
+                                    auto q = detail::bits::rotr<32>(
+                                        detail::stdr::uint_least32_t((n32 * mod_inv_25) &
+                                                                     UINT32_C(0xffffffff)),
+                                        2);
+                                    if (q <= UINT32_C(0xffffffff) / 100) {
+                                        n32 = q;
+                                        exponent += 2;
+                                    }
+                                    else {
+                                        break;
+                                    }
+                                }
+                                auto q = detail::bits::rotr<32>(
+                                    detail::stdr::uint_least32_t((n32 * mod_inv_5) &
+                                                                 UINT32_C(0xffffffff)),
+                                    1);
+                                if (q <= UINT32_C(0xffffffff) / 10) {
+                                    n32 = q;
+                                    ++exponent;
+                                }
+
+                                significand = n32;
+                            }
+                            else {
+                                // If significand is not divisible by 10^8, work with n itself.
+                                constexpr auto mod_inv_5 = UINT64_C(0xcccccccccccccccd);
+                                constexpr auto mod_inv_25 = detail::stdr::uint_least64_t(
+                                    (mod_inv_5 * mod_inv_5) & UINT64_C(0xffffffffffffffff));
+
+                                while (true) {
+                                    auto q = detail::bits::rotr<64>(
+                                        detail::stdr::uint_least64_t((significand * mod_inv_25) &
+                                                                     UINT64_C(0xffffffffffffffff)),
+                                        2);
+                                    if (q <= UINT64_C(0xffffffffffffffff) / 100) {
+                                        significand = q;
+                                        exponent += 2;
+                                    }
+                                    else {
+                                        break;
+                                    }
+                                }
+                                auto q = detail::bits::rotr<64>(
+                                    detail::stdr::uint_least64_t((significand * mod_inv_5) &
+                                                                 UINT64_C(0xffffffffffffffff)),
+                                    1);
+                                if (q <= UINT64_C(0xffffffffffffffff) / 10) {
+                                    significand = q;
+                                    ++exponent;
+                                }
+                            }
+                        }
+
+                        return unsigned_decimal_fp<typename FormatTraits::carrier_uint, false>{
+                            significand, exponent};
                     }
 
-                    template <class Impl>
-                    static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, false>
-                    no_trailing_zeros(typename Impl::carrier_uint significand, int exponent) noexcept {
+                    template <class FormatTraits>
+                    static constexpr unsigned_decimal_fp<typename FormatTraits::carrier_uint, false>
+                    no_trailing_zeros(typename FormatTraits::carrier_uint significand,
+                                      int exponent) noexcept {
                         return {significand, exponent};
                     }
                 } remove = {};
@@ -1963,15 +2076,17 @@ namespace jkj {
                     using trailing_zero_policy = report_t;
                     static constexpr bool report_trailing_zeros = true;
 
-                    template <class Impl>
-                    static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, true>
-                    on_trailing_zeros(typename Impl::carrier_uint significand, int exponent) noexcept {
+                    template <class FormatTraits>
+                    static constexpr unsigned_decimal_fp<typename FormatTraits::carrier_uint, true>
+                    on_trailing_zeros(typename FormatTraits::carrier_uint significand,
+                                      int exponent) noexcept {
                         return {significand, exponent, true};
                     }
 
-                    template <class Impl, class ReturnType>
-                    static constexpr unsigned_decimal_fp<typename Impl::carrier_uint, true>
-                    no_trailing_zeros(typename Impl::carrier_uint significand, int exponent) noexcept {
+                    template <class FormatTraits>
+                    static constexpr unsigned_decimal_fp<typename FormatTraits::carrier_uint, true>
+                    no_trailing_zeros(typename FormatTraits::carrier_uint significand,
+                                      int exponent) noexcept {
                         return {significand, exponent, false};
                     }
                 } report = {};
@@ -2683,7 +2798,7 @@ namespace jkj {
                             // If succeed, remove trailing zeros if necessary and return.
                             if (decimal_significand * 10 >= xi) {
                                 return SignPolicy::handle_sign(
-                                    s, TrailingZeroPolicy::template on_trailing_zeros<impl>(
+                                    s, TrailingZeroPolicy::template on_trailing_zeros<FormatTraits>(
                                            decimal_significand, minus_k + 1));
                             }
 
@@ -2702,7 +2817,7 @@ namespace jkj {
                                 ++decimal_significand;
                             }
                             return SignPolicy::handle_sign(
-                                s, TrailingZeroPolicy::template no_trailing_zeros<impl>(
+                                s, TrailingZeroPolicy::template no_trailing_zeros<FormatTraits>(
                                        decimal_significand, minus_k));
                         }
 
@@ -2770,7 +2885,7 @@ namespace jkj {
                                     decimal_significand *= 10;
                                     --decimal_significand;
                                     return SignPolicy::handle_sign(
-                                        s, TrailingZeroPolicy::template no_trailing_zeros<impl>(
+                                        s, TrailingZeroPolicy::template no_trailing_zeros<FormatTraits>(
                                                decimal_significand, minus_k + kappa));
                                 }
                                 else {
@@ -2796,7 +2911,7 @@ namespace jkj {
 
                         // We may need to remove trailing zeros.
                         return SignPolicy::handle_sign(
-                            s, TrailingZeroPolicy::template on_trailing_zeros<impl>(
+                            s, TrailingZeroPolicy::template on_trailing_zeros<FormatTraits>(
                                    decimal_significand, minus_k + kappa + 1));
                     } while (false);
 
@@ -2865,8 +2980,8 @@ namespace jkj {
                         }
                     }
                     return SignPolicy::handle_sign(
-                        s, TrailingZeroPolicy::template no_trailing_zeros<impl>(decimal_significand,
-                                                                                minus_k + kappa));
+                        s, TrailingZeroPolicy::template no_trailing_zeros<FormatTraits>(
+                               decimal_significand, minus_k + kappa));
                 }
 
                 template <class SignPolicy, class TrailingZeroPolicy, class CachePolicy>
@@ -2968,7 +3083,7 @@ namespace jkj {
 
                         // The ceiling is inside, so we are done.
                         return SignPolicy::handle_sign(
-                            s, TrailingZeroPolicy::template on_trailing_zeros<impl>(
+                            s, TrailingZeroPolicy::template on_trailing_zeros<FormatTraits>(
                                    decimal_significand, minus_k + kappa + 1));
                     } while (false);
 
@@ -2980,8 +3095,8 @@ namespace jkj {
                     decimal_significand *= 10;
                     decimal_significand -= div::small_division_by_pow10<kappa>(r);
                     return SignPolicy::handle_sign(
-                        s, TrailingZeroPolicy::template no_trailing_zeros<impl>(decimal_significand,
-                                                                                minus_k + kappa));
+                        s, TrailingZeroPolicy::template no_trailing_zeros<FormatTraits>(
+                               decimal_significand, minus_k + kappa));
                 }
 
                 template <class SignPolicy, class TrailingZeroPolicy, class CachePolicy>
@@ -3064,7 +3179,7 @@ namespace jkj {
 
                         // The floor is inside, so we are done.
                         return SignPolicy::handle_sign(
-                            s, TrailingZeroPolicy::template on_trailing_zeros<impl>(
+                            s, TrailingZeroPolicy::template on_trailing_zeros<FormatTraits>(
                                    decimal_significand, minus_k + kappa + 1));
                     } while (false);
 
@@ -3076,114 +3191,8 @@ namespace jkj {
                     decimal_significand *= 10;
                     decimal_significand += div::small_division_by_pow10<kappa>(r);
                     return SignPolicy::handle_sign(
-                        s, TrailingZeroPolicy::template no_trailing_zeros<impl>(decimal_significand,
-                                                                                minus_k + kappa));
-                }
-
-                // Remove trailing zeros from n and return the number of zeros removed.
-                JKJ_FORCEINLINE static JKJ_CONSTEXPR20 int
-                remove_trailing_zeros(carrier_uint& n) noexcept {
-                    assert(n != 0);
-
-                    JKJ_IF_CONSTEXPR(stdr::is_same<format, ieee754_binary32>::value) {
-                        constexpr auto mod_inv_5 = UINT32_C(0xcccccccd);
-                        constexpr auto mod_inv_25 =
-                            stdr::uint_least32_t((mod_inv_5 * mod_inv_5) & UINT32_C(0xffffffff));
-
-                        int s = 0;
-                        while (true) {
-                            auto q = bits::rotr<32>(
-                                stdr::uint_least32_t((n * mod_inv_25) & UINT32_C(0xffffffff)), 2);
-                            if (q <= UINT32_C(0xffffffff) / 100) {
-                                n = q;
-                                s += 2;
-                            }
-                            else {
-                                break;
-                            }
-                        }
-                        auto q = bits::rotr<32>(
-                            stdr::uint_least32_t((n * mod_inv_5) & UINT32_C(0xffffffff)), 1);
-                        if (q <= UINT32_C(0xffffffff) / 10) {
-                            n = q;
-                            s |= 1;
-                        }
-
-                        return s;
-                    }
-                    else {
-#if JKJ_HAS_IF_CONSTEXPR
-                        static_assert(stdr::is_same<format, ieee754_binary64>::value, "");
-#endif
-
-                        // Divide by 10^8 and reduce to 32-bits if divisible.
-                        // Since ret_value.significand <= (2^53 * 1000 - 1) / 1000 < 10^16,
-                        // n is at most of 16 digits.
-
-                        // This magic number is ceil(2^90 / 10^8).
-                        constexpr auto magic_number = UINT64_C(12379400392853802749);
-                        auto nm = wuint::umul128(n, magic_number);
-
-                        // Is n is divisible by 10^8?
-                        if ((nm.high() & ((stdr::uint_least64_t(1) << (90 - 64)) - 1)) == 0 &&
-                            nm.low() < magic_number) {
-                            // If yes, work with the quotient.
-                            auto n32 = stdr::uint_least32_t(nm.high() >> (90 - 64));
-
-                            constexpr auto mod_inv_5 = UINT32_C(0xcccccccd);
-                            constexpr auto mod_inv_25 =
-                                stdr::uint_least32_t((mod_inv_5 * mod_inv_5) & UINT32_C(0xffffffff));
-
-                            int s = 8;
-                            while (true) {
-                                auto q = bits::rotr<32>(
-                                    stdr::uint_least32_t((n32 * mod_inv_25) & UINT32_C(0xffffffff)), 2);
-                                if (q <= UINT32_C(0xffffffff) / 100) {
-                                    n32 = q;
-                                    s += 2;
-                                }
-                                else {
-                                    break;
-                                }
-                            }
-                            auto q = bits::rotr<32>(
-                                stdr::uint_least32_t((n32 * mod_inv_5) & UINT32_C(0xffffffff)), 1);
-                            if (q <= UINT32_C(0xffffffff) / 10) {
-                                n32 = q;
-                                s |= 1;
-                            }
-
-                            n = n32;
-                            return s;
-                        }
-
-                        // If n is not divisible by 10^8, work with n itself.
-                        constexpr auto mod_inv_5 = UINT64_C(0xcccccccccccccccd);
-                        constexpr auto mod_inv_25 = stdr::uint_least64_t((mod_inv_5 * mod_inv_5) &
-                                                                         UINT64_C(0xffffffffffffffff));
-
-                        int s = 0;
-                        while (true) {
-                            auto q = bits::rotr<64>(
-                                stdr::uint_least64_t((n * mod_inv_25) & UINT64_C(0xffffffffffffffff)),
-                                2);
-                            if (q <= UINT64_C(0xffffffffffffffff) / 100) {
-                                n = q;
-                                s += 2;
-                            }
-                            else {
-                                break;
-                            }
-                        }
-                        auto q = bits::rotr<64>(
-                            stdr::uint_least64_t((n * mod_inv_5) & UINT64_C(0xffffffffffffffff)), 1);
-                        if (q <= UINT64_C(0xffffffffffffffff) / 10) {
-                            n = q;
-                            s |= 1;
-                        }
-
-                        return s;
-                    }
+                        s, TrailingZeroPolicy::template no_trailing_zeros<FormatTraits>(
+                               decimal_significand, minus_k + kappa));
                 }
 
                 static constexpr bool
