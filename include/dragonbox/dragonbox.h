@@ -2063,8 +2063,7 @@ namespace jkj {
                             }
                         }
 
-                        return unsigned_decimal_fp<typename FormatTraits::carrier_uint, false>{
-                            significand, exponent};
+                        return {significand, exponent};
                     }
 
                     template <class FormatTraits>
