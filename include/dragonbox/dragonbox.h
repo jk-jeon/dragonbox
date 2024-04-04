@@ -568,12 +568,14 @@ namespace jkj {
 
             namespace bits {
                 // Most compilers should be able to optimize this into the ROR instruction.
+                // n is assumed to be at most of bit_width bits.
                 template <stdr::size_t bit_width, class UInt>
                 JKJ_CONSTEXPR14 UInt rotr(UInt n, unsigned int r) noexcept {
+                    static_assert(bit_width > 0, "jkj::dragonbox: rotation bit-width must be positive");
                     static_assert(bit_width <= value_bits<UInt>::value,
-                                  "jkj::dragonbox: rotation bit width too large");
+                                  "jkj::dragonbox: rotation bit-width is too large");
                     r &= (bit_width - 1);
-                    return (n >> r) | (n << (bit_width - r));
+                    return (n >> r) | (n << ((bit_width - r) & (bit_width - 1)));
                 }
             }
 
