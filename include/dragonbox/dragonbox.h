@@ -236,8 +236,6 @@ namespace jkj {
                 using add_rvalue_reference = JKJ_STD_REPLACEMENT_NAMESPACE::add_rvalue_reference<T>;
                 template <bool cond, class T_true, class T_false>
                 using conditional = JKJ_STD_REPLACEMENT_NAMESPACE::conditional<cond, T_true, T_false>;
-                template <class Base, class Derived>
-                using is_base_of = JKJ_STD_REPLACEMENT_NAMESPACE::is_base_of<Base, Derived>;
 #if JKJ_USE_IS_CONSTANT_EVALUATED
                 using JKJ_STD_REPLACEMENT_NAMESPACE::is_constant_evaluated;
 #endif
