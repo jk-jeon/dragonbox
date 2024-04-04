@@ -92,15 +92,16 @@ namespace jkj {
                   class FormatTraits = ieee754_binary_traits<typename ConversionTraits::format,
                                                              typename ConversionTraits::carrier_uint>,
                   class... Policies>
-        char* to_chars_n(Float x, char* buffer, Policies... policies) noexcept {
-            using policy_holder = decltype(detail::make_policy_holder(
-                detail::base_default_pair_list<
-                    detail::base_default_pair<policy::decimal_to_binary_rounding::base,
-                                              policy::decimal_to_binary_rounding::nearest_to_even_t>,
-                    detail::base_default_pair<policy::binary_to_decimal_rounding::base,
-                                              policy::binary_to_decimal_rounding::to_even_t>,
-                    detail::base_default_pair<policy::cache::base, policy::cache::full_t>>{},
-                policies...));
+        char* to_chars_n(Float x, char* buffer, Policies...) noexcept {
+            using policy_holder = detail::make_policy_holder<
+                detail::detector_default_pair_list<
+                    detail::detector_default_pair<
+                        detail::is_decimal_to_binary_rounding_policy,
+                        policy::decimal_to_binary_rounding::nearest_to_even_t>,
+                    detail::detector_default_pair<detail::is_binary_to_decimal_rounding_policy,
+                                                  policy::binary_to_decimal_rounding::to_even_t>,
+                    detail::detector_default_pair<detail::is_cache_policy, policy::cache::full_t>>,
+                Policies...>;
 
             return detail::to_chars_n_impl<typename policy_holder::decimal_to_binary_rounding_policy,
                                            typename policy_holder::binary_to_decimal_rounding_policy,
