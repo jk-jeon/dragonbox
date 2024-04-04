@@ -2107,12 +2107,12 @@ namespace jkj {
                     template <class SignedSignificandBits>
                     static constexpr interval_type::asymmetric_boundary
                     normal_interval(SignedSignificandBits s) noexcept {
-                        return {!s.is_negative()};
+                        return {s.is_negative()};
                     }
                     template <class SignedSignificandBits>
                     static constexpr interval_type::asymmetric_boundary
                     shorter_interval(SignedSignificandBits s) noexcept {
-                        return {!s.is_negative()};
+                        return {s.is_negative()};
                     }
                 } nearest_toward_minus_infinity = {};
 
@@ -2247,7 +2247,7 @@ namespace jkj {
                                                                          Args{}...))
                         delegate(SignedSignificandBits s, Func f, Args... args) noexcept {
                         return s.is_negative() ? f(nearest_away_from_zero, args...)
-                                               : f(nearest_away_from_zero, args...);
+                                               : f(nearest_toward_zero, args...);
                     }
                 } nearest_toward_minus_infinity_static_boundary = {};
 
