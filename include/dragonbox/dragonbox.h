@@ -966,16 +966,32 @@ namespace jkj {
                 JKJ_CONSTEXPR20 UInt divide_by_pow10(UInt n) noexcept {
                     static_assert(N >= 0, "");
 
+                    // Specialize for 32-bit division by 10.
+                    // Without the bound on n_max (which compilers these days never leverage), the
+                    // minimum needed amount of shift is larger than 32. Hence, this may generate better
+                    // code for 32-bit or smaller architectures. Even for 64-bit architectures, it seems
+                    // compilers tend to generate mov + mul instead of a single imul for an unknown
+                    // reason if we just write n / 10.
+                    JKJ_IF_CONSTEXPR(stdr::is_same<UInt, stdr::uint_least32_t>::value && N == 1 &&
+                                     n_max <= UINT32_C(1073741828)) {
+                        return UInt(wuint::umul64(n, UINT32_C(429496730)) >> 32);
+                    }
+                    // Specialize for 64-bit division by 10.
+                    // Without the bound on n_max (which compilers these days never leverage), the
+                    // minimum needed amount of shift is larger than 64.
+                    else JKJ_IF_CONSTEXPR(stdr::is_same<UInt, stdr::uint_least64_t>::value && N == 1 &&
+                                          n_max <= UINT64_C(4611686018427387908)) {
+                        return UInt(wuint::umul128_upper64(n, UINT64_C(1844674407370955162)));
+                    }
                     // Specialize for 32-bit division by 100.
-                    // Compiler is supposed to generate the identical code for just writing
-                    // "n / 100", but for some reason MSVC generates an inefficient code
-                    // (mul + mov for no apparent reason, instead of single imul),
-                    // so we does this manually.
-                    JKJ_IF_CONSTEXPR(stdr::is_same<UInt, stdr::uint_least32_t>::value && N == 2) {
+                    // It seems compilers tend to generate mov + mul instead of a single imul for an
+                    // unknown reason if we just write n / 100.
+                    else JKJ_IF_CONSTEXPR(stdr::is_same<UInt, stdr::uint_least32_t>::value && N == 2) {
                         return UInt(wuint::umul64(n, UINT32_C(1374389535)) >> 37);
                     }
                     // Specialize for 64-bit division by 1000.
-                    // Ensure that the correctness condition is met.
+                    // Without the bound on n_max (which compilers these days never leverage), the
+                    // smallest magic number for this computation does not fit into 64-bits.
                     else JKJ_IF_CONSTEXPR(stdr::is_same<UInt, stdr::uint_least64_t>::value && N == 3 &&
                                           n_max <= UINT64_C(15534100272597517998)) {
                         return UInt(wuint::umul128_upper64(n, UINT64_C(2361183241434822607)) >> 7);
@@ -2783,7 +2799,15 @@ namespace jkj {
                             }
 
                             // Try bigger divisor.
-                            carrier_uint decimal_significand = zi / 10;
+                            // zi is at most floor((f_c + 1/2) * 2^e * 10^k0).
+                            // Substituting f_c = 2^p and k0 = -floor(log10(3 * 2^(e-2))), we get
+                            // zi <= floor((2^(p+1) + 1) * 20/3) <= ceil((2^(p+1) + 1)/3) * 20.
+                            // This computation does not overflow for any of the formats I care about.
+                            carrier_uint decimal_significand = div::divide_by_pow10<
+                                1, carrier_uint,
+                                carrier_uint(
+                                    ((((carrier_uint(1) << (significand_bits + 1)) + 1) / 3) + 1) *
+                                    20)>(zi);
 
                             // If succeed, remove trailing zeros if necessary and return.
                             if (decimal_significand * 10 >= xi) {
