@@ -608,7 +608,7 @@ namespace jkj {
 
                     JKJ_CONSTEXPR20 uint128& operator+=(stdr::uint_least64_t n) & noexcept {
                         auto const generic_impl = [&] {
-                            auto sum = (low_ + n) & UINT64_C(0xffffffffffffffff);
+                            auto const sum = (low_ + n) & UINT64_C(0xffffffffffffffff);
                             high_ += (sum < low_ ? 1 : 0);
                             low_ = sum;
                         };
@@ -628,12 +628,12 @@ namespace jkj {
                         high_ = __builtin_addcll(high_, 0, carry, &carry);
 #elif JKJ_HAS_BUILTIN(__builtin_ia32_addcarryx_u64)
                         unsigned long long result{};
-                        auto carry = __builtin_ia32_addcarryx_u64(0, low_, n, &result);
+                        auto const carry = __builtin_ia32_addcarryx_u64(0, low_, n, &result);
                         low_ = result;
                         __builtin_ia32_addcarryx_u64(carry, high_, 0, &result);
                         high_ = result;
 #elif defined(_MSC_VER) && defined(_M_X64)
-                        auto carry = _addcarry_u64(0, low_, n, &low_);
+                        auto const carry = _addcarry_u64(0, low_, n, &low_);
                         _addcarry_u64(carry, high_, 0, &high_);
 #else
                         generic_impl();
@@ -654,17 +654,17 @@ namespace jkj {
                 JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128
                 umul128(stdr::uint_least64_t x, stdr::uint_least64_t y) noexcept {
                     auto const generic_impl = [=]() -> uint128 {
-                        auto a = stdr::uint_least32_t(x >> 32);
-                        auto b = stdr::uint_least32_t(x);
-                        auto c = stdr::uint_least32_t(y >> 32);
-                        auto d = stdr::uint_least32_t(y);
+                        auto const a = stdr::uint_least32_t(x >> 32);
+                        auto const b = stdr::uint_least32_t(x);
+                        auto const c = stdr::uint_least32_t(y >> 32);
+                        auto const d = stdr::uint_least32_t(y);
 
-                        auto ac = umul64(a, c);
-                        auto bc = umul64(b, c);
-                        auto ad = umul64(a, d);
-                        auto bd = umul64(b, d);
+                        auto const ac = umul64(a, c);
+                        auto const bc = umul64(b, c);
+                        auto const ad = umul64(a, d);
+                        auto const bd = umul64(b, d);
 
-                        auto intermediate =
+                        auto const intermediate =
                             (bd >> 32) + stdr::uint_least32_t(ad) + stdr::uint_least32_t(bc);
 
                         return {ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32),
@@ -674,13 +674,13 @@ namespace jkj {
                     static_cast<void>(generic_impl);
 
 #if defined(__SIZEOF_INT128__)
-                    auto result = builtin_uint128_t(x) * builtin_uint128_t(y);
+                    auto const result = builtin_uint128_t(x) * builtin_uint128_t(y);
                     return {stdr::uint_least64_t(result >> 64), stdr::uint_least64_t(result)};
 #elif defined(_MSC_VER) && defined(_M_X64)
                     JKJ_IF_CONSTEVAL {
                         // This redundant variable is to workaround MSVC's codegen bug caused by the
                         // interaction of NRVO and intrinsics.
-                        auto result = generic_impl();
+                        auto const result = generic_impl();
                         return result;
                     }
                     uint128 result;
@@ -700,17 +700,17 @@ namespace jkj {
                 JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 stdr::uint_least64_t
                 umul128_upper64(stdr::uint_least64_t x, stdr::uint_least64_t y) noexcept {
                     auto const generic_impl = [=]() -> stdr::uint_least64_t {
-                        auto a = stdr::uint_least32_t(x >> 32);
-                        auto b = stdr::uint_least32_t(x);
-                        auto c = stdr::uint_least32_t(y >> 32);
-                        auto d = stdr::uint_least32_t(y);
+                        auto const a = stdr::uint_least32_t(x >> 32);
+                        auto const b = stdr::uint_least32_t(x);
+                        auto const c = stdr::uint_least32_t(y >> 32);
+                        auto const d = stdr::uint_least32_t(y);
 
-                        auto ac = umul64(a, c);
-                        auto bc = umul64(b, c);
-                        auto ad = umul64(a, d);
-                        auto bd = umul64(b, d);
+                        auto const ac = umul64(a, c);
+                        auto const bc = umul64(b, c);
+                        auto const ad = umul64(a, d);
+                        auto const bd = umul64(b, d);
 
-                        auto intermediate =
+                        auto const intermediate =
                             (bd >> 32) + stdr::uint_least32_t(ad) + stdr::uint_least32_t(bc);
 
                         return ac + (intermediate >> 32) + (ad >> 32) + (bc >> 32);
@@ -719,13 +719,13 @@ namespace jkj {
                     static_cast<void>(generic_impl);
 
 #if defined(__SIZEOF_INT128__)
-                    auto result = builtin_uint128_t(x) * builtin_uint128_t(y);
+                    auto const result = builtin_uint128_t(x) * builtin_uint128_t(y);
                     return stdr::uint_least64_t(result >> 64);
 #elif defined(_MSC_VER) && defined(_M_X64)
                     JKJ_IF_CONSTEVAL {
                         // This redundant variable is to workaround MSVC's codegen bug caused by the
                         // interaction of NRVO and intrinsics.
-                        auto result = generic_impl();
+                        auto const result = generic_impl();
                         return result;
                     }
                     stdr::uint_least64_t result;
@@ -756,11 +756,11 @@ namespace jkj {
 #if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
                     return umul128_upper64(stdr::uint_least64_t(x) << 32, y);
 #else
-                    auto yh = stdr::uint_least32_t(y >> 32);
-                    auto yl = stdr::uint_least32_t(y);
+                    auto const yh = stdr::uint_least32_t(y >> 32);
+                    auto const yl = stdr::uint_least32_t(y);
 
-                    auto xyh = umul64(x, yh);
-                    auto xyl = umul64(x, yl);
+                    auto const xyh = umul64(x, yh);
+                    auto const xyl = umul64(x, yl);
 
                     return xyh + (xyl >> 32);
 #endif
@@ -770,8 +770,8 @@ namespace jkj {
                 // unsigned integer.
                 JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128 umul192_lower128(stdr::uint_least64_t x,
                                                                                 uint128 y) noexcept {
-                    auto high = x * y.high();
-                    auto high_low = umul128(x, y.low());
+                    auto const high = x * y.high();
+                    auto const high_low = umul128(x, y.low());
                     return {(high + high_low.high()) & UINT64_C(0xffffffffffffffff), high_low.low()};
                 }
 
@@ -941,7 +941,7 @@ namespace jkj {
 
                     constexpr auto mask =
                         stdr::uint_least32_t((stdr::uint_least32_t(1) << info::shift_amount) - 1);
-                    bool result = ((n & mask) < info::magic_number);
+                    bool const result = ((n & mask) < info::magic_number);
 
                     n >>= info::shift_amount;
                     return result;
@@ -2564,7 +2564,7 @@ namespace jkj {
                   detail::stdr::uint_least64_t, 64> {
             static JKJ_CONSTEXPR20 compute_mul_result
             compute_mul(carrier_uint u, cache_entry_type const& cache) noexcept {
-                auto r = detail::wuint::umul96_upper64(u, cache);
+                auto const r = detail::wuint::umul96_upper64(u, cache);
                 return {carrier_uint(r >> 32), carrier_uint(r) == 0};
             }
 
@@ -2578,7 +2578,7 @@ namespace jkj {
                 assert(beta >= 1);
                 assert(beta <= 32);
 
-                auto r = detail::wuint::umul96_lower64(two_f, cache);
+                auto const r = detail::wuint::umul96_lower64(two_f, cache);
                 return {((r >> (64 - beta)) & 1) != 0,
                         (UINT32_C(0xffffffff) & (r >> (32 - beta))) == 0};
             }
@@ -2613,7 +2613,7 @@ namespace jkj {
                   detail::wuint::uint128, 128> {
             static JKJ_CONSTEXPR20 compute_mul_result
             compute_mul(carrier_uint u, cache_entry_type const& cache) noexcept {
-                auto r = detail::wuint::umul192_upper128(u, cache);
+                auto const r = detail::wuint::umul192_upper128(u, cache);
                 return {r.high(), r.low() == 0};
             }
 
@@ -2627,7 +2627,7 @@ namespace jkj {
                 assert(beta >= 1);
                 assert(beta < 64);
 
-                auto r = detail::wuint::umul192_lower128(two_f, cache);
+                auto const r = detail::wuint::umul192_lower128(two_f, cache);
                 return {((r.high() >> (64 - beta)) & 1) != 0,
                         (((r.high() << beta) & UINT64_C(0xffffffffffffffff)) |
                          (r.low() >> (64 - beta))) == 0};
