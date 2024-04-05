@@ -2540,8 +2540,8 @@ namespace jkj {
         struct multiplication_traits_base {
             using format = typename FormatTraits::format;
             static constexpr int significand_bits = format::significand_bits;
+            static constexpr int total_bits = format::total_bits;
             using carrier_uint = typename FormatTraits::carrier_uint;
-            static constexpr int carrier_bits = FormatTraits::carrier_bits;
             using cache_entry_type = CacheEntryType;
             static constexpr int cache_bits = int(cache_bits_);
 
@@ -2619,7 +2619,7 @@ namespace jkj {
 
             static constexpr detail::stdr::uint_least32_t compute_delta(cache_entry_type const& cache,
                                                                         int beta) noexcept {
-                return detail::stdr::uint_least32_t(cache.high() >> (carrier_bits - 1 - beta));
+                return detail::stdr::uint_least32_t(cache.high() >> (total_bits - 1 - beta));
             }
 
             static JKJ_CONSTEXPR20 compute_mul_parity_result
@@ -2637,20 +2637,20 @@ namespace jkj {
             compute_left_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
                                                             int beta) noexcept {
                 return (cache.high() - (cache.high() >> (significand_bits + 2))) >>
-                       (carrier_bits - significand_bits - 1 - beta);
+                       (total_bits - significand_bits - 1 - beta);
             }
 
             static constexpr carrier_uint
             compute_right_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
                                                              int beta) noexcept {
                 return (cache.high() + (cache.high() >> (significand_bits + 1))) >>
-                       (carrier_bits - significand_bits - 1 - beta);
+                       (total_bits - significand_bits - 1 - beta);
             }
 
             static constexpr carrier_uint
             compute_round_up_for_shorter_interval_case(cache_entry_type const& cache,
                                                        int beta) noexcept {
-                return ((cache.high() >> (carrier_bits - significand_bits - 2 - beta)) + 1) / 2;
+                return ((cache.high() >> (total_bits - significand_bits - 2 - beta)) + 1) / 2;
             }
         };
 
