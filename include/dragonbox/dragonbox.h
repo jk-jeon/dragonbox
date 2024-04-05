@@ -940,7 +940,7 @@ namespace jkj {
                     n *= info::magic_number;
 
                     constexpr auto mask =
-                        stdr::uint_least32_t(stdr::uint_least32_t(1) << info::shift_amount) - 1;
+                        stdr::uint_least32_t((stdr::uint_least32_t(1) << info::shift_amount) - 1);
                     bool result = ((n & mask) < info::magic_number);
 
                     n >>= info::shift_amount;
@@ -972,13 +972,13 @@ namespace jkj {
                     // (mul + mov for no apparent reason, instead of single imul),
                     // so we does this manually.
                     JKJ_IF_CONSTEXPR(stdr::is_same<UInt, stdr::uint_least32_t>::value && N == 2) {
-                        return stdr::uint_least32_t(wuint::umul64(n, UINT32_C(1374389535)) >> 37);
+                        return UInt(wuint::umul64(n, UINT32_C(1374389535)) >> 37);
                     }
                     // Specialize for 64-bit division by 1000.
                     // Ensure that the correctness condition is met.
                     else JKJ_IF_CONSTEXPR(stdr::is_same<UInt, stdr::uint_least64_t>::value && N == 3 &&
                                           n_max <= UINT64_C(15534100272597517998)) {
-                        return wuint::umul128_upper64(n, UINT64_C(2361183241434822607)) >> 7;
+                        return UInt(wuint::umul128_upper64(n, UINT64_C(2361183241434822607)) >> 7);
                     }
                     else {
                         constexpr auto divisor = compute_power<N>(UInt(10));
