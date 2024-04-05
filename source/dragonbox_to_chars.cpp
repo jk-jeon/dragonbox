@@ -210,7 +210,7 @@ namespace jkj {
                         }
                     }
                 }
-                else if (s32 >= 1'0000) {
+                else if (s32 >= 10000) {
                     // 5 or 6 digits.
                     // 429497 = ceil(2^32 / 1'0000)
                     auto prod = s32 * UINT64_C(429497);
