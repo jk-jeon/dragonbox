@@ -23,8 +23,8 @@
 #include <string_view>
 #include <utility>
 
-void reference_implementation(float x, char* buffer) { f2s_buffered(x, buffer); }
-void reference_implementation(double x, char* buffer) { d2s_buffered(x, buffer); }
+static void reference_implementation(float x, char* buffer) { f2s_buffered(x, buffer); }
+static void reference_implementation(double x, char* buffer) { d2s_buffered(x, buffer); }
 
 template <class Float, class... Args>
 static bool test_all_shorter_interval_cases_impl(Args&&... args) {

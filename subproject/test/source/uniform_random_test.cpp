@@ -23,8 +23,8 @@
 #include <string_view>
 #include <utility>
 
-void reference_implementation(float x, char* buffer) { f2s_buffered(x, buffer); }
-void reference_implementation(double x, char* buffer) { d2s_buffered(x, buffer); }
+static void reference_implementation(float x, char* buffer) { f2s_buffered(x, buffer); }
+static void reference_implementation(double x, char* buffer) { d2s_buffered(x, buffer); }
 
 template <class Float, class TypenameString, class... Args>
 static bool uniform_random_test(std::size_t number_of_tests, TypenameString&& type_name_string,

@@ -21,7 +21,7 @@
 #include <functional>
 #include <iostream>
 
-int floor_log10_pow2_precise(int e) {
+static int floor_log10_pow2_precise(int e) {
     using namespace jkj::dragonbox::detail::log;
     bool is_negative;
     if (e < 0) {
@@ -44,7 +44,7 @@ int floor_log10_pow2_precise(int e) {
     return is_negative ? -k : k - 1;
 }
 
-int floor_log10_pow2_minus_log10_4_over_3_precise(int e) {
+static int floor_log10_pow2_minus_log10_4_over_3_precise(int e) {
     e -= 2;
 
     if (e < 0) {
@@ -72,7 +72,7 @@ int floor_log10_pow2_minus_log10_4_over_3_precise(int e) {
     }
 }
 
-int floor_log2_pow10_precise(int e) {
+static int floor_log2_pow10_precise(int e) {
     bool is_negative;
     if (e < 0) {
         is_negative = true;
@@ -93,7 +93,7 @@ int floor_log2_pow10_precise(int e) {
     return is_negative ? -k : k - 1;
 }
 
-int floor_log5_pow2_precise(int e) {
+static int floor_log5_pow2_precise(int e) {
     bool is_negative;
     if (e < 0) {
         is_negative = true;
@@ -114,7 +114,7 @@ int floor_log5_pow2_precise(int e) {
     return is_negative ? -k : k - 1;
 }
 
-int floor_log5_pow2_minus_log5_3_precise(int e) {
+static int floor_log5_pow2_minus_log5_3_precise(int e) {
     if (e >= 0) {
         auto power_of_2 = jkj::big_uint::power_of_2(std::size_t(e));
         auto power_of_5_times_3 = jkj::big_uint(3);
@@ -145,7 +145,7 @@ struct verify_result {
 
 template <jkj::dragonbox::detail::log::multiply m, jkj::dragonbox::detail::log::subtract f,
           jkj::dragonbox::detail::log::shift k>
-verify_result verify(std::string_view name, std::function<int(int)> precise_calculator = nullptr) {
+static verify_result verify(std::string_view name, std::function<int(int)> precise_calculator = nullptr) {
     // Compute the maximum possible e
     constexpr auto max_exponent_upper_bound =
         std::numeric_limits<std::int32_t>::max() / std::int32_t(m);

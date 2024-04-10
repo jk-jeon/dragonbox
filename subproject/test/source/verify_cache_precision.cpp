@@ -30,7 +30,7 @@
 #include <utility>
 #include <vector>
 
-std::ostream& operator<<(std::ostream& out, jkj::big_uint const& n) {
+static std::ostream& operator<<(std::ostream& out, jkj::big_uint const& n) {
     auto dec = n.to_decimal();
     assert(!dec.empty());
 
@@ -66,7 +66,7 @@ struct analysis_result {
 };
 
 template <class FormatTraits>
-bool analyze(std::ostream& out, std::size_t cache_bits) {
+static bool analyze(std::ostream& out, std::size_t cache_bits) {
     out << "e,bits_for_multiplication,bits_for_integer_check\n";
 
     using impl = jkj::dragonbox::detail::impl<FormatTraits>;
