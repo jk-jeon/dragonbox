@@ -149,11 +149,25 @@ int main() {
         jkj::dragonbox::policy::cache::full);
     std::cout << "Done.\n\n\n";
 
+    std::cout << "[Verifying fast computation of xi and zi for the shorter interval case "
+                 "with compressed cache (binary32)...]\n";
+    success &= verify_fast_multiplication_xz<
+        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary32, std::uint_least32_t>>(
+        jkj::dragonbox::policy::cache::compact);
+    std::cout << "Done.\n\n\n";
+
     std::cout << "[Verifying fast computation of yru for the shorter interval case "
                  "with full cache (binary32)...]\n";
     success &= verify_fast_multiplication_yru<
         jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary32, std::uint_least32_t>>(
         jkj::dragonbox::policy::cache::full);
+    std::cout << "Done.\n\n\n";
+
+    std::cout << "[Verifying fast computation of yru for the shorter interval case "
+                 "with compressed cache (binary32)...]\n";
+    success &= verify_fast_multiplication_yru<
+        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary32, std::uint_least32_t>>(
+        jkj::dragonbox::policy::cache::compact);
     std::cout << "Done.\n\n\n";
 
     std::cout << "[Verifying fast computation of xi and zi for the shorter interval case "

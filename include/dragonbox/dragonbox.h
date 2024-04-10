@@ -217,6 +217,7 @@ namespace jkj {
 
                 // <cstdint>
                 using JKJ_STD_REPLACEMENT_NAMESPACE::int_least32_t;
+                using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least16_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least32_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least64_t;
                 // We need UINT32_C and UINT64_C macros too, but again there is nothing to do here.
@@ -1783,6 +1784,102 @@ namespace jkj {
         };
 
         template <class Dummy>
+        struct compressed_cache_holder<ieee754_binary32, Dummy> {
+            using cache_entry_type = cache_holder<ieee754_binary32>::cache_entry_type;
+            static constexpr int cache_bits = cache_holder<ieee754_binary32>::cache_bits;
+            static constexpr int min_k = cache_holder<ieee754_binary32>::min_k;
+            static constexpr int max_k = cache_holder<ieee754_binary32>::max_k;
+            static constexpr int compression_ratio = 13;
+            static constexpr detail::stdr::size_t compressed_table_size =
+                detail::stdr::size_t((max_k - min_k + compression_ratio) / compression_ratio);
+            static constexpr detail::stdr::size_t pow5_table_size =
+                detail::stdr::size_t((compression_ratio + 1) / 2);
+
+            struct cache_holder_t {
+                cache_entry_type table[compressed_table_size];
+            };
+            struct pow5_holder_t {
+                detail::stdr::uint_least16_t table[pow5_table_size];
+            };
+
+#if JKJ_HAS_CONSTEXPR17
+            static constexpr cache_holder_t cache JKJ_STATIC_DATA_SECTION = [] {
+                cache_holder_t res{};
+                for (detail::stdr::size_t i = 0; i < compressed_table_size; ++i) {
+                    res.table[i] = cache_holder<ieee754_binary32>::cache[i * compression_ratio];
+                }
+                return res;
+            }();
+            static constexpr pow5_holder_t pow5_table JKJ_STATIC_DATA_SECTION = [] {
+                pow5_holder_t res{};
+                detail::stdr::uint_least16_t p = 1;
+                for (detail::stdr::size_t i = 0; i < pow5_table_size; ++i) {
+                    res.table[i] = p;
+                    p *= 5;
+                }
+                return res;
+            }();
+#else
+            template <detail::stdr::size_t... indices>
+            static constexpr cache_holder_t make_cache(detail::index_sequence<indices...>) {
+                return {cache_holder<ieee754_binary32>::cache[indices * compression_ratio]...};
+            }
+            static constexpr cache_holder_t cache JKJ_STATIC_DATA_SECTION =
+                make_cache(detail::make_index_sequence<compressed_table_size>{});
+
+            template <detail::stdr::size_t... indices>
+            static constexpr pow5_holder_t make_pow5_table(detail::index_sequence<indices...>) {
+                return {detail::compute_power<indices>(detail::stdr::uint_least16_t(5))...};
+            }
+            static constexpr pow5_holder_t pow5_table JKJ_STATIC_DATA_SECTION =
+                make_pow5_table(detail::make_index_sequence<pow5_table_size>{});
+#endif
+
+            static JKJ_CONSTEXPR20 cache_entry_type get_cache(int k) noexcept {
+                // Compute the base index.
+                auto const cache_index =
+                    int(detail::stdr::uint_least32_t(k - min_k) / compression_ratio);
+                auto const kb = cache_index * compression_ratio + min_k;
+                auto const offset = k - kb;
+
+                // Get the base cache.
+                auto const base_cache = cache.table[cache_index];
+
+                if (offset == 0) {
+                    return base_cache;
+                }
+                else {
+                    // Compute the required amount of bit-shift.
+                    auto const alpha =
+                        detail::log::floor_log2_pow10(k) - detail::log::floor_log2_pow10(kb) - offset;
+                    assert(alpha > 0 && alpha < 64);
+
+                    // Try to recover the real cache.
+                    constexpr auto pow5_7 = detail::compute_power<7>(detail::stdr::uint_least32_t(5));
+                    auto const pow5 =
+                        offset >= 7
+                            ? detail::stdr::uint_least32_t(pow5_7 * pow5_table.table[offset - 7])
+                            : detail::stdr::uint_least32_t(pow5_table.table[offset]);
+                    auto mul_result = detail::wuint::umul128(base_cache, pow5);
+                    auto const recovered_cache = cache_entry_type(
+                        (((mul_result.high() << (64 - alpha)) | (mul_result.low() >> alpha)) + 1) &
+                        UINT64_C(0xffffffffffffffff));
+                    assert(recovered_cache != 0);
+
+                    return recovered_cache;
+                }
+            }
+        };
+#if !JKJ_HAS_INLINE_VARIABLE
+        template <class Dummy>
+        constexpr typename compressed_cache_holder<ieee754_binary32, Dummy>::cache_holder_t
+            compressed_cache_holder<ieee754_binary32, Dummy>::cache;
+        template <class Dummy>
+        constexpr typename compressed_cache_holder<ieee754_binary32, Dummy>::pow5_holder_t
+            compressed_cache_holder<ieee754_binary32, Dummy>::pow5_table;
+#endif
+
+        template <class Dummy>
         struct compressed_cache_holder<ieee754_binary64, Dummy> {
             using cache_entry_type = cache_holder<ieee754_binary64>::cache_entry_type;
             static constexpr int cache_bits = cache_holder<ieee754_binary64>::cache_bits;
@@ -1790,13 +1887,15 @@ namespace jkj {
             static constexpr int max_k = cache_holder<ieee754_binary64>::max_k;
             static constexpr int compression_ratio = 27;
             static constexpr detail::stdr::size_t compressed_table_size =
-                (max_k - min_k + compression_ratio) / compression_ratio;
+                detail::stdr::size_t((max_k - min_k + compression_ratio) / compression_ratio);
+            static constexpr detail::stdr::size_t pow5_table_size =
+                detail::stdr::size_t(compression_ratio);
 
             struct cache_holder_t {
                 cache_entry_type table[compressed_table_size];
             };
             struct pow5_holder_t {
-                detail::stdr::uint_least64_t table[compression_ratio];
+                detail::stdr::uint_least64_t table[pow5_table_size];
             };
 
 #if JKJ_HAS_CONSTEXPR17
@@ -1810,7 +1909,7 @@ namespace jkj {
             static constexpr pow5_holder_t pow5_table JKJ_STATIC_DATA_SECTION = [] {
                 pow5_holder_t res{};
                 detail::stdr::uint_least64_t p = 1;
-                for (detail::stdr::size_t i = 0; i < compression_ratio; ++i) {
+                for (detail::stdr::size_t i = 0; i < pow5_table_size; ++i) {
                     res.table[i] = p;
                     p *= 5;
                 }
@@ -1829,7 +1928,7 @@ namespace jkj {
                 return {detail::compute_power<indices>(detail::stdr::uint_least64_t(5))...};
             }
             static constexpr pow5_holder_t pow5_table JKJ_STATIC_DATA_SECTION =
-                make_pow5_table(detail::make_index_sequence<compression_ratio>{});
+                make_pow5_table(detail::make_index_sequence<pow5_table_size>{});
 #endif
 
             static JKJ_CONSTEXPR20 cache_entry_type get_cache(int k) noexcept {
@@ -3088,6 +3187,18 @@ namespace jkj {
                             // 10^-18) and 2f_c = 29711482, e = -80
                             // (1.2288529832819387448703332688104694625508273020386695861816... *
                             // 10^-17).
+                            // For the case of compressed cache for binary32, there is another
+                            // exceptional case 2f_c = 33554430, e = -10 (16383.9990234375). In this
+                            // case, the recovered cache is two large to make compute_mul_parity
+                            // mistakenly conclude that z is not an integer, but actually z = 16384 is
+                            // an integer.
+                            JKJ_IF_CONSTEXPR(
+                                stdr::is_same<cache_holder_type,
+                                              compressed_cache_holder<ieee754_binary32>>::value) {
+                                if (two_fc == 33554430 && binary_exponent == -10) {
+                                    break;
+                                }
+                            }
                             auto const z_result =
                                 multiplication_traits_::compute_mul_parity(two_fc + 2, cache, beta);
                             if (z_result.parity || z_result.is_integer) {
