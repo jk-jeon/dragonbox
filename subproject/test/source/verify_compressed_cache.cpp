@@ -107,17 +107,18 @@ bool verify_compressed_cache(GetCache&& get_cache, ConvertToBigUInt&& convert_to
 
                 if (left_hand_side * (n_max / unit.denominator) >=
                     jkj::big_uint::power_of_2(FormatTraits::carrier_bits - beta)) {
+                    std::cout << "Integer check is no longer valid. (e = " << e << ")\n";
+
                     // This exceptional case is carefully examined, so okay.
                     if (std::is_same<format, jkj::dragonbox::ieee754_binary32>::value && e == -10) {
                         // The exceptional case only occurs when n is exactly n_max.
                         if (left_hand_side * ((n_max - 1) / unit.denominator) >=
                             jkj::big_uint::power_of_2(FormatTraits::carrier_bits - beta)) {
-                            std::cout << "Integer check is no longer valid. (e = " << e << ")\n";
                             return false;
                         }
+                        std::cout << "    This case has been carefully addressed.\n\n";
                     }
                     else {
-                        std::cout << "Integer check is no longer valid. (e = " << e << ")\n";
                         return false;
                     }
                 }
@@ -185,13 +186,15 @@ int main() {
 
                         recovered_cache += middle_low.high();
 
-                        auto const high_to_middle = recovered_cache.high() << (64 - alpha);
-                        auto const middle_to_low = recovered_cache.low() << (64 - alpha);
+                        auto const high_to_middle = std::uint_least64_t(
+                            (recovered_cache.high() << (64 - alpha)) & UINT64_C(0xffffffffffffffff));
+                        auto const middle_to_low = std::uint_least64_t(
+                            (recovered_cache.low() << (64 - alpha)) & UINT64_C(0xffffffffffffffff));
 
-                        recovered_cache = jkj::dragonbox::detail::wuint::uint128{
-                            (recovered_cache.low() >> alpha) | high_to_middle,
-                            ((middle_low.low() >> alpha) | middle_to_low)};
-                        recovered_cache = {recovered_cache.high(), recovered_cache.low() + 1};
+                        recovered_cache = {(recovered_cache.low() >> alpha) | high_to_middle,
+                                           ((middle_low.low() >> alpha) | middle_to_low)};
+                        recovered_cache = {recovered_cache.high(),
+                                           std::uint_least64_t(recovered_cache.low() + 1)};
 
                         if (recovered_cache.low() == 0) {
                             std::cout

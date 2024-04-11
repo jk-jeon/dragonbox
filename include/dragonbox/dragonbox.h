@@ -1957,17 +1957,17 @@ namespace jkj {
 
                     recovered_cache += middle_low.high();
 
-                    auto const high_to_middle =
-                        (recovered_cache.high() << (64 - alpha)) & UINT64_C(0xffffffffffffffff);
-                    auto const middle_to_low =
-                        (recovered_cache.low() << (64 - alpha)) & UINT64_C(0xffffffffffffffff);
+                    auto const high_to_middle = detail::stdr::uint_least64_t(
+                        (recovered_cache.high() << (64 - alpha)) & UINT64_C(0xffffffffffffffff));
+                    auto const middle_to_low = detail::stdr::uint_least64_t(
+                        (recovered_cache.low() << (64 - alpha)) & UINT64_C(0xffffffffffffffff));
 
-                    recovered_cache =
-                        detail::wuint::uint128{(recovered_cache.low() >> alpha) | high_to_middle,
-                                               ((middle_low.low() >> alpha) | middle_to_low)};
+                    recovered_cache = {(recovered_cache.low() >> alpha) | high_to_middle,
+                                       ((middle_low.low() >> alpha) | middle_to_low)};
 
                     assert(recovered_cache.low() != UINT64_C(0xffffffffffffffff));
-                    recovered_cache = {recovered_cache.high(), recovered_cache.low() + 1};
+                    recovered_cache = {recovered_cache.high(),
+                                       detail::stdr::uint_least64_t(recovered_cache.low() + 1)};
 
                     return recovered_cache;
                 }
