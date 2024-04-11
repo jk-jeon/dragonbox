@@ -220,6 +220,8 @@ namespace jkj {
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least16_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least32_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least64_t;
+                using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast16_t;
+                using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast32_t;
                 // We need UINT32_C and UINT64_C macros too, but again there is nothing to do here.
 
                 // <cstring>
@@ -1837,8 +1839,10 @@ namespace jkj {
 
             static JKJ_CONSTEXPR20 cache_entry_type get_cache(int k) noexcept {
                 // Compute the base index.
-                auto const cache_index =
-                    int(detail::stdr::uint_least32_t(k - min_k) / compression_ratio);
+                // Supposed to compute (k - min_k) / compression_ratio.
+                static_assert(max_k - min_k <= 89 && compression_ratio == 13);
+                auto const cache_index = int(
+                    (detail::stdr::uint_fast16_t(k - min_k) * detail::stdr::uint_fast16_t(79)) >> 10);
                 auto const kb = cache_index * compression_ratio + min_k;
                 auto const offset = k - kb;
 
@@ -1933,8 +1937,10 @@ namespace jkj {
 
             static JKJ_CONSTEXPR20 cache_entry_type get_cache(int k) noexcept {
                 // Compute the base index.
-                auto const cache_index =
-                    int(detail::stdr::uint_least32_t(k - min_k) / compression_ratio);
+                // Supposed to compute (k - min_k) / compression_ratio.
+                static_assert(max_k - min_k <= 619 && compression_ratio == 27);
+                auto const cache_index = int(
+                    (detail::stdr::uint_fast32_t(k - min_k) * detail::stdr::uint_fast32_t(607)) >> 14);
                 auto const kb = cache_index * compression_ratio + min_k;
                 auto const offset = k - kb;
 
