@@ -62,6 +62,9 @@ int main() {
     constexpr bool run_float = true;
     constexpr std::size_t number_of_uniform_random_tests_float = 10000000;
 
+    constexpr bool run_float_with_compressed_cache = true;
+    constexpr std::size_t number_of_uniform_random_tests_float_compressed = 10000000;
+
     constexpr bool run_double = true;
     constexpr std::size_t number_of_uniform_random_tests_double = 10000000;
 
@@ -75,14 +78,19 @@ int main() {
         success &= uniform_random_test<float>(number_of_uniform_random_tests_float, "float");
         std::cout << "Done.\n\n\n";
     }
+    if (run_float_with_compressed_cache) {
+        std::cout << "[Testing uniformly randomly generated float inputs with compressed cache...]\n";
+        success &= uniform_random_test<float>(number_of_uniform_random_tests_float_compressed, "float",
+                                              jkj::dragonbox::policy::cache::compact);
+        std::cout << "Done.\n\n\n";
+    }
     if (run_double) {
         std::cout << "[Testing uniformly randomly generated double inputs...]\n";
         success &= uniform_random_test<double>(number_of_uniform_random_tests_double, "double");
         std::cout << "Done.\n\n\n";
     }
     if (run_double_with_compressed_cache) {
-        std::cout
-            << "[Testing uniformly randomly generated double inputs with compressed cache...]\n";
+        std::cout << "[Testing uniformly randomly generated double inputs with compressed cache...]\n";
         success &= uniform_random_test<double>(number_of_uniform_random_tests_double_compressed,
                                                "double", jkj::dragonbox::policy::cache::compact);
         std::cout << "Done.\n\n\n";

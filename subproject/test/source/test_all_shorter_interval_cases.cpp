@@ -71,6 +71,10 @@ int main() {
     success &= test_all_shorter_interval_cases_impl<float>();
     std::cout << "Done.\n\n\n";
 
+    std::cout << "[Testing all shorter interval cases for binary32 with compressed cache...]\n";
+    success &= test_all_shorter_interval_cases_impl<float>(jkj::dragonbox::policy::cache::compact);
+    std::cout << "Done.\n\n\n";
+
     std::cout << "[Testing all shorter interval cases for binary64...]\n";
     success &= test_all_shorter_interval_cases_impl<double>();
     std::cout << "Done.\n\n\n";
