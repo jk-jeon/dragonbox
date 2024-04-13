@@ -1859,11 +1859,11 @@ namespace jkj {
                     assert(alpha > 0 && alpha < 64);
 
                     // Try to recover the real cache.
-                    constexpr auto pow5_7 = detail::compute_power<7>(detail::stdr::uint_least32_t(5));
-                    auto const pow5 =
-                        offset >= 7
-                            ? detail::stdr::uint_least32_t(pow5_7 * pow5_table.table[offset - 7])
-                            : detail::stdr::uint_least32_t(pow5_table.table[offset]);
+                    auto const pow5 = offset >= 7
+                                          ? detail::stdr::uint_least32_t(
+                                                detail::stdr::uint_least32_t(pow5_table.table[6]) *
+                                                pow5_table.table[offset - 6])
+                                          : detail::stdr::uint_least32_t(pow5_table.table[offset]);
                     auto mul_result = detail::wuint::umul128(base_cache, pow5);
                     auto const recovered_cache = cache_entry_type(
                         (((mul_result.high() << (64 - alpha)) | (mul_result.low() >> alpha)) + 1) &
