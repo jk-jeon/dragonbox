@@ -680,7 +680,7 @@ namespace jkj {
                         auto const carry = _addcarry_u64(0, low_, n, &low_);
                         _addcarry_u64(carry, high_, 0, &high_);
 #elif defined(__INTEL_COMPILER) && (defined(_M_X64) || defined(__x86_64))
-                        static_assert(std::is_same<unsigned __int64, std::uint_least64_t>::value, "");
+                        static_assert(stdr::is_same<unsigned __int64, stdr::uint_least64_t>::value, "");
                         auto const carry = _addcarry_u64(0, low_, n, &low_);
                         _addcarry_u64(carry, high_, 0, &high_);
 #else
