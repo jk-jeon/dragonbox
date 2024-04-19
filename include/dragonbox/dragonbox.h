@@ -665,7 +665,7 @@ namespace jkj {
 
 #if JKJ_HAS_BUILTIN(__builtin_ia32_addcarry_u64)
                         // __builtin_ia32_addcarry_u64 is not documented, but it seems it takes unsigned
-                        // long long arguments. 
+                        // long long arguments.
                         unsigned long long result{};
                         auto const carry = __builtin_ia32_addcarry_u64(0, low_, n, &result);
                         low_ = stdr::uint_least64_t(result);
@@ -680,6 +680,8 @@ namespace jkj {
                         auto const carry = _addcarry_u64(0, low_, n, &low_);
                         _addcarry_u64(carry, high_, 0, &high_);
 #elif defined(__INTEL_COMPILER) && (defined(_M_X64) || defined(__x86_64))
+                        // Cannot find any documentation on how things are defined, but hopefully this
+                        // is always true...
                         static_assert(stdr::is_same<unsigned __int64, stdr::uint_least64_t>::value, "");
                         auto const carry = _addcarry_u64(0, low_, n, &low_);
                         _addcarry_u64(carry, high_, 0, &high_);
@@ -874,10 +876,10 @@ namespace jkj {
                 static_assert((stdr::int_least32_t(-1) >> 1) == stdr::int_least32_t(-1),
                               "jkj::dragonbox: right-shift for signed integers must be arithmetic");
 
-                // Compute floor(e * c - s).
-                enum class multiply : stdr::uint_least32_t {};
-                enum class subtract : stdr::uint_least32_t {};
-                enum class shift : stdr::size_t {};
+                // Compute floor((e * m - f) >> k) for given e.
+                enum class multiply : stdr::uint_least32_t {}; // m
+                enum class subtract : stdr::uint_least32_t {}; // f
+                enum class shift : stdr::size_t {};            // k
                 enum class min_exponent : stdr::int_least32_t {};
                 enum class max_exponent : stdr::int_least32_t {};
 
