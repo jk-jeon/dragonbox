@@ -2822,8 +2822,8 @@ namespace jkj {
                 using format::max_exponent;
                 using format::exponent_bias;
 
-                // TODO: provide a way to customize this value from the outside.
-                static constexpr int kappa = stdr::is_same<format, ieee754_binary32>::value ? 1 : 2;
+                static constexpr int kappa =
+                    log::floor_log10_pow2(carrier_bits - significand_bits - 2) - 1;
                 static_assert(kappa >= 1, "");
                 static_assert(carrier_bits >= significand_bits + 2 + log::floor_log2_pow10(kappa + 1),
                               "");
