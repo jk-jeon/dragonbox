@@ -168,11 +168,11 @@ int main() {
                     auto const offset = k - kb;
 
                     // Get the base cache.
-                    auto const base_cache = cache_holder_type::cache.table[cache_index];
+                    auto const base_cache = cache_holder_type::cache[cache_index];
 
                     if (offset != 0) {
                         // Obtain the corresponding power of 5.
-                        auto const pow5 = cache_holder_type::pow5_table.table[offset];
+                        auto const pow5 = cache_holder_type::pow5_table[offset];
 
                         // Compute the required amount of bit-shifts.
                         using jkj::dragonbox::detail::log::floor_log2_pow10;
