@@ -1052,7 +1052,7 @@ namespace jkj {
                     // smallest magic number for this computation does not fit into 64-bits.
                     else JKJ_IF_CONSTEXPR(stdr::is_same<UInt, stdr::uint_least64_t>::value && N == 3 &&
                                           n_max <= UINT64_C(15534100272597517998)) {
-                        return UInt(wuint::umul128_upper64(n, UINT64_C(2361183241434822607)) >> 7);
+                        return UInt(wuint::umul128_upper64(n, UINT64_C(4722366482869645214)) >> 8);
                     }
                     else {
                         constexpr auto divisor = compute_power<N>(UInt(10));
