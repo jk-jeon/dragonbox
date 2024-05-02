@@ -151,25 +151,27 @@ static verify_result verify(std::string_view name, std::size_t tier,
     using intermediate_type = decltype(info::multiply);
     using return_type = typename info::default_return_type;
 
-    constexpr auto max_intermediate_value =
-        std::min(std::numeric_limits<intermediate_type>::max(),
-                 (std::min(static_cast<intermediate_type>(std::numeric_limits<return_type>::max()),
-                           std::numeric_limits<intermediate_type>::max() >> info::shift)
-                  << info::shift) +
-                     ((intermediate_type(1) << info::shift) - 1));
+    constexpr auto max_intermediate_value = std::min(
+        std::numeric_limits<intermediate_type>::max(),
+        intermediate_type(
+            (std::min(static_cast<intermediate_type>(std::numeric_limits<return_type>::max()),
+                      intermediate_type(std::numeric_limits<intermediate_type>::max() >> info::shift)) *
+             (intermediate_type(1) << info::shift)) +
+            ((intermediate_type(1) << info::shift) - 1)));
     constexpr auto no_overflow_max_exponent =
-        (max_intermediate_value + std::min(info::subtract, 0)) / info::multiply;
+        (max_intermediate_value + std::min(info::subtract, intermediate_type(0))) / info::multiply;
 
     constexpr auto min_intermediate_value =
         std::max(std::numeric_limits<intermediate_type>::min(),
-                 (std::max(static_cast<intermediate_type>(std::numeric_limits<return_type>::min()),
-                           (std::numeric_limits<intermediate_type>::min() +
-                            (intermediate_type(1) << (info::shift + 1)) - 2) >>
-                               info::shift)
-                  << info::shift) -
-                     ((intermediate_type(1) << info::shift) - 1));
+                 intermediate_type(
+                     (std::max(static_cast<intermediate_type>(std::numeric_limits<return_type>::min()),
+                               intermediate_type((std::numeric_limits<intermediate_type>::min() +
+                                                  (intermediate_type(1) << (info::shift + 1)) - 2) >>
+                                                 info::shift)) *
+                      (intermediate_type(1) << info::shift)) -
+                     ((intermediate_type(1) << info::shift) - 1)));
     constexpr auto no_overflow_min_exponent =
-        (min_intermediate_value + std::max(info::subtract, 0)) /
+        (min_intermediate_value + std::max(info::subtract, intermediate_type(0))) /
         info::multiply; // (negative) / (positive) computes the ceiling in C/C++.
 
 
@@ -220,8 +222,8 @@ static verify_result verify(std::string_view name, std::size_t tier,
 
 template <template <std::size_t> class FastCalculatorInfo, std::size_t current_tier = 0>
 struct verify_all_tiers {
-    template <class PreciseCalculator,
-              std::int_least32_t dummy = FastCalculatorInfo<current_tier>::min_exponent>
+    template <class PreciseCalculator, std::size_t dummy1 = current_tier,
+              std::int_least32_t dummy2 = FastCalculatorInfo<dummy1>::min_exponent>
     bool operator()(std::string_view name, PreciseCalculator&& precise_calculator) {
         if (current_tier == 0) {
             std::cout << "Verifying " << name << "...\n\n";
