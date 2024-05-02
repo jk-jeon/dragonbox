@@ -83,7 +83,8 @@ int main() {
 
         out << "static constexpr int min_k = " << std::dec << impl_type::min_k << ";\n";
         out << "static constexpr int max_k = " << std::dec << impl_type::max_k << ";\n";
-        out << "static constexpr cache_entry_type cache[max_k - min_k + 1] JKJ_STATIC_DATA_SECTION = {";
+        out << "static constexpr detail::array<cache_entry_type, detail::stdr::size_t(max_k - min_k + "
+               "1)> cache JKJ_STATIC_DATA_SECTION = { {";
         for (int k = impl_type::min_k; k < impl_type::max_k; ++k) {
             auto idx = std::size_t(k - impl_type::min_k);
             out << "\n\t";
@@ -92,7 +93,7 @@ int main() {
         }
         out << "\n\t";
         element_printer(out, cache_array.back());
-        out << "\n};";
+        out << "\n} };";
     };
 
     std::ofstream out;

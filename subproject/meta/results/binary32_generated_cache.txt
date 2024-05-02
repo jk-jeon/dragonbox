@@ -1,6 +1,6 @@
 static constexpr int min_k = -31;
 static constexpr int max_k = 46;
-static constexpr cache_entry_type cache[max_k - min_k + 1] JKJ_STATIC_DATA_SECTION = {
+static constexpr detail::array<cache_entry_type, detail::stdr::size_t(max_k - min_k + 1)> cache JKJ_STATIC_DATA_SECTION = { {
 	UINT64_C(0x81ceb32c4b43fcf5),
 	UINT64_C(0xa2425ff75e14fc32),
 	UINT64_C(0xcad2f7f5359a3b3f),
@@ -79,4 +79,4 @@ static constexpr cache_entry_type cache[max_k - min_k + 1] JKJ_STATIC_DATA_SECTI
 	UINT64_C(0x8f7e32ce7bea5c70),
 	UINT64_C(0xb35dbf821ae4f38c),
 	UINT64_C(0xe0352f62a19e306f)
-};
+} };
