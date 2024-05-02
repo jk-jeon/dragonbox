@@ -219,12 +219,16 @@ namespace jkj {
 
                 // <cstdint>
                 using JKJ_STD_REPLACEMENT_NAMESPACE::int_least32_t;
+                using JKJ_STD_REPLACEMENT_NAMESPACE::int_fast8_t;
+                using JKJ_STD_REPLACEMENT_NAMESPACE::int_fast16_t;
+                using JKJ_STD_REPLACEMENT_NAMESPACE::int_fast32_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least16_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least32_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least64_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast16_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast32_t;
-                // We need UINT32_C and UINT64_C macros too, but again there is nothing to do here.
+                // We need INT32_C, UINT32_C and UINT64_C macros too, but again there is nothing to do
+                // here.
 
                 // <cstring>
                 using JKJ_STD_REPLACEMENT_NAMESPACE::size_t;
@@ -251,7 +255,7 @@ namespace jkj {
                 using is_trivially_copyable = JKJ_STD_REPLACEMENT_NAMESPACE::is_trivially_copyable<T>;
 #endif
                 template <class T>
-                using is_unsigned = JKJ_STD_REPLACEMENT_NAMESPACE::is_unsigned<T>;
+                using is_integral = JKJ_STD_REPLACEMENT_NAMESPACE::is_integral<T>;
             }
         }
 
@@ -305,7 +309,7 @@ namespace jkj {
             template <class T>
             struct value_bits {
                 static constexpr stdr::size_t value = stdr::numeric_limits<
-                    typename stdr::enable_if<stdr::is_unsigned<T>::value, T>::type>::digits;
+                    typename stdr::enable_if<stdr::is_integral<T>::value, T>::type>::digits;
             };
 
             template <typename To, typename From>
@@ -348,24 +352,31 @@ namespace jkj {
         // A floating-point format traits class defines ways to interpret a bit pattern of given size as
         // an encoding of floating-point number. This is an implementation of such a traits class,
         // supporting ways to interpret IEEE-754 binary floating-point numbers.
-        template <class Format, class CarrierUInt>
+        template <class Format, class CarrierUInt, class ExponentInt = int>
         struct ieee754_binary_traits {
-            // The actual bits are assumed to be aligned to the LSB, and every other bits are assumed to
-            // be zeroed.
+            // CarrierUInt needs to have enough size to hold the entire contents of floating-point
+            // numbers. The actual bits are assumed to be aligned to the LSB, and every other bits are
+            // assumed to be zeroed.
             static_assert(detail::value_bits<CarrierUInt>::value >= Format::total_bits,
+                          "jkj::dragonbox: insufficient number of bits");
+
+            // ExponentUInt needs to be large enough to hold (unsigned) exponent bits as well as the
+            // (signed) actual exponent.
+            // TODO: static overflow guard against intermediate computations.
+            static_assert(detail::value_bits<ExponentInt>::value >= Format::exponent_bits + 1,
                           "jkj::dragonbox: insufficient number of bits");
 
             using format = Format;
             using carrier_uint = CarrierUInt;
             static constexpr int carrier_bits = int(detail::value_bits<carrier_uint>::value);
+            using exponent_int = ExponentInt;
 
             // Extract exponent bits from a bit pattern.
             // The result must be aligned to the LSB so that there is no additional zero paddings
             // on the right. This function does not do bias adjustment.
-            static constexpr unsigned int extract_exponent_bits(carrier_uint u) noexcept {
-                static_assert(detail::value_bits<unsigned int>::value > format::exponent_bits, "");
-                return static_cast<unsigned int>(u >> format::significand_bits) &
-                       ((1u << format::exponent_bits) - 1u);
+            static constexpr exponent_int extract_exponent_bits(carrier_uint u) noexcept {
+                return exponent_int((u >> format::significand_bits) &
+                                    ((exponent_int(1) << format::exponent_bits) - 1));
             }
 
             // Extract significand bits from a bit pattern.
@@ -387,35 +398,34 @@ namespace jkj {
                                     ((((carrier_uint(1) << (Format::total_bits - 1)) - 1u) << 1) | 1u));
             }
 
-            // The actual value of exponent is obtained by adding this value to the extracted
-            // exponent bits.
-            static constexpr int exponent_bias =
-                1 - (1 << (carrier_bits - format::significand_bits - 2));
-
             // Obtain the actual value of the binary exponent from the extracted exponent bits.
-            static constexpr int binary_exponent(unsigned int exponent_bits) noexcept {
-                return exponent_bits == 0 ? format::min_exponent
-                                          : int(exponent_bits) + format::exponent_bias;
+            static constexpr exponent_int binary_exponent(exponent_int exponent_bits) noexcept {
+                return exponent_int(exponent_bits == 0 ? format::min_exponent
+                                                       : exponent_bits + format::exponent_bias);
             }
 
             // Obtain the actual value of the binary significand from the extracted significand bits
             // and exponent bits.
             static constexpr carrier_uint binary_significand(carrier_uint significand_bits,
-                                                             unsigned int exponent_bits) noexcept {
-                return exponent_bits == 0
-                           ? significand_bits
-                           : (significand_bits | (carrier_uint(1) << format::significand_bits));
+                                                             exponent_int exponent_bits) noexcept {
+                return carrier_uint(
+                    exponent_bits == 0
+                        ? significand_bits
+                        : (significand_bits | (carrier_uint(1) << format::significand_bits)));
             }
 
             /* Various boolean observer functions */
 
-            static constexpr bool is_nonzero(carrier_uint u) noexcept { return (u << 1) != 0; }
+            static constexpr bool is_nonzero(carrier_uint u) noexcept {
+                return (u & ((carrier_uint(1) << (format::significand_bits + format::exponent_bits)) -
+                             1u)) != 0;
+            }
             static constexpr bool is_positive(carrier_uint u) noexcept {
                 return u < (carrier_uint(1) << (format::significand_bits + format::exponent_bits));
             }
             static constexpr bool is_negative(carrier_uint u) noexcept { return !is_positive(u); }
-            static constexpr bool is_finite(unsigned int exponent_bits) noexcept {
-                return exponent_bits != ((1u << format::exponent_bits) - 1u);
+            static constexpr bool is_finite(exponent_int exponent_bits) noexcept {
+                return exponent_bits != ((exponent_int(1) << format::exponent_bits) - 1);
             }
             static constexpr bool has_all_zero_significand_bits(carrier_uint u) noexcept {
                 return ((u << 1) &
@@ -452,6 +462,9 @@ namespace jkj {
                 typename detail::stdr::conditional<detail::physical_bits<Float>::value == 32,
                                                    detail::stdr::uint_least32_t,
                                                    detail::stdr::uint_least64_t>::type;
+
+            // Specifies the signed integer type to hold the exponent of Float.
+            using exponent_int = int;
 
             // Specifies the floating-point format.
             using format = typename detail::stdr::conditional<detail::physical_bits<Float>::value == 32,
@@ -503,6 +516,7 @@ namespace jkj {
         struct float_bits {
             using format_traits = FormatTraits;
             using carrier_uint = typename format_traits::carrier_uint;
+            using exponent_int = typename format_traits::exponent_int;
 
             carrier_uint u;
 
@@ -512,7 +526,7 @@ namespace jkj {
             // Extract exponent bits from a bit pattern.
             // The result must be aligned to the LSB so that there is no additional zero paddings
             // on the right. This function does not do bias adjustment.
-            constexpr unsigned int extract_exponent_bits() const noexcept {
+            constexpr exponent_int extract_exponent_bits() const noexcept {
                 return format_traits::extract_exponent_bits(u);
             }
 
@@ -529,17 +543,17 @@ namespace jkj {
             }
 
             // Obtain the actual value of the binary exponent from the extracted exponent bits.
-            static constexpr int binary_exponent(unsigned int exponent_bits) noexcept {
+            static constexpr exponent_int binary_exponent(exponent_int exponent_bits) noexcept {
                 return format_traits::binary_exponent(exponent_bits);
             }
-            constexpr int binary_exponent() const noexcept {
+            constexpr exponent_int binary_exponent() const noexcept {
                 return binary_exponent(extract_exponent_bits());
             }
 
             // Obtain the actual value of the binary exponent from the extracted significand bits
             // and exponent bits.
             static constexpr carrier_uint binary_significand(carrier_uint significand_bits,
-                                                             unsigned int exponent_bits) noexcept {
+                                                             exponent_int exponent_bits) noexcept {
                 return format_traits::binary_significand(significand_bits, exponent_bits);
             }
             constexpr carrier_uint binary_significand() const noexcept {
@@ -549,7 +563,7 @@ namespace jkj {
             constexpr bool is_nonzero() const noexcept { return format_traits::is_nonzero(u); }
             constexpr bool is_positive() const noexcept { return format_traits::is_positive(u); }
             constexpr bool is_negative() const noexcept { return format_traits::is_negative(u); }
-            constexpr bool is_finite(unsigned int exponent_bits) const noexcept {
+            constexpr bool is_finite(exponent_int exponent_bits) const noexcept {
                 return format_traits::is_finite(exponent_bits);
             }
             constexpr bool is_finite() const noexcept {
@@ -563,7 +577,8 @@ namespace jkj {
         template <class Float,
                   class ConversionTraits = default_float_bit_carrier_conversion_traits<Float>,
                   class FormatTraits = ieee754_binary_traits<typename ConversionTraits::format,
-                                                             typename ConversionTraits::carrier_uint>>
+                                                             typename ConversionTraits::carrier_uint,
+                                                             typename ConversionTraits::exponent_int>>
         JKJ_CONSTEXPR20 float_bits<FormatTraits> make_float_bits(Float x) noexcept {
             return float_bits<FormatTraits>(ConversionTraits::float_to_carrier(x));
         }
@@ -881,25 +896,9 @@ namespace jkj {
             ////////////////////////////////////////////////////////////////////////////////////////
 
             namespace log {
-                static_assert((stdr::int_least32_t(-1) >> 1) == stdr::int_least32_t(-1),
+                static_assert((stdr::int_fast32_t(-1) >> 1) == stdr::int_fast32_t(-1) &&
+                                  (stdr::int_fast16_t(-1) >> 1) == stdr::int_fast16_t(-1),
                               "jkj::dragonbox: right-shift for signed integers must be arithmetic");
-
-                // Compute floor((e * m - f) >> k) for given e.
-                enum class multiply : stdr::uint_least32_t {}; // m
-                enum class subtract : stdr::uint_least32_t {}; // f
-                enum class shift : stdr::size_t {};            // k
-                enum class min_exponent : stdr::int_least32_t {};
-                enum class max_exponent : stdr::int_least32_t {};
-
-                template <multiply m, subtract f, shift k, min_exponent e_min, max_exponent e_max>
-                constexpr int compute(int e) noexcept {
-#if JKJ_HAS_CONSTEXPR14
-                    assert(stdr::int_least32_t(e_min) <= e && e <= stdr::int_least32_t(e_max));
-#endif
-                    return int(
-                        (stdr::int_least32_t(e) * stdr::int_least32_t(m) - stdr::int_least32_t(f)) >>
-                        stdr::size_t(k));
-                }
 
                 // For constexpr computation.
                 // Returns -1 when n = 0.
@@ -917,49 +916,224 @@ namespace jkj {
 #endif
                 }
 
-                static constexpr int floor_log10_pow2_min_exponent = -2620;
-                static constexpr int floor_log10_pow2_max_exponent = 2620;
-                constexpr int floor_log10_pow2(int e) noexcept {
-                    using namespace log;
-                    return compute<multiply(UINT32_C(315653)), subtract(0), shift(20),
-                                   min_exponent(floor_log10_pow2_min_exponent),
-                                   max_exponent(floor_log10_pow2_max_exponent)>(e);
+                template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
+                          stdr::int_least32_t max_exponent, stdr::size_t current_tier,
+                          stdr::int_least32_t supported_min_exponent = Info<current_tier>::min_exponent,
+                          stdr::int_least32_t supported_max_exponent = Info<current_tier>::max_exponent>
+                constexpr bool is_in_range(int) noexcept {
+                    return min_exponent >= supported_min_exponent &&
+                           max_exponent <= supported_max_exponent;
+                }
+                template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
+                          stdr::int_least32_t max_exponent, stdr::size_t current_tier>
+                constexpr bool is_in_range(...) noexcept {
+                    // Supposed to be always false, but formally dependent on the template parameters.
+                    static_assert(min_exponent > max_exponent,
+                                  "jkj::dragonbox: exponent range is too wide");
+                    return false;
                 }
 
-                static constexpr int floor_log2_pow10_min_exponent = -1233;
-                static constexpr int floor_log2_pow10_max_exponent = 1233;
-                constexpr int floor_log2_pow10(int e) noexcept {
-                    using namespace log;
-                    return compute<multiply(UINT32_C(1741647)), subtract(0), shift(19),
-                                   min_exponent(floor_log2_pow10_min_exponent),
-                                   max_exponent(floor_log2_pow10_max_exponent)>(e);
+                template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
+                          stdr::int_least32_t max_exponent, stdr::size_t current_tier = 0,
+                          bool = is_in_range<Info, min_exponent, max_exponent, current_tier>(0)>
+                struct compute_impl;
+
+                template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
+                          stdr::int_least32_t max_exponent, stdr::size_t current_tier>
+                struct compute_impl<Info, min_exponent, max_exponent, current_tier, true> {
+                    using info = Info<current_tier>;
+                    using default_return_type = typename info::default_return_type;
+                    template <class ReturnType, class Int>
+                    static constexpr ReturnType compute(Int e) noexcept {
+#if JKJ_HAS_CONSTEXPR14
+                        assert(min_exponent <= e && e <= max_exponent);
+#endif
+                        // The sign is irrelevant for the mathematical validity of the formula, but
+                        // assuming positivity makes the overflow analysis simpler.
+                        static_assert(info::multiply >= 0 && info::subtract >= 0, "");
+                        return static_cast<ReturnType>((e * info::multiply - info::subtract) >>
+                                                       info::shift);
+                    }
+                };
+
+                template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
+                          stdr::int_least32_t max_exponent, stdr::size_t current_tier>
+                struct compute_impl<Info, min_exponent, max_exponent, current_tier, false> {
+                    using next_tier = compute_impl<Info, min_exponent, max_exponent, current_tier + 1>;
+                    using default_return_type = typename next_tier::default_return_type;
+                    template <class ReturnType, class Int>
+                    static constexpr ReturnType compute(Int e) noexcept {
+                        return next_tier::template compute<ReturnType>(e);
+                    }
+                };
+
+                template <stdr::size_t tier>
+                struct floor_log10_pow2_info;
+                template <>
+                struct floor_log10_pow2_info<0> {
+                    using default_return_type = stdr::int_fast8_t;
+                    static constexpr stdr::int_fast16_t multiply = 77;
+                    static constexpr stdr::int_fast16_t subtract = 0;
+                    static constexpr stdr::size_t shift = 8;
+                    static constexpr stdr::int_least32_t min_exponent = -102;
+                    static constexpr stdr::int_least32_t max_exponent = 102;
+                };
+                template <>
+                struct floor_log10_pow2_info<1> {
+                    using default_return_type = stdr::int_fast8_t;
+                    // 24-bits are enough in fact.
+                    static constexpr stdr::int_fast32_t multiply = 1233;
+                    static constexpr stdr::int_fast32_t subtract = 0;
+                    static constexpr stdr::size_t shift = 12;
+                    // Formula itself holds on [-680,680]; [-425,425] is to ensure that the output is
+                    // within [-127,127].
+                    static constexpr stdr::int_least32_t min_exponent = -425;
+                    static constexpr stdr::int_least32_t max_exponent = 425;
+                };
+                template <>
+                struct floor_log10_pow2_info<2> {
+                    using default_return_type = stdr::int_fast16_t;
+                    static constexpr stdr::int_fast32_t multiply = INT32_C(315653);
+                    static constexpr stdr::int_fast32_t subtract = 0;
+                    static constexpr stdr::size_t shift = 20;
+                    static constexpr stdr::int_least32_t min_exponent = -2620;
+                    static constexpr stdr::int_least32_t max_exponent = 2620;
+                };
+                template <stdr::int_least32_t min_exponent = -2620,
+                          stdr::int_least32_t max_exponent = 2620,
+                          class ReturnType = typename compute_impl<floor_log10_pow2_info, min_exponent,
+                                                                   max_exponent>::default_return_type,
+                          class Int>
+                constexpr ReturnType floor_log10_pow2(Int e) noexcept {
+                    return compute_impl<floor_log10_pow2_info, min_exponent,
+                                        max_exponent>::template compute<ReturnType>(e);
                 }
 
-                static constexpr int floor_log10_pow2_minus_log10_4_over_3_min_exponent = -2985;
-                static constexpr int floor_log10_pow2_minus_log10_4_over_3_max_exponent = 2936;
-                constexpr int floor_log10_pow2_minus_log10_4_over_3(int e) noexcept {
-                    using namespace log;
-                    return compute<multiply(UINT32_C(631305)), subtract(UINT32_C(261663)), shift(21),
-                                   min_exponent(floor_log10_pow2_minus_log10_4_over_3_min_exponent),
-                                   max_exponent(floor_log10_pow2_minus_log10_4_over_3_max_exponent)>(e);
+                template <stdr::size_t tier>
+                struct floor_log2_pow10_info;
+                template <>
+                struct floor_log2_pow10_info<0> {
+                    using default_return_type = stdr::int_fast8_t;
+                    static constexpr stdr::int_fast16_t multiply = 53;
+                    static constexpr stdr::int_fast16_t subtract = 0;
+                    static constexpr stdr::size_t shift = 4;
+                    static constexpr stdr::int_least32_t min_exponent = -15;
+                    static constexpr stdr::int_least32_t max_exponent = 18;
+                };
+                template <>
+                struct floor_log2_pow10_info<1> {
+                    using default_return_type = stdr::int_fast16_t;
+                    // 24-bits are enough in fact.
+                    static constexpr stdr::int_fast32_t multiply = 1701;
+                    static constexpr stdr::int_fast32_t subtract = 0;
+                    static constexpr stdr::size_t shift = 9;
+                    static constexpr stdr::int_least32_t min_exponent = -58;
+                    static constexpr stdr::int_least32_t max_exponent = 58;
+                };
+                template <>
+                struct floor_log2_pow10_info<2> {
+                    using default_return_type = stdr::int_fast16_t;
+                    static constexpr stdr::int_fast32_t multiply = INT32_C(1741647);
+                    static constexpr stdr::int_fast32_t subtract = 0;
+                    static constexpr stdr::size_t shift = 19;
+                    // Formula itself holds on [-4003,4003]; [-1233,1233] is to ensure no overflow.
+                    static constexpr stdr::int_least32_t min_exponent = -1233;
+                    static constexpr stdr::int_least32_t max_exponent = 1233;
+                };
+                template <stdr::int_least32_t min_exponent = -1233,
+                          stdr::int_least32_t max_exponent = 1233,
+                          class ReturnType = typename compute_impl<floor_log2_pow10_info, min_exponent,
+                                                                   max_exponent>::default_return_type,
+                          class Int>
+                constexpr ReturnType floor_log2_pow10(Int e) noexcept {
+                    return compute_impl<floor_log2_pow10_info, min_exponent,
+                                        max_exponent>::template compute<ReturnType>(e);
                 }
 
-                static constexpr int floor_log5_pow2_min_exponent = -1831;
-                static constexpr int floor_log5_pow2_max_exponent = 1831;
-                constexpr int floor_log5_pow2(int e) noexcept {
-                    using namespace log;
-                    return compute<multiply(UINT32_C(225799)), subtract(0), shift(19),
-                                   min_exponent(floor_log5_pow2_min_exponent),
-                                   max_exponent(floor_log5_pow2_max_exponent)>(e);
+                template <stdr::size_t tier>
+                struct floor_log10_pow2_minus_log10_4_over_3_info;
+                template <>
+                struct floor_log10_pow2_minus_log10_4_over_3_info<0> {
+                    using default_return_type = stdr::int_fast8_t;
+                    static constexpr stdr::int_fast16_t multiply = 77;
+                    static constexpr stdr::int_fast16_t subtract = 31;
+                    static constexpr stdr::size_t shift = 8;
+                    static constexpr stdr::int_least32_t min_exponent = -75;
+                    static constexpr stdr::int_least32_t max_exponent = 129;
+                };
+                template <>
+                struct floor_log10_pow2_minus_log10_4_over_3_info<1> {
+                    using default_return_type = stdr::int_fast8_t;
+                    // 24-bits are enough in fact.
+                    static constexpr stdr::int_fast32_t multiply = 19728;
+                    static constexpr stdr::int_fast32_t subtract = 8241;
+                    static constexpr stdr::size_t shift = 16;
+                    // Formula itself holds on [-849,315]; [-424,315] is to ensure that the output is
+                    // within [-127,127].
+                    static constexpr stdr::int_least32_t min_exponent = -424;
+                    static constexpr stdr::int_least32_t max_exponent = 315;
+                };
+                template <>
+                struct floor_log10_pow2_minus_log10_4_over_3_info<2> {
+                    using default_return_type = stdr::int_fast16_t;
+                    static constexpr stdr::int_fast32_t multiply = INT32_C(631305);
+                    static constexpr stdr::int_fast32_t subtract = INT32_C(261663);
+                    static constexpr stdr::size_t shift = 21;
+                    static constexpr stdr::int_least32_t min_exponent = -2985;
+                    static constexpr stdr::int_least32_t max_exponent = 2936;
+                };
+                template <stdr::int_least32_t min_exponent = -2985,
+                          stdr::int_least32_t max_exponent = 2936,
+                          class ReturnType =
+                              typename compute_impl<floor_log10_pow2_minus_log10_4_over_3_info,
+                                                    min_exponent, max_exponent>::default_return_type,
+                          class Int>
+                constexpr ReturnType floor_log10_pow2_minus_log10_4_over_3(Int e) noexcept {
+                    return compute_impl<floor_log10_pow2_minus_log10_4_over_3_info, min_exponent,
+                                        max_exponent>::template compute<ReturnType>(e);
                 }
 
-                static constexpr int floor_log5_pow2_minus_log5_3_min_exponent = -3543;
-                static constexpr int floor_log5_pow2_minus_log5_3_max_exponent = 2427;
-                constexpr int floor_log5_pow2_minus_log5_3(int e) noexcept {
-                    using namespace log;
-                    return compute<multiply(UINT32_C(451597)), subtract(UINT32_C(715764)), shift(20),
-                                   min_exponent(floor_log5_pow2_minus_log5_3_min_exponent),
-                                   max_exponent(floor_log5_pow2_minus_log5_3_max_exponent)>(e);
+                template <stdr::size_t tier>
+                struct floor_log5_pow2_info;
+                template <>
+                struct floor_log5_pow2_info<0> {
+                    using default_return_type = stdr::int_fast32_t;
+                    static constexpr stdr::int_fast32_t multiply = INT32_C(225799);
+                    static constexpr stdr::int_fast32_t subtract = 0;
+                    static constexpr stdr::size_t shift = 19;
+                    static constexpr stdr::int_least32_t min_exponent = -1831;
+                    static constexpr stdr::int_least32_t max_exponent = 1831;
+                };
+                template <stdr::int_least32_t min_exponent = -1831,
+                          stdr::int_least32_t max_exponent = 1831,
+                          class ReturnType = typename compute_impl<floor_log5_pow2_info, min_exponent,
+                                                                   max_exponent>::default_return_type,
+                          class Int>
+                constexpr ReturnType floor_log5_pow2(Int e) noexcept {
+                    return compute_impl<floor_log5_pow2_info, min_exponent,
+                                        max_exponent>::template compute<ReturnType>(e);
+                }
+
+                template <stdr::size_t tier>
+                struct floor_log5_pow2_minus_log5_3_info;
+                template <>
+                struct floor_log5_pow2_minus_log5_3_info<0> {
+                    using default_return_type = stdr::int_fast32_t;
+                    static constexpr stdr::int_fast32_t multiply = INT32_C(451597);
+                    static constexpr stdr::int_fast32_t subtract = INT32_C(715764);
+                    static constexpr stdr::size_t shift = 20;
+                    static constexpr stdr::int_least32_t min_exponent = -3543;
+                    static constexpr stdr::int_least32_t max_exponent = 2427;
+                };
+                template <stdr::int_least32_t min_exponent = -3543,
+                          stdr::int_least32_t max_exponent = 2427,
+                          class ReturnType =
+                              typename compute_impl<floor_log5_pow2_minus_log5_3_info, min_exponent,
+                                                    max_exponent>::default_return_type,
+                          class Int>
+                constexpr ReturnType floor_log5_pow2_minus_log5_3(Int e) noexcept {
+                    return compute_impl<floor_log5_pow2_minus_log5_3_info, min_exponent,
+                                        max_exponent>::template compute<ReturnType>(e);
                 }
             }
 
@@ -1066,52 +1240,55 @@ namespace jkj {
         // Return types for the main interface function.
         ////////////////////////////////////////////////////////////////////////////////////////
 
-        template <class UInt, bool is_signed, bool trailing_zero_flag>
+        template <class SignificandType, class ExponentType, bool is_signed, bool trailing_zero_flag>
         struct decimal_fp;
 
-        template <class UInt>
-        struct decimal_fp<UInt, false, false> {
-            UInt significand;
-            int exponent;
+        template <class SignificandType, class ExponentType>
+        struct decimal_fp<SignificandType, ExponentType, false, false> {
+            SignificandType significand;
+            ExponentType exponent;
         };
 
-        template <class UInt>
-        struct decimal_fp<UInt, true, false> {
-            UInt significand;
-            int exponent;
+        template <class SignificandType, class ExponentType>
+        struct decimal_fp<SignificandType, ExponentType, true, false> {
+            SignificandType significand;
+            ExponentType exponent;
             bool is_negative;
         };
 
-        template <class UInt>
-        struct decimal_fp<UInt, false, true> {
-            UInt significand;
-            int exponent;
+        template <class SignificandType, class ExponentType>
+        struct decimal_fp<SignificandType, ExponentType, false, true> {
+            SignificandType significand;
+            ExponentType exponent;
             bool may_have_trailing_zeros;
         };
 
-        template <class UInt>
-        struct decimal_fp<UInt, true, true> {
-            UInt significand;
-            int exponent;
+        template <class SignificandType, class ExponentType>
+        struct decimal_fp<SignificandType, ExponentType, true, true> {
+            SignificandType significand;
+            ExponentType exponent;
             bool may_have_trailing_zeros;
             bool is_negative;
         };
 
-        template <class UInt, bool trailing_zero_flag = false>
-        using unsigned_decimal_fp = decimal_fp<UInt, false, trailing_zero_flag>;
+        template <class SignificandType, class ExponentType, bool trailing_zero_flag = false>
+        using unsigned_decimal_fp =
+            decimal_fp<SignificandType, ExponentType, false, trailing_zero_flag>;
 
-        template <class UInt, bool trailing_zero_flag = false>
-        using signed_decimal_fp = decimal_fp<UInt, true, trailing_zero_flag>;
+        template <class SignificandType, class ExponentType, bool trailing_zero_flag = false>
+        using signed_decimal_fp = decimal_fp<SignificandType, ExponentType, true, trailing_zero_flag>;
 
-        template <class UInt>
-        constexpr signed_decimal_fp<UInt, false>
-        add_sign_to_unsigned_decimal_fp(bool is_negative, unsigned_decimal_fp<UInt, false> r) noexcept {
+        template <class SignificandType, class ExponentType>
+        constexpr signed_decimal_fp<SignificandType, ExponentType, false>
+        add_sign_to_unsigned_decimal_fp(
+            bool is_negative, unsigned_decimal_fp<SignificandType, ExponentType, false> r) noexcept {
             return {r.significand, r.exponent, is_negative};
         }
 
-        template <class UInt>
-        constexpr signed_decimal_fp<UInt, true>
-        add_sign_to_unsigned_decimal_fp(bool is_negative, unsigned_decimal_fp<UInt, true> r) noexcept {
+        template <class SignificandType, class ExponentType>
+        constexpr signed_decimal_fp<SignificandType, ExponentType, true>
+        add_sign_to_unsigned_decimal_fp(
+            bool is_negative, unsigned_decimal_fp<SignificandType, ExponentType, true> r) noexcept {
             return {r.significand, r.exponent, r.may_have_trailing_zeros, is_negative};
         }
 
@@ -1119,9 +1296,10 @@ namespace jkj {
             template <class UnsignedDecimalFp>
             struct unsigned_decimal_fp_to_signed;
 
-            template <class UInt, bool trailing_zero_flag>
-            struct unsigned_decimal_fp_to_signed<unsigned_decimal_fp<UInt, trailing_zero_flag>> {
-                using type = signed_decimal_fp<UInt, trailing_zero_flag>;
+            template <class SignificandType, class ExponentType, bool trailing_zero_flag>
+            struct unsigned_decimal_fp_to_signed<
+                unsigned_decimal_fp<SignificandType, ExponentType, trailing_zero_flag>> {
+                using type = signed_decimal_fp<SignificandType, ExponentType, trailing_zero_flag>;
             };
 
             template <class UnsignedDecimalFp>
@@ -1134,10 +1312,6 @@ namespace jkj {
         // Computed cache entries.
         ////////////////////////////////////////////////////////////////////////////////////////
 
-        // Before C++17, it was necessary to have external declarations for ODR-used static constexpr
-        // data members. To make external declarations to live in a header, those members need to be
-        // templated entities (otherwise it leads to ODR violation). Thus we need an additional dummy
-        // template parameter here to make the code C++11/14 compatible.
         template <class FloatFormat, class Dummy = void>
         struct cache_holder;
 
@@ -1841,7 +2015,8 @@ namespace jkj {
             static constexpr int min_k = cache_holder<FloatFormat>::min_k;
             static constexpr int max_k = cache_holder<FloatFormat>::max_k;
 
-            static constexpr cache_entry_type get_cache(int k) noexcept {
+            template <class DecimalExponent>
+            static constexpr cache_entry_type get_cache(DecimalExponent k) noexcept {
                 return cache_holder<FloatFormat>::cache[k - min_k];
             }
         };
@@ -1894,14 +2069,15 @@ namespace jkj {
                 make_pow5_table(detail::make_index_sequence<pow5_table_size>{});
 #endif
 
-            static JKJ_CONSTEXPR20 cache_entry_type get_cache(int k) noexcept {
+            template <class DecimalExponent>
+            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponent k) noexcept {
                 // Compute the base index.
                 // Supposed to compute (k - min_k) / compression_ratio.
                 static_assert(max_k - min_k <= 89 && compression_ratio == 13);
-                auto const cache_index = int(
+                auto const cache_index = DecimalExponent(
                     (detail::stdr::uint_fast16_t(k - min_k) * detail::stdr::uint_fast16_t(79)) >> 10);
-                auto const kb = cache_index * compression_ratio + min_k;
-                auto const offset = k - kb;
+                auto const kb = DecimalExponent(cache_index * compression_ratio + min_k);
+                auto const offset = DecimalExponent(k - kb);
 
                 // Get the base cache.
                 auto const base_cache = cache[cache_index];
@@ -1911,8 +2087,8 @@ namespace jkj {
                 }
                 else {
                     // Compute the required amount of bit-shift.
-                    auto const alpha =
-                        detail::log::floor_log2_pow10(k) - detail::log::floor_log2_pow10(kb) - offset;
+                    auto const alpha = detail::log::floor_log2_pow10<min_k, max_k>(k) -
+                                       detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset;
                     assert(alpha > 0 && alpha < 64);
 
                     // Try to recover the real cache.
@@ -1988,14 +2164,15 @@ namespace jkj {
                 make_pow5_table(detail::make_index_sequence<pow5_table_size>{});
 #endif
 
-            static JKJ_CONSTEXPR20 cache_entry_type get_cache(int k) noexcept {
+            template <class DecimalExponent>
+            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponent k) noexcept {
                 // Compute the base index.
                 // Supposed to compute (k - min_k) / compression_ratio.
                 static_assert(max_k - min_k <= 619 && compression_ratio == 27);
-                auto const cache_index = int(
+                auto const cache_index = DecimalExponent(
                     (detail::stdr::uint_fast32_t(k - min_k) * detail::stdr::uint_fast32_t(607)) >> 14);
-                auto const kb = cache_index * compression_ratio + min_k;
-                auto const offset = k - kb;
+                auto const kb = DecimalExponent(cache_index * compression_ratio + min_k);
+                auto const offset = DecimalExponent(k - kb);
 
                 // Get the base cache.
                 auto const base_cache = cache[cache_index];
@@ -2005,8 +2182,8 @@ namespace jkj {
                 }
                 else {
                     // Compute the required amount of bit-shift.
-                    auto const alpha =
-                        detail::log::floor_log2_pow10(k) - detail::log::floor_log2_pow10(kb) - offset;
+                    auto const alpha = detail::log::floor_log2_pow10<min_k, max_k>(k) -
+                                       detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset;
                     assert(alpha > 0 && alpha < 64);
 
                     // Try to recover the real cache.
@@ -2060,14 +2237,20 @@ namespace jkj {
 #if defined(_MSC_VER) && !defined(__clang__)
                     // See
                     // https://developercommunity.visualstudio.com/t/Failure-to-optimize-intrinsics/10628226
-                    template <class SignedSignificandBits, class UInt>
-                    static constexpr decimal_fp<UInt, false, false>
-                    handle_sign(SignedSignificandBits, decimal_fp<UInt, false, false> r) noexcept {
+                    template <class SignedSignificandBits, class DecimalSignificand,
+                              class DecimalExponent>
+                    static constexpr decimal_fp<DecimalSignificand, DecimalExponent, false, false>
+                    handle_sign(
+                        SignedSignificandBits,
+                        decimal_fp<DecimalSignificand, DecimalExponent, false, false> r) noexcept {
                         return {r.significand, r.exponent};
                     }
-                    template <class SignedSignificandBits, class UInt>
-                    static constexpr decimal_fp<UInt, false, true>
-                    handle_sign(SignedSignificandBits, decimal_fp<UInt, false, true> r) noexcept {
+                    template <class SignedSignificandBits, class DecimalSignificand,
+                              class DecimalExponent>
+                    static constexpr decimal_fp<DecimalSignificand, DecimalExponent, false, true>
+                    handle_sign(
+                        SignedSignificandBits,
+                        decimal_fp<DecimalSignificand, DecimalExponent, false, true> r) noexcept {
                         return {r.significand, r.exponent, r.may_have_trailing_zeros};
                     }
 #else
@@ -2096,17 +2279,17 @@ namespace jkj {
                     using trailing_zero_policy = ignore_t;
                     static constexpr bool report_trailing_zeros = false;
 
-                    template <class FormatTraits>
-                    static constexpr unsigned_decimal_fp<typename FormatTraits::carrier_uint, false>
-                    on_trailing_zeros(typename FormatTraits::carrier_uint significand,
-                                      int exponent) noexcept {
+                    template <class Format, class DecimalSignificand, class DecimalExponent>
+                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponent, false>
+                    on_trailing_zeros(DecimalSignificand significand,
+                                      DecimalExponent exponent) noexcept {
                         return {significand, exponent};
                     }
 
-                    template <class FormatTraits>
-                    static constexpr unsigned_decimal_fp<typename FormatTraits::carrier_uint, false>
-                    no_trailing_zeros(typename FormatTraits::carrier_uint significand,
-                                      int exponent) noexcept {
+                    template <class Format, class DecimalSignificand, class DecimalExponent>
+                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponent, false>
+                    no_trailing_zeros(DecimalSignificand significand,
+                                      DecimalExponent exponent) noexcept {
                         return {significand, exponent};
                     }
                 } ignore = {};
@@ -2117,16 +2300,15 @@ namespace jkj {
 
                     // Remove trailing zeros from significand and add the number of removed zeros into
                     // exponent.
-                    template <class FormatTraits>
+                    template <class Format, class DecimalSignificand, class DecimalExponent>
                     JKJ_FORCEINLINE static JKJ_CONSTEXPR14
-                        unsigned_decimal_fp<typename FormatTraits::carrier_uint, false>
-                        on_trailing_zeros(typename FormatTraits::carrier_uint significand,
-                                          int exponent) noexcept {
+                        unsigned_decimal_fp<DecimalSignificand, DecimalExponent, false>
+                        on_trailing_zeros(DecimalSignificand significand,
+                                          DecimalExponent exponent) noexcept {
 
                         assert(significand != 0);
-                        using format = typename FormatTraits::format;
 
-                        JKJ_IF_CONSTEXPR(detail::stdr::is_same<format, ieee754_binary32>::value) {
+                        JKJ_IF_CONSTEXPR(detail::stdr::is_same<Format, ieee754_binary32>::value) {
                             constexpr auto mod_inv_5 = UINT32_C(0xcccccccd);
                             constexpr auto mod_inv_25 = detail::stdr::uint_least32_t(
                                 (mod_inv_5 * mod_inv_5) & UINT32_C(0xffffffff));
@@ -2155,7 +2337,7 @@ namespace jkj {
                         }
                         else {
 #if JKJ_HAS_IF_CONSTEXPR
-                            static_assert(detail::stdr::is_same<format, ieee754_binary64>::value, "");
+                            static_assert(detail::stdr::is_same<Format, ieee754_binary64>::value, "");
 #endif
                             // Divide by 10^8 and reduce to 32-bits if divisible.
                             // Since significand <= (2^53 * 1000 - 1) / 1000 < 10^16, it is at most of
@@ -2234,10 +2416,10 @@ namespace jkj {
                         return {significand, exponent};
                     }
 
-                    template <class FormatTraits>
-                    static constexpr unsigned_decimal_fp<typename FormatTraits::carrier_uint, false>
-                    no_trailing_zeros(typename FormatTraits::carrier_uint significand,
-                                      int exponent) noexcept {
+                    template <class Format, class DecimalSignificand, class DecimalExponent>
+                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponent, false>
+                    no_trailing_zeros(DecimalSignificand significand,
+                                      DecimalExponent exponent) noexcept {
                         return {significand, exponent};
                     }
                 } remove = {};
@@ -2246,17 +2428,17 @@ namespace jkj {
                     using trailing_zero_policy = report_t;
                     static constexpr bool report_trailing_zeros = true;
 
-                    template <class FormatTraits>
-                    static constexpr unsigned_decimal_fp<typename FormatTraits::carrier_uint, true>
-                    on_trailing_zeros(typename FormatTraits::carrier_uint significand,
-                                      int exponent) noexcept {
+                    template <class Format, class DecimalSignificand, class DecimalExponent>
+                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponent, true>
+                    on_trailing_zeros(DecimalSignificand significand,
+                                      DecimalExponent exponent) noexcept {
                         return {significand, exponent, true};
                     }
 
-                    template <class FormatTraits>
-                    static constexpr unsigned_decimal_fp<typename FormatTraits::carrier_uint, true>
-                    no_trailing_zeros(typename FormatTraits::carrier_uint significand,
-                                      int exponent) noexcept {
+                    template <class Format, class DecimalSignificand, class DecimalExponent>
+                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponent, true>
+                    no_trailing_zeros(DecimalSignificand significand,
+                                      DecimalExponent exponent) noexcept {
                         return {significand, exponent, false};
                     }
                 } report = {};
@@ -2654,9 +2836,9 @@ namespace jkj {
                     template <class FloatFormat>
                     using cache_holder_type = cache_holder<FloatFormat>;
 
-                    template <class FloatFormat>
+                    template <class FloatFormat, class DecimalExponent>
                     static constexpr typename cache_holder_type<FloatFormat>::cache_entry_type
-                    get_cache(int k) noexcept {
+                    get_cache(DecimalExponent k) noexcept {
 #if JKJ_HAS_CONSTEXPR14
                         assert(k >= cache_holder_type<FloatFormat>::min_k &&
                                k <= cache_holder_type<FloatFormat>::max_k);
@@ -2671,15 +2853,24 @@ namespace jkj {
                     template <class FloatFormat>
                     using cache_holder_type = compressed_cache_holder<FloatFormat>;
 
-                    template <class FloatFormat>
+                    template <class FloatFormat, class DecimalExponent>
                     static JKJ_CONSTEXPR20 typename cache_holder<FloatFormat>::cache_entry_type
-                    get_cache(int k) noexcept {
+                    get_cache(DecimalExponent k) noexcept {
                         assert(k >= cache_holder<FloatFormat>::min_k &&
                                k <= cache_holder<FloatFormat>::max_k);
 
                         return cache_holder_type<FloatFormat>::get_cache(k);
                     }
                 } compact = {};
+            }
+
+            namespace preferred_integer_types {
+                JKJ_INLINE_VARIABLE struct match_t {
+                    using preferred_integer_types_policy = match_t;
+
+                    template <class FormatTraits>
+                    using decimal_exponent_type = typename FormatTraits::exponent_int;
+                } match;
             }
         }
 
@@ -2822,6 +3013,7 @@ namespace jkj {
                 using format = typename FormatTraits::format;
                 using carrier_uint = typename FormatTraits::carrier_uint;
                 static constexpr int carrier_bits = FormatTraits::carrier_bits;
+                using exponent_int = typename FormatTraits::exponent_int;
 
                 using format::significand_bits;
                 using format::min_exponent;
@@ -2837,16 +3029,16 @@ namespace jkj {
                 static constexpr int min(int x, int y) noexcept { return x < y ? x : y; }
                 static constexpr int max(int x, int y) noexcept { return x > y ? x : y; }
 
-                static constexpr int min_k = min(
-                    -log::floor_log10_pow2_minus_log10_4_over_3(int(max_exponent - significand_bits)),
-                    -log::floor_log10_pow2(int(max_exponent - significand_bits)) + kappa);
+                static constexpr int min_k =
+                    min(-log::floor_log10_pow2_minus_log10_4_over_3(max_exponent - significand_bits),
+                        -log::floor_log10_pow2(max_exponent - significand_bits) + kappa);
 
                 // We do invoke shorter_interval_case for exponent == min_exponent case,
                 // so we should not add 1 here.
                 static constexpr int max_k =
-                    max(-log::floor_log10_pow2_minus_log10_4_over_3(
-                            int(min_exponent - significand_bits /*+ 1*/)),
-                        -log::floor_log10_pow2(int(min_exponent - significand_bits)) + kappa);
+                    max(-log::floor_log10_pow2_minus_log10_4_over_3(min_exponent -
+                                                                    significand_bits /*+ 1*/),
+                        -log::floor_log10_pow2(min_exponent - significand_bits) + kappa);
 
                 static constexpr int case_shorter_interval_left_endpoint_lower_threshold = 2;
                 static constexpr int case_shorter_interval_left_endpoint_upper_threshold =
@@ -2872,15 +3064,21 @@ namespace jkj {
                 //// The main algorithm assumes the input is a normal/subnormal finite number.
 
                 template <class SignPolicy, class TrailingZeroPolicy, class IntervalTypeProvider,
-                          class BinaryToDecimalRoundingPolicy, class CachePolicy>
-                JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20
-                    decimal_fp<carrier_uint, SignPolicy::return_has_sign,
-                               TrailingZeroPolicy::report_trailing_zeros>
-                    compute_nearest(signed_significand_bits<FormatTraits> s,
-                                    unsigned int exponent_bits) noexcept {
+                          class BinaryToDecimalRoundingPolicy, class CachePolicy,
+                          class PreferredIntegerTypesPolicy>
+                JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 decimal_fp<
+                    carrier_uint,
+                    typename PreferredIntegerTypesPolicy::template decimal_exponent_type<FormatTraits>,
+                    SignPolicy::return_has_sign, TrailingZeroPolicy::report_trailing_zeros>
+                compute_nearest(signed_significand_bits<FormatTraits> s,
+                                exponent_int exponent_bits) noexcept {
                     using cache_holder_type = typename CachePolicy::template cache_holder_type<format>;
                     static_assert(
                         min_k >= cache_holder_type::min_k && max_k <= cache_holder_type::max_k, "");
+
+                    using decimal_exponent_type =
+                        typename PreferredIntegerTypesPolicy::template decimal_exponent_type<
+                            FormatTraits>;
 
                     using multiplication_traits_ =
                         multiplication_traits<FormatTraits,
@@ -2888,7 +3086,7 @@ namespace jkj {
                                               cache_holder_type::cache_bits>;
 
                     auto two_fc = s.remove_sign_bit_and_shift();
-                    auto binary_exponent = int(exponent_bits);
+                    auto binary_exponent = exponent_bits;
 
                     // Is the input a normal number?
                     if (binary_exponent != 0) {
@@ -2930,12 +3128,16 @@ namespace jkj {
                             auto interval_type = IntervalTypeProvider::shorter_interval(s);
 
                             // Compute k and beta.
-                            int const minus_k =
-                                log::floor_log10_pow2_minus_log10_4_over_3(binary_exponent);
-                            int const beta = binary_exponent + log::floor_log2_pow10(-minus_k);
+                            auto const minus_k = log::floor_log10_pow2_minus_log10_4_over_3<
+                                min_exponent - format::significand_bits,
+                                max_exponent - format::significand_bits, decimal_exponent_type>(
+                                binary_exponent);
+                            auto const beta = binary_exponent + log::floor_log2_pow10<min_k, max_k>(
+                                                                    decimal_exponent_type(-minus_k));
 
                             // Compute xi and zi.
-                            auto const cache = CachePolicy::template get_cache<format>(-minus_k);
+                            auto const cache = CachePolicy::template get_cache<format>(
+                                decimal_exponent_type(-minus_k));
 
                             auto xi =
                                 multiplication_traits_::compute_left_endpoint_for_shorter_interval_case(
@@ -2970,8 +3172,8 @@ namespace jkj {
                             // If succeed, remove trailing zeros if necessary and return.
                             if (decimal_significand * 10 >= xi) {
                                 return SignPolicy::handle_sign(
-                                    s, TrailingZeroPolicy::template on_trailing_zeros<FormatTraits>(
-                                           decimal_significand, minus_k + 1));
+                                    s, TrailingZeroPolicy::template on_trailing_zeros<format>(
+                                           decimal_significand, decimal_exponent_type(minus_k + 1)));
                             }
 
                             // Otherwise, compute the round-up of y.
@@ -2989,8 +3191,8 @@ namespace jkj {
                                 ++decimal_significand;
                             }
                             return SignPolicy::handle_sign(
-                                s, TrailingZeroPolicy::template no_trailing_zeros<FormatTraits>(
-                                       decimal_significand, minus_k));
+                                s, TrailingZeroPolicy::template no_trailing_zeros<format>(
+                                       decimal_significand, decimal_exponent_type(minus_k)));
                         }
 
                         // Normal interval case.
@@ -3009,9 +3211,15 @@ namespace jkj {
                     auto interval_type = IntervalTypeProvider::normal_interval(s);
 
                     // Compute k and beta.
-                    int const minus_k = log::floor_log10_pow2(binary_exponent) - kappa;
-                    auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-                    int const beta = binary_exponent + log::floor_log2_pow10(-minus_k);
+                    auto const minus_k = decimal_exponent_type(
+                        log::floor_log10_pow2<min_exponent - format::significand_bits,
+                                              max_exponent - format::significand_bits,
+                                              decimal_exponent_type>(binary_exponent) -
+                        kappa);
+                    auto const cache =
+                        CachePolicy::template get_cache<format>(decimal_exponent_type(-minus_k));
+                    auto const beta = binary_exponent + log::floor_log2_pow10<min_k, max_k>(
+                                                            decimal_exponent_type(-minus_k));
 
                     // Compute zi and deltai.
                     // 10^kappa <= deltai < 10^(kappa + 1)
@@ -3057,8 +3265,9 @@ namespace jkj {
                                     decimal_significand *= 10;
                                     --decimal_significand;
                                     return SignPolicy::handle_sign(
-                                        s, TrailingZeroPolicy::template no_trailing_zeros<FormatTraits>(
-                                               decimal_significand, minus_k + kappa));
+                                        s, TrailingZeroPolicy::template no_trailing_zeros<format>(
+                                               decimal_significand,
+                                               decimal_exponent_type(minus_k + kappa)));
                                 }
                                 else {
                                     --decimal_significand;
@@ -3083,8 +3292,8 @@ namespace jkj {
 
                         // We may need to remove trailing zeros.
                         return SignPolicy::handle_sign(
-                            s, TrailingZeroPolicy::template on_trailing_zeros<FormatTraits>(
-                                   decimal_significand, minus_k + kappa + 1));
+                            s, TrailingZeroPolicy::template on_trailing_zeros<format>(
+                                   decimal_significand, decimal_exponent_type(minus_k + kappa + 1)));
                     } while (false);
 
 
@@ -3152,19 +3361,25 @@ namespace jkj {
                         }
                     }
                     return SignPolicy::handle_sign(
-                        s, TrailingZeroPolicy::template no_trailing_zeros<FormatTraits>(
-                               decimal_significand, minus_k + kappa));
+                        s, TrailingZeroPolicy::template no_trailing_zeros<format>(
+                               decimal_significand, decimal_exponent_type(minus_k + kappa)));
                 }
 
-                template <class SignPolicy, class TrailingZeroPolicy, class CachePolicy>
-                JKJ_FORCEINLINE JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20
-                    decimal_fp<carrier_uint, SignPolicy::return_has_sign,
-                               TrailingZeroPolicy::report_trailing_zeros>
-                    compute_left_closed_directed(signed_significand_bits<FormatTraits> s,
-                                                 unsigned int exponent_bits) noexcept {
+                template <class SignPolicy, class TrailingZeroPolicy, class CachePolicy,
+                          class PreferredIntegerTypesPolicy>
+                JKJ_FORCEINLINE JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 decimal_fp<
+                    carrier_uint,
+                    typename PreferredIntegerTypesPolicy::template decimal_exponent_type<FormatTraits>,
+                    SignPolicy::return_has_sign, TrailingZeroPolicy::report_trailing_zeros>
+                compute_left_closed_directed(signed_significand_bits<FormatTraits> s,
+                                             exponent_int exponent_bits) noexcept {
                     using cache_holder_type = typename CachePolicy::template cache_holder_type<format>;
                     static_assert(
                         min_k >= cache_holder_type::min_k && max_k <= cache_holder_type::max_k, "");
+
+                    using decimal_exponent_type =
+                        typename PreferredIntegerTypesPolicy::template decimal_exponent_type<
+                            FormatTraits>;
 
                     using multiplication_traits_ =
                         multiplication_traits<FormatTraits,
@@ -3172,7 +3387,7 @@ namespace jkj {
                                               cache_holder_type::cache_bits>;
 
                     auto two_fc = s.remove_sign_bit_and_shift();
-                    auto binary_exponent = int(exponent_bits);
+                    auto binary_exponent = exponent_bits;
 
                     // Is the input a normal number?
                     if (binary_exponent != 0) {
@@ -3189,9 +3404,15 @@ namespace jkj {
                     //////////////////////////////////////////////////////////////////////
 
                     // Compute k and beta.
-                    int const minus_k = log::floor_log10_pow2(binary_exponent) - kappa;
-                    auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-                    int const beta = binary_exponent + log::floor_log2_pow10(-minus_k);
+                    auto const minus_k = deicmal_exponent_type(
+                        log::floor_log10_pow2<format::min_exponent - format::significand_bits,
+                                              format::max_exponent - format::significand_bits,
+                                              decimal_exponent_type>(binary_exponent) -
+                        kappa);
+                    auto const cache =
+                        CachePolicy::template get_cache<format>(decimal_exponent_type(-minus_k));
+                    int const beta = binary_exponent + log::floor_log2_pow10<min_k, max_k>(
+                                                           decimal_exponent_type(-minus_k));
 
                     // Compute xi and deltai.
                     // 10^kappa <= deltai < 10^(kappa + 1)
@@ -3267,8 +3488,8 @@ namespace jkj {
 
                         // The ceiling is inside, so we are done.
                         return SignPolicy::handle_sign(
-                            s, TrailingZeroPolicy::template on_trailing_zeros<FormatTraits>(
-                                   decimal_significand, minus_k + kappa + 1));
+                            s, TrailingZeroPolicy::template on_trailing_zeros<format>(
+                                   decimal_significand, decimal_exponent_type(minus_k + kappa + 1)));
                     } while (false);
 
 
@@ -3279,19 +3500,25 @@ namespace jkj {
                     decimal_significand *= 10;
                     decimal_significand -= div::small_division_by_pow10<kappa>(r);
                     return SignPolicy::handle_sign(
-                        s, TrailingZeroPolicy::template no_trailing_zeros<FormatTraits>(
-                               decimal_significand, minus_k + kappa));
+                        s, TrailingZeroPolicy::template no_trailing_zeros<format>(
+                               decimal_significand, decimal_exponent_type(minus_k + kappa)));
                 }
 
-                template <class SignPolicy, class TrailingZeroPolicy, class CachePolicy>
-                JKJ_FORCEINLINE JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20
-                    decimal_fp<carrier_uint, SignPolicy::return_has_sign,
-                               TrailingZeroPolicy::report_trailing_zeros>
-                    compute_right_closed_directed(signed_significand_bits<FormatTraits> s,
-                                                  unsigned int exponent_bits) noexcept {
+                template <class SignPolicy, class TrailingZeroPolicy, class CachePolicy,
+                          class PreferredIntegerTypesPolicy>
+                JKJ_FORCEINLINE JKJ_SAFEBUFFERS static JKJ_CONSTEXPR20 decimal_fp<
+                    carrier_uint,
+                    typename PreferredIntegerTypesPolicy::template decimal_exponent_type<FormatTraits>,
+                    SignPolicy::return_has_sign, TrailingZeroPolicy::report_trailing_zeros>
+                compute_right_closed_directed(signed_significand_bits<FormatTraits> s,
+                                              exponent_int exponent_bits) noexcept {
                     using cache_holder_type = typename CachePolicy::template cache_holder_type<format>;
                     static_assert(
                         min_k >= cache_holder_type::min_k && max_k <= cache_holder_type::max_k, "");
+
+                    using decimal_exponent_type =
+                        typename PreferredIntegerTypesPolicy::template decimal_exponent_type<
+                            FormatTraits>;
 
                     using multiplication_traits_ =
                         multiplication_traits<FormatTraits,
@@ -3299,7 +3526,7 @@ namespace jkj {
                                               cache_holder_type::cache_bits>;
 
                     auto two_fc = s.remove_sign_bit_and_shift();
-                    auto binary_exponent = int(exponent_bits);
+                    auto binary_exponent = exponent_bits;
                     bool shorter_interval = false;
 
                     // Is the input a normal number?
@@ -3320,16 +3547,21 @@ namespace jkj {
                     //////////////////////////////////////////////////////////////////////
 
                     // Compute k and beta.
-                    int const minus_k =
-                        log::floor_log10_pow2(binary_exponent - (shorter_interval ? 1 : 0)) - kappa;
-                    auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-                    int const beta = binary_exponent + log::floor_log2_pow10(-minus_k);
+                    auto const minus_k = deicmal_exponent_type(
+                        log::floor_log10_pow2<format::min_exponent - format::significand_bits,
+                                              format::max_exponent - format::significand_bits,
+                                              decimal_exponent_type>(binary_exponent -
+                                                                     (shorter_interval ? 1 : 0)) -
+                        kappa);
+                    auto const cache =
+                        CachePolicy::template get_cache<format>(deicmal_exponent_type(-minus_k));
+                    int const beta =
+                        binary_exponent + log::floor_log2_pow10(deicmal_exponent_type(-minus_k));
 
                     // Compute zi and deltai.
                     // 10^kappa <= deltai < 10^(kappa + 1)
-                    auto const deltai = shorter_interval
-                                            ? multiplication_traits_::compute_delta(cache, beta - 1)
-                                            : multiplication_traits_::compute_delta(cache, beta);
+                    auto const deltai =
+                        multiplication_traits_::compute_delta(cache, beta - shorter_interval ? 1 : 0);
                     carrier_uint const zi =
                         multiplication_traits_::compute_mul(two_fc << beta, cache).integer_part;
 
@@ -3363,8 +3595,8 @@ namespace jkj {
 
                         // The floor is inside, so we are done.
                         return SignPolicy::handle_sign(
-                            s, TrailingZeroPolicy::template on_trailing_zeros<FormatTraits>(
-                                   decimal_significand, minus_k + kappa + 1));
+                            s, TrailingZeroPolicy::template on_trailing_zeros<format>(
+                                   decimal_significand, decimal_exponent_type(minus_k + kappa + 1)));
                     } while (false);
 
 
@@ -3375,19 +3607,20 @@ namespace jkj {
                     decimal_significand *= 10;
                     decimal_significand += div::small_division_by_pow10<kappa>(r);
                     return SignPolicy::handle_sign(
-                        s, TrailingZeroPolicy::template no_trailing_zeros<FormatTraits>(
-                               decimal_significand, minus_k + kappa));
+                        s, TrailingZeroPolicy::template no_trailing_zeros<format>(
+                               decimal_significand, decimal_exponent_type(minus_k + kappa)));
                 }
 
                 static constexpr bool
-                is_right_endpoint_integer_shorter_interval(int exponent) noexcept {
-                    return exponent >= case_shorter_interval_right_endpoint_lower_threshold &&
-                           exponent <= case_shorter_interval_right_endpoint_upper_threshold;
+                is_right_endpoint_integer_shorter_interval(exponent_int binary_exponent) noexcept {
+                    return binary_exponent >= case_shorter_interval_right_endpoint_lower_threshold &&
+                           binary_exponent <= case_shorter_interval_right_endpoint_upper_threshold;
                 }
 
-                static constexpr bool is_left_endpoint_integer_shorter_interval(int exponent) noexcept {
-                    return exponent >= case_shorter_interval_left_endpoint_lower_threshold &&
-                           exponent <= case_shorter_interval_left_endpoint_upper_threshold;
+                static constexpr bool
+                is_left_endpoint_integer_shorter_interval(exponent_int binary_exponent) noexcept {
+                    return binary_exponent >= case_shorter_interval_left_endpoint_lower_threshold &&
+                           binary_exponent <= case_shorter_interval_left_endpoint_upper_threshold;
                 }
             };
 
@@ -3641,6 +3874,13 @@ namespace jkj {
                     return true;
                 }
             };
+            struct is_preferred_integer_types_policy {
+                constexpr bool operator()(...) noexcept { return false; }
+                template <class Policy, class = typename Policy::preferred_integer_types_policy>
+                constexpr bool operator()(dummy<Policy>) noexcept {
+                    return true;
+                }
+            };
 
             template <class... Policies>
             using to_decimal_policy_holder = make_policy_holder<
@@ -3651,41 +3891,50 @@ namespace jkj {
                                           policy::decimal_to_binary_rounding::nearest_to_even_t>,
                     detector_default_pair<is_binary_to_decimal_rounding_policy,
                                           policy::binary_to_decimal_rounding::to_even_t>,
-                    detector_default_pair<is_cache_policy, policy::cache::full_t>>,
+                    detector_default_pair<is_cache_policy, policy::cache::full_t>,
+                    detector_default_pair<is_preferred_integer_types_policy,
+                                          policy::preferred_integer_types::match_t>>,
                 Policies...>;
 
             template <class FormatTraits, class... Policies>
             using to_decimal_return_type =
                 decimal_fp<typename FormatTraits::carrier_uint,
+                           typename to_decimal_policy_holder<
+                               Policies...>::template decimal_exponent_type<FormatTraits>,
                            to_decimal_policy_holder<Policies...>::return_has_sign,
                            to_decimal_policy_holder<Policies...>::report_trailing_zeros>;
 
             template <class FormatTraits, class PolicyHolder>
             struct to_decimal_dispatcher {
                 using return_type =
-                    decimal_fp<typename FormatTraits::carrier_uint, PolicyHolder::return_has_sign,
-                               PolicyHolder::report_trailing_zeros>;
+                    decimal_fp<typename FormatTraits::carrier_uint,
+                               typename PolicyHolder::template decimal_exponent_type<FormatTraits>,
+                               PolicyHolder::return_has_sign, PolicyHolder::report_trailing_zeros>;
                 using sign_policy = typename PolicyHolder::sign_policy;
                 using trailing_zero_policy = typename PolicyHolder::trailing_zero_policy;
                 using binary_to_decimal_rounding_policy =
                     typename PolicyHolder::binary_to_decimal_rounding_policy;
                 using cache_policy = typename PolicyHolder::cache_policy;
+                using preferred_integer_types_policy =
+                    typename PolicyHolder::preferred_integer_types_policy;
 
                 template <class IntervalTypeProvider>
                 JKJ_FORCEINLINE JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 return_type
                 operator()(IntervalTypeProvider, signed_significand_bits<FormatTraits> s,
-                           unsigned int exponent_bits) noexcept {
+                           typename FormatTraits::exponent_int exponent_bits) noexcept {
                     constexpr auto tag = IntervalTypeProvider::tag;
 
                     JKJ_IF_CONSTEXPR(tag == policy::decimal_to_binary_rounding::tag_t::to_nearest) {
                         return impl<FormatTraits>::template compute_nearest<
                             sign_policy, trailing_zero_policy, IntervalTypeProvider,
-                            binary_to_decimal_rounding_policy, cache_policy>(s, exponent_bits);
+                            binary_to_decimal_rounding_policy, cache_policy,
+                            preferred_integer_types_policy>(s, exponent_bits);
                     }
                     else JKJ_IF_CONSTEXPR(
                         tag == policy::decimal_to_binary_rounding::tag_t::left_closed_directed) {
                         return impl<FormatTraits>::template compute_left_closed_directed<
-                            sign_policy, trailing_zero_policy, cache_policy>(s, exponent_bits);
+                            sign_policy, trailing_zero_policy, cache_policy,
+                            preferred_integer_types_policy>(s, exponent_bits);
                     }
                     else {
 #if JKJ_HAS_IF_CONSTEXPR
@@ -3694,7 +3943,8 @@ namespace jkj {
                             "");
 #endif
                         return impl<FormatTraits>::template compute_right_closed_directed<
-                            sign_policy, trailing_zero_policy, cache_policy>(s, exponent_bits);
+                            sign_policy, trailing_zero_policy, cache_policy,
+                            preferred_integer_types_policy>(s, exponent_bits);
                     }
                 }
             };
@@ -3705,10 +3955,10 @@ namespace jkj {
         // The interface function.
         ////////////////////////////////////////////////////////////////////////////////////////
 
-        template <class FormatTraits, class... Policies>
+        template <class FormatTraits, class ExponentBits, class... Policies>
         JKJ_FORCEINLINE
             JKJ_SAFEBUFFERS JKJ_CONSTEXPR20 detail::to_decimal_return_type<FormatTraits, Policies...>
-            to_decimal_ex(signed_significand_bits<FormatTraits> s, unsigned int exponent_bits,
+            to_decimal_ex(signed_significand_bits<FormatTraits> s, ExponentBits exponent_bits,
                           Policies...) noexcept {
             // Build policy holder type.
             using policy_holder = detail::to_decimal_policy_holder<Policies...>;

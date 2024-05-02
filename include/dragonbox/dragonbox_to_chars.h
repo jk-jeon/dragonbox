@@ -45,7 +45,7 @@ namespace jkj {
 
             // Avoid needless ABI overhead incurred by tag dispatch.
             template <class DecimalToBinaryRoundingPolicy, class BinaryToDecimalRoundingPolicy,
-                      class CachePolicy, class FormatTraits>
+                      class CachePolicy, class PreferredIntegerTypesPolicy, class FormatTraits>
             char* to_chars_n_impl(float_bits<FormatTraits> br, char* buffer) noexcept {
                 auto const exponent_bits = br.extract_exponent_bits();
                 auto const s = br.remove_exponent_bits();
@@ -56,10 +56,10 @@ namespace jkj {
                         ++buffer;
                     }
                     if (br.is_nonzero()) {
-                        auto result = to_decimal_ex(s, exponent_bits, policy::sign::ignore,
-                                                    policy::trailing_zero::ignore,
-                                                    DecimalToBinaryRoundingPolicy{},
-                                                    BinaryToDecimalRoundingPolicy{}, CachePolicy{});
+                        auto result = to_decimal_ex(
+                            s, exponent_bits, policy::sign::ignore, policy::trailing_zero::ignore,
+                            DecimalToBinaryRoundingPolicy{}, BinaryToDecimalRoundingPolicy{},
+                            CachePolicy{}, PreferredIntegerTypesPolicy{});
                         return to_chars<typename FormatTraits::format,
                                         typename FormatTraits::carrier_uint>(result.significand,
                                                                              result.exponent, buffer);
@@ -100,12 +100,15 @@ namespace jkj {
                         policy::decimal_to_binary_rounding::nearest_to_even_t>,
                     detail::detector_default_pair<detail::is_binary_to_decimal_rounding_policy,
                                                   policy::binary_to_decimal_rounding::to_even_t>,
-                    detail::detector_default_pair<detail::is_cache_policy, policy::cache::full_t>>,
+                    detail::detector_default_pair<detail::is_cache_policy, policy::cache::full_t>,
+                    detail::detector_default_pair<detail::is_preferred_integer_types_policy,
+                                                  policy::preferred_integer_types::match_t>>,
                 Policies...>;
 
             return detail::to_chars_n_impl<typename policy_holder::decimal_to_binary_rounding_policy,
                                            typename policy_holder::binary_to_decimal_rounding_policy,
-                                           typename policy_holder::cache_policy>(
+                                           typename policy_holder::cache_policy,
+                                           typename policy_holder::preferred_integer_types_policy>(
                 make_float_bits<Float, ConversionTraits, FormatTraits>(x), buffer);
         }
 
