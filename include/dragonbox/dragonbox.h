@@ -3670,9 +3670,9 @@ namespace jkj {
                                                                       (shorter_interval ? 1 : 0)) -
                         kappa);
                     auto const cache =
-                        CachePolicy::template get_cache<format>(decimal_exponent_type(-minus_k));
+                        CachePolicy::template get_cache<format>(decimal_exponent_type_(-minus_k));
                     auto const beta = stdr::uint_fast8_t(
-                        binary_exponent + log::floor_log2_pow10(decimal_exponent_type(-minus_k)));
+                        binary_exponent + log::floor_log2_pow10(decimal_exponent_type_(-minus_k)));
 
                     // Compute zi and deltai.
                     // 10^kappa <= deltai < 10^(kappa + 1)
