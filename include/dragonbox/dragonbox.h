@@ -228,6 +228,7 @@ namespace jkj {
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least16_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least32_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_least64_t;
+                using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast8_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast16_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast32_t;
                 // We need INT32_C, UINT32_C and UINT64_C macros too, but again there is nothing to do
@@ -2107,8 +2108,9 @@ namespace jkj {
                 }
                 else {
                     // Compute the required amount of bit-shift.
-                    auto const alpha = detail::log::floor_log2_pow10<min_k, max_k>(k) -
-                                       detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset;
+                    auto const alpha = detail::stdr::uint_fast8_t(
+                        detail::log::floor_log2_pow10<min_k, max_k>(k) -
+                        detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset);
                     assert(alpha > 0 && alpha < 64);
 
                     // Try to recover the real cache.
@@ -2119,7 +2121,9 @@ namespace jkj {
                             : detail::stdr::uint_least32_t(pow5_table[offset]);
                     auto mul_result = detail::wuint::umul128(base_cache, pow5);
                     auto const recovered_cache = cache_entry_type(
-                        (((mul_result.high() << (64 - alpha)) | (mul_result.low() >> alpha)) + 1) &
+                        (((mul_result.high() << detail::stdr::uint_fast8_t(64 - alpha)) |
+                          (mul_result.low() >> alpha)) +
+                         1) &
                         UINT64_C(0xffffffffffffffff));
                     assert(recovered_cache != 0);
 
@@ -2202,8 +2206,9 @@ namespace jkj {
                 }
                 else {
                     // Compute the required amount of bit-shift.
-                    auto const alpha = detail::log::floor_log2_pow10<min_k, max_k>(k) -
-                                       detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset;
+                    auto const alpha = detail::stdr::uint_fast8_t(
+                        detail::log::floor_log2_pow10<min_k, max_k>(k) -
+                        detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset);
                     assert(alpha > 0 && alpha < 64);
 
                     // Try to recover the real cache.
@@ -2214,9 +2219,11 @@ namespace jkj {
                     recovered_cache += middle_low.high();
 
                     auto const high_to_middle = detail::stdr::uint_least64_t(
-                        (recovered_cache.high() << (64 - alpha)) & UINT64_C(0xffffffffffffffff));
+                        (recovered_cache.high() << detail::stdr::uint_fast8_t(64 - alpha)) &
+                        UINT64_C(0xffffffffffffffff));
                     auto const middle_to_low = detail::stdr::uint_least64_t(
-                        (recovered_cache.low() << (64 - alpha)) & UINT64_C(0xffffffffffffffff));
+                        (recovered_cache.low() << detail::stdr::uint_fast8_t(64 - alpha)) &
+                        UINT64_C(0xffffffffffffffff));
 
                     recovered_cache = {(recovered_cache.low() >> alpha) | high_to_middle,
                                        ((middle_low.low() >> alpha) | middle_to_low)};
@@ -3002,39 +3009,46 @@ namespace jkj {
                 return {carrier_uint(r >> 32), carrier_uint(r) == 0};
             }
 
-            static constexpr detail::stdr::uint_least64_t compute_delta(cache_entry_type const& cache,
-                                                                        int beta) noexcept {
-                return detail::stdr::uint_least64_t(cache >> (cache_bits - 1 - beta));
+            static constexpr detail::stdr::uint_least64_t
+            compute_delta(cache_entry_type const& cache, detail::stdr::uint_fast8_t beta) noexcept {
+                return detail::stdr::uint_least64_t(cache >>
+                                                    detail::stdr::uint_fast8_t(cache_bits - 1 - beta));
             }
 
             static JKJ_CONSTEXPR20 compute_mul_parity_result
-            compute_mul_parity(carrier_uint two_f, cache_entry_type const& cache, int beta) noexcept {
+            compute_mul_parity(carrier_uint two_f, cache_entry_type const& cache,
+                               detail::stdr::uint_fast8_t beta) noexcept {
                 assert(beta >= 1);
                 assert(beta <= 32);
 
                 auto const r = detail::wuint::umul96_lower64(two_f, cache);
-                return {((r >> (64 - beta)) & 1) != 0,
-                        (UINT32_C(0xffffffff) & (r >> (32 - beta))) == 0};
+                return {((r >> detail::stdr::uint_fast8_t(64 - beta)) & 1) != 0,
+                        (UINT32_C(0xffffffff) & (r >> detail::stdr::uint_fast8_t(32 - beta))) == 0};
             }
 
             static constexpr carrier_uint
             compute_left_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
-                                                            int beta) noexcept {
-                return carrier_uint((cache - (cache >> (significand_bits + 2))) >>
-                                    (cache_bits - significand_bits - 1 - beta));
+                                                            detail::stdr::uint_fast8_t beta) noexcept {
+                return carrier_uint(
+                    (cache - (cache >> (significand_bits + 2))) >>
+                    detail::stdr::uint_fast8_t(cache_bits - significand_bits - 1 - beta));
             }
 
             static constexpr carrier_uint
             compute_right_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
-                                                             int beta) noexcept {
-                return carrier_uint((cache + (cache >> (significand_bits + 1))) >>
-                                    (cache_bits - significand_bits - 1 - beta));
+                                                             detail::stdr::uint_fast8_t beta) noexcept {
+                return carrier_uint(
+                    (cache + (cache >> (significand_bits + 1))) >>
+                    detail::stdr::uint_fast8_t(cache_bits - significand_bits - 1 - beta));
             }
 
             static constexpr carrier_uint
             compute_round_up_for_shorter_interval_case(cache_entry_type const& cache,
-                                                       int beta) noexcept {
-                return (carrier_uint(cache >> (cache_bits - significand_bits - 2 - beta)) + 1) / 2;
+                                                       detail::stdr::uint_fast8_t beta) noexcept {
+                return (carrier_uint(cache >> detail::stdr::uint_fast8_t(cache_bits - significand_bits -
+                                                                         2 - beta)) +
+                        1) /
+                       2;
             }
         };
 
@@ -3051,40 +3065,45 @@ namespace jkj {
                 return {r.high(), r.low() == 0};
             }
 
-            static constexpr detail::stdr::uint_least64_t compute_delta(cache_entry_type const& cache,
-                                                                        int beta) noexcept {
-                return detail::stdr::uint_least64_t(cache.high() >> (total_bits - 1 - beta));
+            static constexpr detail::stdr::uint_least64_t
+            compute_delta(cache_entry_type const& cache, detail::stdr::uint_fast8_t beta) noexcept {
+                return detail::stdr::uint_least64_t(cache.high() >>
+                                                    detail::stdr::uint_fast8_t(total_bits - 1 - beta));
             }
 
             static JKJ_CONSTEXPR20 compute_mul_parity_result
-            compute_mul_parity(carrier_uint two_f, cache_entry_type const& cache, int beta) noexcept {
+            compute_mul_parity(carrier_uint two_f, cache_entry_type const& cache,
+                               detail::stdr::uint_fast8_t beta) noexcept {
                 assert(beta >= 1);
                 assert(beta < 64);
 
                 auto const r = detail::wuint::umul192_lower128(two_f, cache);
-                return {((r.high() >> (64 - beta)) & 1) != 0,
+                return {((r.high() >> detail::stdr::uint_fast8_t(64 - beta)) & 1) != 0,
                         (((r.high() << beta) & UINT64_C(0xffffffffffffffff)) |
-                         (r.low() >> (64 - beta))) == 0};
+                         (r.low() >> detail::stdr::uint_fast8_t(64 - beta))) == 0};
             }
 
             static constexpr carrier_uint
             compute_left_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
-                                                            int beta) noexcept {
+                                                            detail::stdr::uint_fast8_t beta) noexcept {
                 return (cache.high() - (cache.high() >> (significand_bits + 2))) >>
-                       (total_bits - significand_bits - 1 - beta);
+                       detail::stdr::uint_fast8_t(total_bits - significand_bits - 1 - beta);
             }
 
             static constexpr carrier_uint
             compute_right_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
-                                                             int beta) noexcept {
+                                                             detail::stdr::uint_fast8_t beta) noexcept {
                 return (cache.high() + (cache.high() >> (significand_bits + 1))) >>
-                       (total_bits - significand_bits - 1 - beta);
+                       detail::stdr::uint_fast8_t(total_bits - significand_bits - 1 - beta);
             }
 
             static constexpr carrier_uint
             compute_round_up_for_shorter_interval_case(cache_entry_type const& cache,
-                                                       int beta) noexcept {
-                return ((cache.high() >> (total_bits - significand_bits - 2 - beta)) + 1) / 2;
+                                                       detail::stdr::uint_fast8_t beta) noexcept {
+                return ((cache.high() >>
+                         detail::stdr::uint_fast8_t(total_bits - significand_bits - 2 - beta)) +
+                        1) /
+                       2;
             }
         };
 
@@ -3229,8 +3248,9 @@ namespace jkj {
                                 min_exponent - format::significand_bits,
                                 max_exponent - format::significand_bits, decimal_exponent_type_>(
                                 binary_exponent);
-                            auto const beta = binary_exponent + log::floor_log2_pow10<min_k, max_k>(
-                                                                    decimal_exponent_type_(-minus_k));
+                            auto const beta = stdr::uint_fast8_t(
+                                binary_exponent +
+                                log::floor_log2_pow10<min_k, max_k>(decimal_exponent_type_(-minus_k)));
 
                             // Compute xi and zi.
                             auto const cache = CachePolicy::template get_cache<format>(
@@ -3315,8 +3335,9 @@ namespace jkj {
                         kappa);
                     auto const cache =
                         CachePolicy::template get_cache<format>(decimal_exponent_type_(-minus_k));
-                    auto const beta = binary_exponent + log::floor_log2_pow10<min_k, max_k>(
-                                                            decimal_exponent_type_(-minus_k));
+                    auto const beta =
+                        stdr::uint_fast8_t(binary_exponent + log::floor_log2_pow10<min_k, max_k>(
+                                                                 decimal_exponent_type_(-minus_k)));
 
                     // Compute zi and deltai.
                     // 10^kappa <= deltai < 10^(kappa + 1)
@@ -3507,8 +3528,9 @@ namespace jkj {
                         kappa);
                     auto const cache =
                         CachePolicy::template get_cache<format>(decimal_exponent_type_(-minus_k));
-                    int const beta = binary_exponent + log::floor_log2_pow10<min_k, max_k>(
-                                                           decimal_exponent_type_(-minus_k));
+                    auto const beta =
+                        stdr::uint_fast8_t(binary_exponent + log::floor_log2_pow10<min_k, max_k>(
+                                                                 decimal_exponent_type_(-minus_k)));
 
                     // Compute xi and deltai.
                     // 10^kappa <= deltai < 10^(kappa + 1)
@@ -3648,14 +3670,15 @@ namespace jkj {
                                                                       (shorter_interval ? 1 : 0)) -
                         kappa);
                     auto const cache =
-                        CachePolicy::template get_cache<format>(deicmal_exponent_type(-minus_k));
-                    int const beta =
-                        binary_exponent + log::floor_log2_pow10(deicmal_exponent_type(-minus_k));
+                        CachePolicy::template get_cache<format>(decimal_exponent_type(-minus_k));
+                    auto const beta = stdr::uint_fast8_t(
+                        binary_exponent + log::floor_log2_pow10(decimal_exponent_type(-minus_k)));
 
                     // Compute zi and deltai.
                     // 10^kappa <= deltai < 10^(kappa + 1)
-                    auto const deltai = static_cast<remainder_type_>(
-                        multiplication_traits_::compute_delta(cache, beta - shorter_interval ? 1 : 0));
+                    auto const deltai =
+                        static_cast<remainder_type_>(multiplication_traits_::compute_delta(
+                            cache, stdr::uint_fast8_t(beta - shorter_interval ? 1 : 0)));
                     carrier_uint const zi =
                         multiplication_traits_::compute_mul(two_fc << beta, cache).integer_part;
 
