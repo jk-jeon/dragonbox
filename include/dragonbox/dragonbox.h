@@ -2094,9 +2094,13 @@ namespace jkj {
             static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponent k) noexcept {
                 // Compute the base index.
                 // Supposed to compute (k - min_k) / compression_ratio.
-                static_assert(max_k - min_k <= 89 && compression_ratio == 13);
-                auto const cache_index = DecimalExponent(
-                    (detail::stdr::uint_fast16_t(k - min_k) * detail::stdr::uint_fast16_t(79)) >> 10);
+                static_assert(max_k - min_k <= 89 && compression_ratio == 13, "");
+                static_assert(max_k - min_k <= detail::stdr::numeric_limits<DecimalExponent>::max(),
+                              "");
+                auto const cache_index =
+                    DecimalExponent(detail::stdr::uint_fast16_t(DecimalExponent(k - min_k) *
+                                                                detail::stdr::int_fast16_t(79)) >>
+                                    10);
                 auto const kb = DecimalExponent(cache_index * compression_ratio + min_k);
                 auto const offset = DecimalExponent(k - kb);
 
@@ -2192,9 +2196,13 @@ namespace jkj {
             static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponent k) noexcept {
                 // Compute the base index.
                 // Supposed to compute (k - min_k) / compression_ratio.
-                static_assert(max_k - min_k <= 619 && compression_ratio == 27);
-                auto const cache_index = DecimalExponent(
-                    (detail::stdr::uint_fast32_t(k - min_k) * detail::stdr::uint_fast32_t(607)) >> 14);
+                static_assert(max_k - min_k <= 619 && compression_ratio == 27, "");
+                static_assert(max_k - min_k <= detail::stdr::numeric_limits<DecimalExponent>::max(),
+                              "");
+                auto const cache_index =
+                    DecimalExponent(detail::stdr::uint_fast32_t(DecimalExponent(k - min_k) *
+                                                                detail::stdr::int_fast32_t(607)) >>
+                                    14);
                 auto const kb = DecimalExponent(cache_index * compression_ratio + min_k);
                 auto const offset = DecimalExponent(k - kb);
 
