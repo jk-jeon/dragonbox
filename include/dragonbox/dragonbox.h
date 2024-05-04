@@ -1154,31 +1154,31 @@ namespace jkj {
 
                 template <class UInt>
                 struct divide_by_pow10_info<1, UInt> {
-                    static constexpr stdr::uint_least32_t magic_number = 6554;
+                    static constexpr stdr::uint_fast32_t magic_number = 6554;
                     static constexpr int shift_amount = 16;
                 };
 
                 template <>
                 struct divide_by_pow10_info<1, stdr::uint_least8_t> {
-                    static constexpr stdr::uint_least16_t magic_number = 103;
+                    static constexpr stdr::uint_fast16_t magic_number = 103;
                     static constexpr int shift_amount = 10;
                 };
 
                 template <>
                 struct divide_by_pow10_info<1, stdr::uint_least16_t> {
-                    static constexpr stdr::uint_least16_t magic_number = 103;
+                    static constexpr stdr::uint_fast16_t magic_number = 103;
                     static constexpr int shift_amount = 10;
                 };
 
                 template <class UInt>
                 struct divide_by_pow10_info<2, UInt> {
-                    static constexpr stdr::uint_least32_t magic_number = 656;
+                    static constexpr stdr::uint_fast32_t magic_number = 656;
                     static constexpr int shift_amount = 16;
                 };
 
                 template <>
                 struct divide_by_pow10_info<2, stdr::uint_least16_t> {
-                    static constexpr stdr::uint_least32_t magic_number = 41;
+                    static constexpr stdr::uint_fast32_t magic_number = 41;
                     static constexpr int shift_amount = 12;
                 };
 
@@ -1189,9 +1189,11 @@ namespace jkj {
                     assert(n <= compute_power<N + 1>(UInt(10)));
 
                     using info = divide_by_pow10_info<N, UInt>;
-                    auto const prod = n * info::magic_number;
+                    using intermediate_type = decltype(info::magic_number);
+                    auto const prod = intermediate_type(n * info::magic_number);
 
-                    constexpr auto mask = decltype(prod)((decltype(prod)(1) << info::shift_amount) - 1);
+                    constexpr auto mask =
+                        intermediate_type((intermediate_type(1) << info::shift_amount) - 1);
                     bool const result = ((prod & mask) < info::magic_number);
 
                     n = UInt(prod >> info::shift_amount);

@@ -20,19 +20,18 @@
 #include <iostream>
 #include <iomanip>
 
-template <class FormatTraits>
+template <int N, class UInt>
 static bool verify_check_divisibility_and_divide_by_pow10() {
     using namespace jkj::dragonbox::detail;
 
-    constexpr int kappa = impl<FormatTraits>::kappa;
-    constexpr auto max_n = compute_power<kappa + 1>(std::uint32_t(10));
-    constexpr auto divisor = compute_power<kappa>(std::uint32_t(10));
+    constexpr auto max_n = compute_power<N + 1>(UInt(10));
+    constexpr auto divisor = compute_power<N>(UInt(10));
 
     bool success = true;
-    for (std::uint32_t n = 0; n <= max_n; ++n) {
-        std::uint32_t computed_quotient = n;
+    for (UInt n = 0; n <= max_n; ++n) {
+        UInt computed_quotient = n;
         auto computed_divisibility =
-            div::check_divisibility_and_divide_by_pow10<kappa>(computed_quotient);
+            div::check_divisibility_and_divide_by_pow10<N>(computed_quotient);
 
         if (computed_quotient != (n / divisor)) {
             std::cout << "Dividing n = " << n << " by " << divisor
@@ -58,17 +57,16 @@ static bool verify_check_divisibility_and_divide_by_pow10() {
     return success;
 }
 
-template <class FormatTraits>
+template <int N, class UInt>
 static bool verify_divide_by_pow10() {
     using namespace jkj::dragonbox::detail;
 
-    constexpr int kappa = impl<FormatTraits>::kappa;
-    constexpr auto max_n = compute_power<kappa + 1>(std::uint32_t(10));
-    constexpr auto divisor = compute_power<kappa>(std::uint32_t(10));
+    constexpr auto max_n = compute_power<N + 1>(UInt(10));
+    constexpr auto divisor = compute_power<N>(UInt(10));
 
     bool success = true;
-    for (std::uint32_t n = 0; n <= max_n; ++n) {
-        auto computed_quotient = div::small_division_by_pow10<kappa>(n);
+    for (UInt n = 0; n <= max_n; ++n) {
+        auto computed_quotient = div::small_division_by_pow10<N>(n);
 
         if (computed_quotient != (n / divisor)) {
             std::cout << "Dividing n = " << n << " by " << divisor
@@ -91,24 +89,63 @@ static bool verify_divide_by_pow10() {
 int main() {
     bool success = true;
 
-    std::cout << "[Verifying divisibility check and division by 10^kappa for binary32...]\n";
-    success &= verify_check_divisibility_and_divide_by_pow10<
-        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary32, std::uint_least32_t>>();
+    std::cout << "[Verifying divisibility check and division by 10^1 for std::uint_least8_t...]\n";
+    success &= verify_check_divisibility_and_divide_by_pow10<1, std::uint_least8_t>();
     std::cout << "Done.\n\n\n";
 
-    std::cout << "[Verifying division by 10^kappa for binary32...]\n";
-    success &= verify_divide_by_pow10<
-        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary32, std::uint_least32_t>>();
+    std::cout << "[Verifying divisibility check and division by 10^1 for std::uint_least16_t...]\n";
+    success &= verify_check_divisibility_and_divide_by_pow10<1, std::uint_least16_t>();
     std::cout << "Done.\n\n\n";
 
-    std::cout << "[Verifying divisibility check and division by 10^kappa for binary64...]\n";
-    success &= verify_check_divisibility_and_divide_by_pow10<
-        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary64, std::uint_least64_t>>();
+    std::cout << "[Verifying divisibility check and division by 10^1 for std::uint_least32_t...]\n";
+    success &= verify_check_divisibility_and_divide_by_pow10<1, std::uint_least32_t>();
     std::cout << "Done.\n\n\n";
 
-    std::cout << "[Verifying division by 10^kappa for binary64...]\n";
-    success &= verify_divide_by_pow10<
-        jkj::dragonbox::ieee754_binary_traits<jkj::dragonbox::ieee754_binary64, std::uint_least64_t>>();
+    std::cout << "[Verifying divisibility check and division by 10^1 for std::uint_least64_t...]\n";
+    success &= verify_check_divisibility_and_divide_by_pow10<1, std::uint_least64_t>();
+    std::cout << "Done.\n\n\n";
+
+
+    std::cout << "[Verifying divisibility check and division by 10^2 for std::uint_least16_t...]\n";
+    success &= verify_check_divisibility_and_divide_by_pow10<2, std::uint_least16_t>();
+    std::cout << "Done.\n\n\n";
+
+    std::cout << "[Verifying divisibility check and division by 10^2 for std::uint_least32_t...]\n";
+    success &= verify_check_divisibility_and_divide_by_pow10<2, std::uint_least32_t>();
+    std::cout << "Done.\n\n\n";
+
+    std::cout << "[Verifying divisibility check and division by 10^2 for std::uint_least64_t...]\n";
+    success &= verify_check_divisibility_and_divide_by_pow10<2, std::uint_least64_t>();
+    std::cout << "Done.\n\n\n";
+
+
+    std::cout << "[Verifying division by 10^1 for std::uint_least8_t...]\n";
+    success &= verify_divide_by_pow10<1, std::uint_least8_t>();
+    std::cout << "Done.\n\n\n";
+
+    std::cout << "[Verifying division by 10^1 for std::uint_least16_t...]\n";
+    success &= verify_divide_by_pow10<1, std::uint_least16_t>();
+    std::cout << "Done.\n\n\n";
+
+    std::cout << "[Verifying division by 10^1 for std::uint_least32_t...]\n";
+    success &= verify_divide_by_pow10<1, std::uint_least32_t>();
+    std::cout << "Done.\n\n\n";
+
+    std::cout << "[Verifying division by 10^1 for std::uint_least64_t...]\n";
+    success &= verify_divide_by_pow10<1, std::uint_least64_t>();
+    std::cout << "Done.\n\n\n";
+
+
+    std::cout << "[Verifying division by 10^2 for std::uint_least16_t...]\n";
+    success &= verify_divide_by_pow10<2, std::uint_least16_t>();
+    std::cout << "Done.\n\n\n";
+
+    std::cout << "[Verifying division by 10^2 for std::uint_least32_t...]\n";
+    success &= verify_divide_by_pow10<2, std::uint_least32_t>();
+    std::cout << "Done.\n\n\n";
+
+    std::cout << "[Verifying division by 10^2 for std::uint_least64_t...]\n";
+    success &= verify_divide_by_pow10<2, std::uint_least64_t>();
     std::cout << "Done.\n\n\n";
 
     if (!success) {
