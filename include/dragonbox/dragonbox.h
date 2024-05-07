@@ -260,6 +260,10 @@ namespace jkj {
 #endif
                 template <class T>
                 using is_integral = JKJ_STD_REPLACEMENT_NAMESPACE::is_integral<T>;
+                template <class T>
+                using is_signed = JKJ_STD_REPLACEMENT_NAMESPACE::is_signed<T>;
+                template <class T>
+                using is_unsigned = JKJ_STD_REPLACEMENT_NAMESPACE::is_unsigned<T>;
             }
         }
 
@@ -363,12 +367,14 @@ namespace jkj {
             // assumed to be zeroed.
             static_assert(detail::value_bits<CarrierUInt>::value >= Format::total_bits,
                           "jkj::dragonbox: insufficient number of bits");
+            static_assert(detail::stdr::is_unsigned<CarrierUInt>::value, "");
 
             // ExponentUInt needs to be large enough to hold (unsigned) exponent bits as well as the
             // (signed) actual exponent.
             // TODO: static overflow guard against intermediate computations.
             static_assert(detail::value_bits<ExponentInt>::value >= Format::exponent_bits + 1,
                           "jkj::dragonbox: insufficient number of bits");
+            static_assert(detail::stdr::is_signed<ExponentInt>::value, "");
 
             using format = Format;
             using carrier_uint = CarrierUInt;
@@ -3419,12 +3425,11 @@ namespace jkj {
                         }
                         else {
                             // r == deltai; compare fractional parts.
-                            auto const x_result =
-                                multiplication_traits_::compute_mul_parity(two_fc - 1, cache, beta);
+                            auto const x_result = multiplication_traits_::compute_mul_parity(
+                                carrier_uint(two_fc - 1), cache, beta);
 
                             if (!(x_result.parity |
-                                  stdr::uint_fast8_t(x_result.is_integer &
-                                                     interval_type.include_left_endpoint()))) {
+                                  (x_result.is_integer & interval_type.include_left_endpoint()))) {
                                 break;
                             }
                         }
