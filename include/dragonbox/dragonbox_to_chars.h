@@ -190,10 +190,11 @@ namespace jkj {
                             ++exponent;
                         }
                         *buffer = next;
-                        ++buffer;
                     }
+                    ++buffer;
                 }
 
+                // Print exponent.
                 *buffer = 'E';
                 ++buffer;
                 if (exponent < 0) {
@@ -204,10 +205,62 @@ namespace jkj {
                 return print_integer_naive<FloatFormat::decimal_exponent_digits>(unsigned(exponent),
                                                                                  buffer);
             }
+        }
+
+        namespace policy {
+            namespace digit_generation {
+                JKJ_INLINE_VARIABLE struct fast_t {
+                    using digit_generation_policy = fast_t;
+
+                    template <class DecimalToBinaryRoundingPolicy, class BinaryToDecimalRoundingPolicy,
+                              class CachePolicy, class PreferredIntegerTypesPolicy, class FormatTraits>
+                    static char* to_chars(signed_significand_bits<FormatTraits> s,
+                                          typename FormatTraits::exponent_int exponent_bits,
+                                          char* buffer) noexcept {
+                        auto result = to_decimal_ex(
+                            s, exponent_bits, policy::sign::ignore, policy::trailing_zero::ignore,
+                            DecimalToBinaryRoundingPolicy{}, BinaryToDecimalRoundingPolicy{},
+                            CachePolicy{}, PreferredIntegerTypesPolicy{});
+
+                        return detail::to_chars<typename FormatTraits::format>(result.significand,
+                                                                               result.exponent, buffer);
+                    }
+                } fast = {};
+
+                JKJ_INLINE_VARIABLE struct compact_t {
+                    using digit_generation_policy = compact_t;
+
+                    template <class DecimalToBinaryRoundingPolicy, class BinaryToDecimalRoundingPolicy,
+                              class CachePolicy, class PreferredIntegerTypesPolicy, class FormatTraits>
+                    static JKJ_CONSTEXPR20 char*
+                    to_chars(signed_significand_bits<FormatTraits> s,
+                             typename FormatTraits::exponent_int exponent_bits, char* buffer) noexcept {
+                        auto result = to_decimal_ex(s, exponent_bits, policy::sign::ignore,
+                                                    policy::trailing_zero::remove_compact,
+                                                    DecimalToBinaryRoundingPolicy{},
+                                                    BinaryToDecimalRoundingPolicy{}, CachePolicy{},
+                                                    PreferredIntegerTypesPolicy{});
+
+                        return detail::to_chars_naive<typename FormatTraits::format>(
+                            result.significand, result.exponent, buffer);
+                    }
+                } compact = {};
+            }
+        }
+
+        namespace detail {
+            struct is_digit_generation_policy {
+                constexpr bool operator()(...) noexcept { return false; }
+                template <class Policy, class = typename Policy::digit_generation_policy>
+                constexpr bool operator()(dummy<Policy>) noexcept {
+                    return true;
+                }
+            };
 
             // Avoid needless ABI overhead incurred by tag dispatch.
             template <class DecimalToBinaryRoundingPolicy, class BinaryToDecimalRoundingPolicy,
-                      class CachePolicy, class PreferredIntegerTypesPolicy, class FormatTraits>
+                      class CachePolicy, class PreferredIntegerTypesPolicy, class DigitGenerationPolicy,
+                      class FormatTraits>
             JKJ_CONSTEXPR20 char* to_chars_n_impl(float_bits<FormatTraits> br, char* buffer) noexcept {
                 auto const exponent_bits = br.extract_exponent_bits();
                 auto const s = br.remove_exponent_bits();
@@ -219,22 +272,14 @@ namespace jkj {
                     }
                     if (br.is_nonzero()) {
                         JKJ_IF_CONSTEVAL {
-                            auto result = to_decimal_ex(
-                                s, exponent_bits, policy::sign::ignore, policy::trailing_zero::remove,
-                                DecimalToBinaryRoundingPolicy{}, BinaryToDecimalRoundingPolicy{},
-                                CachePolicy{}, PreferredIntegerTypesPolicy{});
-
-                            return to_chars_naive<typename FormatTraits::format>(
-                                result.significand, result.exponent, buffer);
+                            return policy::digit_generation::compact_t::to_chars<
+                                DecimalToBinaryRoundingPolicy, BinaryToDecimalRoundingPolicy,
+                                CachePolicy, PreferredIntegerTypesPolicy>(s, exponent_bits, buffer);
                         }
 
-                        auto result = to_decimal_ex(
-                            s, exponent_bits, policy::sign::ignore, policy::trailing_zero::ignore,
-                            DecimalToBinaryRoundingPolicy{}, BinaryToDecimalRoundingPolicy{},
-                            CachePolicy{}, PreferredIntegerTypesPolicy{});
-
-                        return to_chars<typename FormatTraits::format>(result.significand,
-                                                                       result.exponent, buffer);
+                        return DigitGenerationPolicy::template to_chars<
+                            DecimalToBinaryRoundingPolicy, BinaryToDecimalRoundingPolicy, CachePolicy,
+                            PreferredIntegerTypesPolicy>(s, exponent_bits, buffer);
                     }
                     else {
                         buffer[0] = '0';
@@ -285,13 +330,16 @@ namespace jkj {
                                                   policy::binary_to_decimal_rounding::to_even_t>,
                     detail::detector_default_pair<detail::is_cache_policy, policy::cache::full_t>,
                     detail::detector_default_pair<detail::is_preferred_integer_types_policy,
-                                                  policy::preferred_integer_types::match_t>>,
+                                                  policy::preferred_integer_types::match_t>,
+                    detail::detector_default_pair<detail::is_digit_generation_policy,
+                                                  policy::digit_generation::fast_t>>,
                 Policies...>;
 
             return detail::to_chars_n_impl<typename policy_holder::decimal_to_binary_rounding_policy,
                                            typename policy_holder::binary_to_decimal_rounding_policy,
                                            typename policy_holder::cache_policy,
-                                           typename policy_holder::preferred_integer_types_policy>(
+                                           typename policy_holder::preferred_integer_types_policy,
+                                           typename policy_holder::digit_generation_policy>(
                 make_float_bits<Float, ConversionTraits, FormatTraits>(x), buffer);
         }
 
