@@ -2123,7 +2123,7 @@ namespace jkj {
                     auto const pow5 =
                         offset >= 7
                             ? detail::stdr::uint_fast32_t(detail::stdr::uint_fast32_t(pow5_table[6]) *
-                                                           pow5_table[offset - 6])
+                                                          pow5_table[offset - 6])
                             : detail::stdr::uint_fast32_t(pow5_table[offset]);
                     auto mul_result = detail::wuint::umul128(base_cache, pow5);
                     auto const recovered_cache =
@@ -3339,7 +3339,7 @@ namespace jkj {
                         }
 
                         // Normal interval case.
-                        two_fc |= (decltype(two_fc)(1) << (format::significand_bits + 1));
+                        two_fc |= (carrier_uint(1) << (format::significand_bits + 1));
                     }
                     // Is the input a subnormal number?
                     else {
@@ -3380,7 +3380,7 @@ namespace jkj {
                     // Fortunately, with these inputs, that branch is never executed, so we are
                     // fine.
                     auto const z_result =
-                        multiplication_traits_::compute_mul((two_fc | 1) << beta, cache);
+                        multiplication_traits_::compute_mul(carrier_uint((two_fc | 1) << beta), cache);
 
 
                     //////////////////////////////////////////////////////////////////////
@@ -3392,10 +3392,10 @@ namespace jkj {
 
                     // Using an upper bound on zi, we might be able to optimize the division
                     // better than the compiler; we are computing zi / big_divisor here.
-                    carrier_uint decimal_significand =
-                        div::divide_by_pow10<kappa + 1, carrier_uint,
-                                             (carrier_uint(1) << (significand_bits + 1)) * big_divisor -
-                                                 1>(z_result.integer_part);
+                    carrier_uint decimal_significand = div::divide_by_pow10<
+                        kappa + 1, carrier_uint,
+                        carrier_uint((carrier_uint(1) << (significand_bits + 1)) * big_divisor - 1)>(
+                        z_result.integer_part);
                     auto r = remainder_type_(z_result.integer_part - big_divisor * decimal_significand);
 
                     do {
@@ -3537,7 +3537,7 @@ namespace jkj {
                     // Is the input a normal number?
                     if (binary_exponent != 0) {
                         binary_exponent += format::exponent_bias - format::significand_bits;
-                        two_fc |= (decltype(two_fc)(1) << (format::significand_bits + 1));
+                        two_fc |= (carrier_uint(1) << (format::significand_bits + 1));
                     }
                     // Is the input a subnormal number?
                     else {
@@ -3564,7 +3564,8 @@ namespace jkj {
                     // 10^kappa <= deltai < 10^(kappa + 1)
                     auto const deltai = static_cast<remainder_type_>(
                         multiplication_traits_::compute_delta(cache, beta));
-                    auto x_result = multiplication_traits_::compute_mul(two_fc << beta, cache);
+                    auto x_result =
+                        multiplication_traits_::compute_mul(carrier_uint(two_fc << beta), cache);
 
                     // Deal with the unique exceptional cases
                     // 29711844 * 2^-82
@@ -3590,12 +3591,11 @@ namespace jkj {
 
                     // Using an upper bound on xi, we might be able to optimize the division
                     // better than the compiler; we are computing xi / big_divisor here.
-                    carrier_uint decimal_significand =
-                        div::divide_by_pow10<kappa + 1, carrier_uint,
-                                             (carrier_uint(1) << (significand_bits + 1)) * big_divisor -
-                                                 1>(x_result.integer_part);
-                    auto r = static_cast<remainder_type_>(x_result.integer_part -
-                                                          big_divisor * decimal_significand);
+                    carrier_uint decimal_significand = div::divide_by_pow10<
+                        kappa + 1, carrier_uint,
+                        carrier_uint((carrier_uint(1) << (significand_bits + 1)) * big_divisor - 1)>(
+                        x_result.integer_part);
+                    auto r = remainder_type_(x_result.integer_part - big_divisor * decimal_significand);
 
                     if (r != 0) {
                         ++decimal_significand;
@@ -3626,8 +3626,8 @@ namespace jkj {
                                     break;
                                 }
                             }
-                            auto const z_result =
-                                multiplication_traits_::compute_mul_parity(two_fc + 2, cache, beta);
+                            auto const z_result = multiplication_traits_::compute_mul_parity(
+                                carrier_uint(two_fc + 2), cache, beta);
                             if (z_result.parity || z_result.is_integer) {
                                 break;
                             }
@@ -3681,7 +3681,7 @@ namespace jkj {
                             shorter_interval = true;
                         }
                         binary_exponent += format::exponent_bias - format::significand_bits;
-                        two_fc |= (decltype(two_fc)(1) << (format::significand_bits + 1));
+                        two_fc |= (carrier_uint(1) << (format::significand_bits + 1));
                     }
                     // Is the input a subnormal number?
                     else {
@@ -3696,8 +3696,8 @@ namespace jkj {
                     auto const minus_k = decimal_exponent_type_(
                         log::floor_log10_pow2<format::min_exponent - format::significand_bits,
                                               format::max_exponent - format::significand_bits,
-                                              decimal_exponent_type_>(binary_exponent -
-                                                                      (shorter_interval ? 1 : 0)) -
+                                              decimal_exponent_type_>(
+                            exponent_int(binary_exponent - (shorter_interval ? 1 : 0))) -
                         kappa);
                     auto const cache = CachePolicy::template get_cache<format, shift_amount_type>(
                         decimal_exponent_type_(-minus_k));
@@ -3708,9 +3708,10 @@ namespace jkj {
                     // 10^kappa <= deltai < 10^(kappa + 1)
                     auto const deltai =
                         static_cast<remainder_type_>(multiplication_traits_::compute_delta(
-                            cache, shift_amount_type(beta - shorter_interval ? 1 : 0)));
+                            cache, shift_amount_type(beta - (shorter_interval ? 1 : 0))));
                     carrier_uint const zi =
-                        multiplication_traits_::compute_mul(two_fc << beta, cache).integer_part;
+                        multiplication_traits_::compute_mul(carrier_uint(two_fc << beta), cache)
+                            .integer_part;
 
 
                     //////////////////////////////////////////////////////////////////////
@@ -3721,10 +3722,10 @@ namespace jkj {
 
                     // Using an upper bound on zi, we might be able to optimize the division better
                     // than the compiler; we are computing zi / big_divisor here.
-                    carrier_uint decimal_significand =
-                        div::divide_by_pow10<kappa + 1, carrier_uint,
-                                             (carrier_uint(1) << (significand_bits + 1)) * big_divisor -
-                                                 1>(zi);
+                    carrier_uint decimal_significand = div::divide_by_pow10<
+                        kappa + 1, carrier_uint,
+                        carrier_uint((carrier_uint(1) << (significand_bits + 1)) * big_divisor - 1)>(
+                        zi);
                     auto const r = remainder_type_(zi - big_divisor * decimal_significand);
 
                     do {
@@ -3734,7 +3735,7 @@ namespace jkj {
                         else if (r == deltai) {
                             // Compare the fractional parts.
                             if (!multiplication_traits_::compute_mul_parity(
-                                     two_fc - (shorter_interval ? 1 : 2), cache, beta)
+                                     carrier_uint(two_fc - (shorter_interval ? 1 : 2)), cache, beta)
                                      .parity) {
                                 break;
                             }
