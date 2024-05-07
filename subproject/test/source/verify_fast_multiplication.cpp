@@ -48,7 +48,7 @@ static bool verify_fast_multiplication_xz(CachePolicy&& cache_policy) {
         int const beta = e + floor_log2_pow10(k);
 
         // Load cache.
-        auto const cache = cache_policy.template get_cache<format>(k);
+        auto const cache = cache_policy.template get_cache<format, int>(k);
 
         // Compute the endpoints using the fast method.
         auto x_fast =
@@ -106,7 +106,7 @@ static bool verify_fast_multiplication_yru(CachePolicy&& cache_policy) {
     bool success = true;
 
     for (int k = impl::min_k; k <= impl::max_k; ++k) {
-        auto const cache = cache_policy.template get_cache<format>(k);
+        auto const cache = cache_policy.template get_cache<format, int>(k);
 
         // Since Q - p - beta - 2 >= q, it suffices to check that the lower half of the cache is not
         // 0.

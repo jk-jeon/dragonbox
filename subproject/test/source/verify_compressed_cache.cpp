@@ -62,7 +62,7 @@ bool verify_compressed_cache(GetCache&& get_cache, ConvertToBigUInt&& convert_to
          e <= format::max_exponent - format::significand_bits; ++e) {
         int const k = impl::kappa - jkj::dragonbox::detail::log::floor_log10_pow2(e);
 
-        auto const real_cache = jkj::dragonbox::policy::cache::full.get_cache<format>(k);
+        auto const real_cache = jkj::dragonbox::policy::cache::full.get_cache<format, int>(k);
 
         auto const recovered_cache = get_cache(k);
         if (!recovered_cache.success) {
@@ -141,7 +141,7 @@ int main() {
                 jkj::dragonbox::ieee754_binary32, std::uint_least32_t>>(
                 [](int k) {
                     return recovered_cache_t<cache_holder_type::cache_entry_type>{
-                        cache_holder_type::get_cache(k), true};
+                        cache_holder_type::get_cache<int>(k), true};
                 },
                 [](cache_holder_type::cache_entry_type value) { return jkj::big_uint{value}; }, 7)) {
             std::cout << "Verification succeeded. No error detected.\n\n";
