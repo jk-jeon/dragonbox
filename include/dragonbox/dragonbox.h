@@ -2954,7 +2954,7 @@ namespace jkj {
                 auto r = detail::bits::rotr<32>(
                     detail::stdr::uint_least32_t(significand * UINT32_C(184254097)), 4);
                 auto b = r < UINT32_C(429497);
-                auto s = std::size_t(b);
+                auto s = detail::stdr::size_t(b);
                 significand = b ? r : significand;
 
                 r = detail::bits::rotr<32>(
@@ -2986,7 +2986,7 @@ namespace jkj {
                 auto r = detail::bits::rotr<64>(
                     detail::stdr::uint_least64_t(significand * UINT64_C(28999941890838049)), 8);
                 auto b = r < UINT64_C(184467440738);
-                auto s = std::size_t(b);
+                auto s = detail::stdr::size_t(b);
                 significand = b ? r : significand;
 
                 r = detail::bits::rotr<64>(
