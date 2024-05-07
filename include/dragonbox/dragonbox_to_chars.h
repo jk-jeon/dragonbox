@@ -20,6 +20,38 @@
 
 #include "dragonbox.h"
 
+////////////////////////////////////////////////////////////////////////////////////////
+// Language feature detections.
+////////////////////////////////////////////////////////////////////////////////////////
+
+// C++14 constexpr
+#if defined(__cpp_constexpr) && __cpp_constexpr >= 201304L
+    #define JKJ_HAS_CONSTEXPR14 1
+#elif __cplusplus >= 201402L
+    #define JKJ_HAS_CONSTEXPR14 1
+#elif defined(_MSC_VER) && _MSC_VER >= 1910 && _MSVC_LANG >= 201402L
+    #define JKJ_HAS_CONSTEXPR14 1
+#else
+    #define JKJ_HAS_CONSTEXPR14 0
+#endif
+
+#if JKJ_HAS_CONSTEXPR14
+    #define JKJ_CONSTEXPR14 constexpr
+#else
+    #define JKJ_CONSTEXPR14
+#endif
+
+// C++17 constexpr lambdas
+#if defined(__cpp_constexpr) && __cpp_constexpr >= 201603L
+    #define JKJ_HAS_CONSTEXPR17 1
+#elif __cplusplus >= 201703L
+    #define JKJ_HAS_CONSTEXPR17 1
+#elif defined(_MSC_VER) && _MSC_VER >= 1911 && _MSVC_LANG >= 201703L
+    #define JKJ_HAS_CONSTEXPR17 1
+#else
+    #define JKJ_HAS_CONSTEXPR17 0
+#endif
+
 // C++17 inline variables
 #if defined(__cpp_inline_variables) && __cpp_inline_variables >= 201606L
     #define JKJ_HAS_INLINE_VARIABLE 1
@@ -37,16 +69,146 @@
     #define JKJ_INLINE_VARIABLE static constexpr
 #endif
 
+// C++17 if constexpr
+#if defined(__cpp_if_constexpr) && __cpp_if_constexpr >= 201606L
+    #define JKJ_HAS_IF_CONSTEXPR 1
+#elif __cplusplus >= 201703L
+    #define JKJ_HAS_IF_CONSTEXPR 1
+#elif defined(_MSC_VER) && _MSC_VER >= 1911 && _MSVC_LANG >= 201703L
+    #define JKJ_HAS_IF_CONSTEXPR 1
+#else
+    #define JKJ_HAS_IF_CONSTEXPR 0
+#endif
+
+#if JKJ_HAS_IF_CONSTEXPR
+    #define JKJ_IF_CONSTEXPR if constexpr
+#else
+    #define JKJ_IF_CONSTEXPR if
+#endif
+
+// C++20 std::bit_cast
+#if JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
+    #if JKJ_STD_REPLACEMENT_HAS_BIT_CAST
+        #define JKJ_HAS_BIT_CAST 1
+    #else
+        #define JKJ_HAS_BIT_CAST 0
+    #endif
+#elif defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
+    #include <bit>
+    #define JKJ_HAS_BIT_CAST 1
+#else
+    #define JKJ_HAS_BIT_CAST 0
+#endif
+
+// C++23 if consteval or C++20 std::is_constant_evaluated
+#if defined(__cpp_if_consteval) && __cpp_is_consteval >= 202106L
+    #define JKJ_IF_CONSTEVAL if consteval
+    #define JKJ_IF_NOT_CONSTEVAL if !consteval
+    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+    #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+#elif JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
+    #if JKJ_STD_REPLACEMENT_HAS_IS_CONSTANT_EVALUATED
+        #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
+        #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
+        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+        #define JKJ_USE_IS_CONSTANT_EVALUATED 1
+    #elif JKJ_HAS_IF_CONSTEXPR
+        #define JKJ_IF_CONSTEVAL if constexpr (false)
+        #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
+        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+    #else
+        #define JKJ_IF_CONSTEVAL if (false)
+        #define JKJ_IF_NOT_CONSTEVAL if (true)
+        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+    #endif
+#else
+    #if defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
+        #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
+        #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
+        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+        #define JKJ_USE_IS_CONSTANT_EVALUATED 1
+    #elif JKJ_HAS_IF_CONSTEXPR
+        #define JKJ_IF_CONSTEVAL if constexpr (false)
+        #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
+        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+    #else
+        #define JKJ_IF_CONSTEVAL if (false)
+        #define JKJ_IF_NOT_CONSTEVAL if (true)
+        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+    #endif
+#endif
+
+#if JKJ_CAN_BRANCH_ON_CONSTEVAL && JKJ_HAS_BIT_CAST
+    #define JKJ_CONSTEXPR20 constexpr
+#else
+    #define JKJ_CONSTEXPR20
+#endif
+
 namespace jkj {
     namespace dragonbox {
         namespace detail {
             template <class FloatFormat, class CarrierUInt>
             extern char* to_chars(CarrierUInt significand, int exponent, char* buffer) noexcept;
 
+            template <stdr::size_t max_digits, class UInt>
+            JKJ_CONSTEXPR14 char* print_integer_naive(UInt n, char* buffer) noexcept {
+                char temp[max_digits]{};
+                auto ptr = temp + sizeof(temp) - 1;
+                do {
+                    *ptr = char('0' + n % 10);
+                    n /= 10;
+                    --ptr;
+                } while (n != 0);
+                while (++ptr != temp + sizeof(temp)) {
+                    *buffer = *ptr;
+                    ++buffer;
+                }
+                return buffer;
+            }
+
+            template <class FloatFormat, class CarrierUInt>
+            JKJ_CONSTEXPR14 char* to_chars_naive(CarrierUInt significand, int exponent,
+                                                 char* buffer) noexcept {
+                // Print significand.
+                {
+                    auto ptr = print_integer_naive<FloatFormat::decimal_significand_digits>(significand,
+                                                                                            buffer);
+
+                    // Insert decimal dot.
+                    if (ptr > buffer + 1) {
+                        auto next = *++buffer;
+                        ++exponent;
+                        *buffer = '.';
+                        while (++buffer != ptr) {
+                            auto const temp = *buffer;
+                            *buffer = next;
+                            next = temp;
+                            ++exponent;
+                        }
+                        *buffer = next;
+                        ++buffer;
+                    }
+                }
+
+                *buffer = 'E';
+                ++buffer;
+                if (exponent < 0) {
+                    *buffer = '-';
+                    ++buffer;
+                    exponent = -exponent;
+                }
+                return print_integer_naive<FloatFormat::decimal_exponent_digits>(unsigned(exponent),
+                                                                                 buffer);
+            }
+
             // Avoid needless ABI overhead incurred by tag dispatch.
             template <class DecimalToBinaryRoundingPolicy, class BinaryToDecimalRoundingPolicy,
                       class CachePolicy, class PreferredIntegerTypesPolicy, class FormatTraits>
-            char* to_chars_n_impl(float_bits<FormatTraits> br, char* buffer) noexcept {
+            JKJ_CONSTEXPR20 char* to_chars_n_impl(float_bits<FormatTraits> br, char* buffer) noexcept {
                 auto const exponent_bits = br.extract_exponent_bits();
                 auto const s = br.remove_exponent_bits();
 
@@ -56,16 +218,29 @@ namespace jkj {
                         ++buffer;
                     }
                     if (br.is_nonzero()) {
+                        JKJ_IF_CONSTEVAL {
+                            auto result = to_decimal_ex(s, exponent_bits, policy::sign::ignore,
+                                                        policy::trailing_zero::remove_compact,
+                                                        DecimalToBinaryRoundingPolicy{},
+                                                        BinaryToDecimalRoundingPolicy{}, CachePolicy{},
+                                                        PreferredIntegerTypesPolicy{});
+
+                            return to_chars_naive<typename FormatTraits::format>(
+                                result.significand, result.exponent, buffer);
+                        }
+
                         auto result = to_decimal_ex(
                             s, exponent_bits, policy::sign::ignore, policy::trailing_zero::ignore,
                             DecimalToBinaryRoundingPolicy{}, BinaryToDecimalRoundingPolicy{},
                             CachePolicy{}, PreferredIntegerTypesPolicy{});
-                        return to_chars<typename FormatTraits::format,
-                                        typename FormatTraits::carrier_uint>(result.significand,
-                                                                             result.exponent, buffer);
+
+                        return to_chars<typename FormatTraits::format>(result.significand,
+                                                                       result.exponent, buffer);
                     }
                     else {
-                        stdr::memcpy(buffer, "0E0", 3);
+                        buffer[0] = '0';
+                        buffer[1] = 'E';
+                        buffer[2] = '0';
                         return buffer + 3;
                     }
                 }
@@ -75,11 +250,20 @@ namespace jkj {
                             *buffer = '-';
                             ++buffer;
                         }
-                        stdr::memcpy(buffer, "Infinity", 8);
+                        buffer[0] = 'I';
+                        buffer[1] = 'n';
+                        buffer[2] = 'f';
+                        buffer[3] = 'i';
+                        buffer[4] = 'n';
+                        buffer[5] = 'i';
+                        buffer[6] = 't';
+                        buffer[7] = 'y';
                         return buffer + 8;
                     }
                     else {
-                        stdr::memcpy(buffer, "NaN", 3);
+                        buffer[0] = 'N';
+                        buffer[1] = 'a';
+                        buffer[2] = 'N';
                         return buffer + 3;
                     }
                 }
@@ -92,7 +276,7 @@ namespace jkj {
                   class FormatTraits = ieee754_binary_traits<typename ConversionTraits::format,
                                                              typename ConversionTraits::carrier_uint>,
                   class... Policies>
-        char* to_chars_n(Float x, char* buffer, Policies...) noexcept {
+        JKJ_CONSTEXPR20 char* to_chars_n(Float x, char* buffer, Policies...) noexcept {
             using policy_holder = detail::make_policy_holder<
                 detail::detector_default_pair_list<
                     detail::detector_default_pair<
@@ -118,7 +302,7 @@ namespace jkj {
                   class FormatTraits = ieee754_binary_traits<typename ConversionTraits::format,
                                                              typename ConversionTraits::carrier_uint>,
                   class... Policies>
-        char* to_chars(Float x, char* buffer, Policies... policies) noexcept {
+        JKJ_CONSTEXPR20 char* to_chars(Float x, char* buffer, Policies... policies) noexcept {
             auto ptr = to_chars_n<Float, ConversionTraits, FormatTraits>(x, buffer, policies...);
             *ptr = '\0';
             return ptr;
@@ -133,7 +317,18 @@ namespace jkj {
     }
 }
 
+#undef JKJ_CONSTEXPR20
+#undef JKJ_USE_IS_CONSTANT_EVALUATED
+#undef JKJ_CAN_BRANCH_ON_CONSTEVAL
+#undef JKJ_IF_NOT_CONSTEVAL
+#undef JKJ_IF_CONSTEVAL
+#undef JKJ_HAS_BIT_CAST
+#undef JKJ_IF_CONSTEXPR
+#undef JKJ_HAS_IF_CONSTEXPR
 #undef JKJ_INLINE_VARIABLE
 #undef JKJ_HAS_INLINE_VARIABLE
+#undef JKJ_HAS_CONSTEXPR17
+#undef JKJ_CONSTEXPR14
+#undef JKJ_HAS_CONSTEXPR14
 
 #endif
