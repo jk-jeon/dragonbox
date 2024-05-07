@@ -294,14 +294,21 @@ namespace jkj {
                             *buffer = '-';
                             ++buffer;
                         }
-                        buffer[0] = 'I';
-                        buffer[1] = 'n';
-                        buffer[2] = 'f';
-                        buffer[3] = 'i';
-                        buffer[4] = 'n';
-                        buffer[5] = 'i';
-                        buffer[6] = 't';
-                        buffer[7] = 'y';
+                        // MSVC generates two mov's for the below, so we guard it inside
+                        // JKJ_IF_CONSTEVAL.
+                        JKJ_IF_CONSTEVAL {
+                            buffer[0] = 'I';
+                            buffer[1] = 'n';
+                            buffer[2] = 'f';
+                            buffer[3] = 'i';
+                            buffer[4] = 'n';
+                            buffer[5] = 'i';
+                            buffer[6] = 't';
+                            buffer[7] = 'y';
+                        }
+                        else {
+                            stdr::memcpy(buffer, "Infinity", 8);
+                        }
                         return buffer + 8;
                     }
                     else {
