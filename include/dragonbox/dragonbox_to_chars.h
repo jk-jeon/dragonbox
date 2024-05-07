@@ -127,14 +127,9 @@ namespace jkj {
         // Maximum required buffer size (excluding null-terminator)
         template <class FloatFormat>
         JKJ_INLINE_VARIABLE detail::stdr::size_t max_output_string_length =
-            detail::stdr::is_same<FloatFormat, ieee754_binary32>::value
-                ?
-                // sign(1) + significand(9) + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp(2)
-                (1 + 9 + 1 + 1 + 1 + 2)
-                :
-                // format == ieee754_format::binary64
-                // sign(1) + significand(17) + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp(3)
-                (1 + 17 + 1 + 1 + 1 + 3);
+            // sign(1) + significand + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp
+            1 + FloatFormat::decimal_significand_digits + 1 + 1 + 1 +
+            FloatFormat::decimal_exponent_digits;
     }
 }
 

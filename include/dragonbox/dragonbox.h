@@ -345,7 +345,8 @@ namespace jkj {
             static constexpr int min_exponent = -126;
             static constexpr int max_exponent = 127;
             static constexpr int exponent_bias = -127;
-            static constexpr int decimal_digits = 9;
+            static constexpr int decimal_significand_digits = 9;
+            static constexpr int decimal_exponent_digits = 2;
         };
         struct ieee754_binary64 {
             static constexpr int total_bits = 64;
@@ -354,7 +355,8 @@ namespace jkj {
             static constexpr int min_exponent = -1022;
             static constexpr int max_exponent = 1023;
             static constexpr int exponent_bias = -1023;
-            static constexpr int decimal_digits = 17;
+            static constexpr int decimal_significand_digits = 17;
+            static constexpr int decimal_exponent_digits = 3;
         };
 
         // A floating-point format traits class defines ways to interpret a bit pattern of given size as
