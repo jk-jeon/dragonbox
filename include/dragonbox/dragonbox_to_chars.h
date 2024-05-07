@@ -219,11 +219,10 @@ namespace jkj {
                     }
                     if (br.is_nonzero()) {
                         JKJ_IF_CONSTEVAL {
-                            auto result = to_decimal_ex(s, exponent_bits, policy::sign::ignore,
-                                                        policy::trailing_zero::remove_compact,
-                                                        DecimalToBinaryRoundingPolicy{},
-                                                        BinaryToDecimalRoundingPolicy{}, CachePolicy{},
-                                                        PreferredIntegerTypesPolicy{});
+                            auto result = to_decimal_ex(
+                                s, exponent_bits, policy::sign::ignore, policy::trailing_zero::remove,
+                                DecimalToBinaryRoundingPolicy{}, BinaryToDecimalRoundingPolicy{},
+                                CachePolicy{}, PreferredIntegerTypesPolicy{});
 
                             return to_chars_naive<typename FormatTraits::format>(
                                 result.significand, result.exponent, buffer);
