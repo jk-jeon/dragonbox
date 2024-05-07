@@ -467,9 +467,6 @@ namespace jkj {
                                                    detail::stdr::uint_least32_t,
                                                    detail::stdr::uint_least64_t>::type;
 
-            // Specifies the signed integer type to hold the exponent of Float.
-            using exponent_int = int;
-
             // Specifies the floating-point format.
             using format = typename detail::stdr::conditional<detail::physical_bits<Float>::value == 32,
                                                               ieee754_binary32, ieee754_binary64>::type;
@@ -581,8 +578,7 @@ namespace jkj {
         template <class Float,
                   class ConversionTraits = default_float_bit_carrier_conversion_traits<Float>,
                   class FormatTraits = ieee754_binary_traits<typename ConversionTraits::format,
-                                                             typename ConversionTraits::carrier_uint,
-                                                             typename ConversionTraits::exponent_int>>
+                                                             typename ConversionTraits::carrier_uint>>
         JKJ_CONSTEXPR20 float_bits<FormatTraits> make_float_bits(Float x) noexcept {
             return float_bits<FormatTraits>(ConversionTraits::float_to_carrier(x));
         }
@@ -2036,8 +2032,8 @@ namespace jkj {
             static constexpr int min_k = cache_holder<FloatFormat>::min_k;
             static constexpr int max_k = cache_holder<FloatFormat>::max_k;
 
-            template <class DecimalExponent>
-            static constexpr cache_entry_type get_cache(DecimalExponent k) noexcept {
+            template <class ShiftAmountType, class DecimalExponentType>
+            static constexpr cache_entry_type get_cache(DecimalExponentType k) noexcept {
                 return cache_holder<FloatFormat>::cache[k - min_k];
             }
         };
@@ -2090,19 +2086,19 @@ namespace jkj {
                 make_pow5_table(detail::make_index_sequence<pow5_table_size>{});
 #endif
 
-            template <class DecimalExponent>
-            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponent k) noexcept {
+            template <class ShiftAmountType, class DecimalExponentType>
+            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept {
                 // Compute the base index.
                 // Supposed to compute (k - min_k) / compression_ratio.
                 static_assert(max_k - min_k <= 89 && compression_ratio == 13, "");
-                static_assert(max_k - min_k <= detail::stdr::numeric_limits<DecimalExponent>::max(),
+                static_assert(max_k - min_k <= detail::stdr::numeric_limits<DecimalExponentType>::max(),
                               "");
                 auto const cache_index =
-                    DecimalExponent(detail::stdr::uint_fast16_t(DecimalExponent(k - min_k) *
-                                                                detail::stdr::int_fast16_t(79)) >>
-                                    10);
-                auto const kb = DecimalExponent(cache_index * compression_ratio + min_k);
-                auto const offset = DecimalExponent(k - kb);
+                    DecimalExponentType(detail::stdr::uint_fast16_t(DecimalExponentType(k - min_k) *
+                                                                    detail::stdr::int_fast16_t(79)) >>
+                                        10);
+                auto const kb = DecimalExponentType(cache_index * compression_ratio + min_k);
+                auto const offset = DecimalExponentType(k - kb);
 
                 // Get the base cache.
                 auto const base_cache = cache[cache_index];
@@ -2112,9 +2108,9 @@ namespace jkj {
                 }
                 else {
                     // Compute the required amount of bit-shift.
-                    auto const alpha = detail::stdr::uint_fast8_t(
-                        detail::log::floor_log2_pow10<min_k, max_k>(k) -
-                        detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset);
+                    auto const alpha =
+                        ShiftAmountType(detail::log::floor_log2_pow10<min_k, max_k>(k) -
+                                        detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset);
                     assert(alpha > 0 && alpha < 64);
 
                     // Try to recover the real cache.
@@ -2124,11 +2120,11 @@ namespace jkj {
                                                            pow5_table[offset - 6])
                             : detail::stdr::uint_least32_t(pow5_table[offset]);
                     auto mul_result = detail::wuint::umul128(base_cache, pow5);
-                    auto const recovered_cache = cache_entry_type(
-                        (((mul_result.high() << detail::stdr::uint_fast8_t(64 - alpha)) |
-                          (mul_result.low() >> alpha)) +
-                         1) &
-                        UINT64_C(0xffffffffffffffff));
+                    auto const recovered_cache =
+                        cache_entry_type((((mul_result.high() << ShiftAmountType(64 - alpha)) |
+                                           (mul_result.low() >> alpha)) +
+                                          1) &
+                                         UINT64_C(0xffffffffffffffff));
                     assert(recovered_cache != 0);
 
                     return recovered_cache;
@@ -2192,19 +2188,19 @@ namespace jkj {
                 make_pow5_table(detail::make_index_sequence<pow5_table_size>{});
 #endif
 
-            template <class DecimalExponent>
-            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponent k) noexcept {
+            template <class ShiftAmountType, class DecimalExponentType>
+            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept {
                 // Compute the base index.
                 // Supposed to compute (k - min_k) / compression_ratio.
                 static_assert(max_k - min_k <= 619 && compression_ratio == 27, "");
-                static_assert(max_k - min_k <= detail::stdr::numeric_limits<DecimalExponent>::max(),
+                static_assert(max_k - min_k <= detail::stdr::numeric_limits<DecimalExponentType>::max(),
                               "");
                 auto const cache_index =
-                    DecimalExponent(detail::stdr::uint_fast32_t(DecimalExponent(k - min_k) *
-                                                                detail::stdr::int_fast32_t(607)) >>
-                                    14);
-                auto const kb = DecimalExponent(cache_index * compression_ratio + min_k);
-                auto const offset = DecimalExponent(k - kb);
+                    DecimalExponentType(detail::stdr::uint_fast32_t(DecimalExponentType(k - min_k) *
+                                                                    detail::stdr::int_fast32_t(607)) >>
+                                        14);
+                auto const kb = DecimalExponentType(cache_index * compression_ratio + min_k);
+                auto const offset = DecimalExponentType(k - kb);
 
                 // Get the base cache.
                 auto const base_cache = cache[cache_index];
@@ -2214,9 +2210,9 @@ namespace jkj {
                 }
                 else {
                     // Compute the required amount of bit-shift.
-                    auto const alpha = detail::stdr::uint_fast8_t(
-                        detail::log::floor_log2_pow10<min_k, max_k>(k) -
-                        detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset);
+                    auto const alpha =
+                        ShiftAmountType(detail::log::floor_log2_pow10<min_k, max_k>(k) -
+                                        detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset);
                     assert(alpha > 0 && alpha < 64);
 
                     // Try to recover the real cache.
@@ -2227,10 +2223,10 @@ namespace jkj {
                     recovered_cache += middle_low.high();
 
                     auto const high_to_middle = detail::stdr::uint_least64_t(
-                        (recovered_cache.high() << detail::stdr::uint_fast8_t(64 - alpha)) &
+                        (recovered_cache.high() << ShiftAmountType(64 - alpha)) &
                         UINT64_C(0xffffffffffffffff));
                     auto const middle_to_low = detail::stdr::uint_least64_t(
-                        (recovered_cache.low() << detail::stdr::uint_fast8_t(64 - alpha)) &
+                        (recovered_cache.low() << ShiftAmountType(64 - alpha)) &
                         UINT64_C(0xffffffffffffffff));
 
                     recovered_cache = {(recovered_cache.low() >> alpha) | high_to_middle,
@@ -2273,19 +2269,19 @@ namespace jkj {
                     // See
                     // https://developercommunity.visualstudio.com/t/Failure-to-optimize-intrinsics/10628226
                     template <class SignedSignificandBits, class DecimalSignificand,
-                              class DecimalExponent>
-                    static constexpr decimal_fp<DecimalSignificand, DecimalExponent, false, false>
+                              class DecimalExponentType>
+                    static constexpr decimal_fp<DecimalSignificand, DecimalExponentType, false, false>
                     handle_sign(
                         SignedSignificandBits,
-                        decimal_fp<DecimalSignificand, DecimalExponent, false, false> r) noexcept {
+                        decimal_fp<DecimalSignificand, DecimalExponentType, false, false> r) noexcept {
                         return {r.significand, r.exponent};
                     }
                     template <class SignedSignificandBits, class DecimalSignificand,
-                              class DecimalExponent>
-                    static constexpr decimal_fp<DecimalSignificand, DecimalExponent, false, true>
+                              class DecimalExponentType>
+                    static constexpr decimal_fp<DecimalSignificand, DecimalExponentType, false, true>
                     handle_sign(
                         SignedSignificandBits,
-                        decimal_fp<DecimalSignificand, DecimalExponent, false, true> r) noexcept {
+                        decimal_fp<DecimalSignificand, DecimalExponentType, false, true> r) noexcept {
                         return {r.significand, r.exponent, r.may_have_trailing_zeros};
                     }
 #else
@@ -2314,17 +2310,17 @@ namespace jkj {
                     using trailing_zero_policy = ignore_t;
                     static constexpr bool report_trailing_zeros = false;
 
-                    template <class Format, class DecimalSignificand, class DecimalExponent>
-                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponent, false>
+                    template <class Format, class DecimalSignificand, class DecimalExponentType>
+                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponentType, false>
                     on_trailing_zeros(DecimalSignificand significand,
-                                      DecimalExponent exponent) noexcept {
+                                      DecimalExponentType exponent) noexcept {
                         return {significand, exponent};
                     }
 
-                    template <class Format, class DecimalSignificand, class DecimalExponent>
-                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponent, false>
+                    template <class Format, class DecimalSignificand, class DecimalExponentType>
+                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponentType, false>
                     no_trailing_zeros(DecimalSignificand significand,
-                                      DecimalExponent exponent) noexcept {
+                                      DecimalExponentType exponent) noexcept {
                         return {significand, exponent};
                     }
                 } ignore = {};
@@ -2335,11 +2331,11 @@ namespace jkj {
 
                     // Remove trailing zeros from significand and add the number of removed zeros into
                     // exponent.
-                    template <class Format, class DecimalSignificand, class DecimalExponent>
+                    template <class Format, class DecimalSignificand, class DecimalExponentType>
                     JKJ_FORCEINLINE static JKJ_CONSTEXPR14
-                        unsigned_decimal_fp<DecimalSignificand, DecimalExponent, false>
+                        unsigned_decimal_fp<DecimalSignificand, DecimalExponentType, false>
                         on_trailing_zeros(DecimalSignificand significand,
-                                          DecimalExponent exponent) noexcept {
+                                          DecimalExponentType exponent) noexcept {
 
                         assert(significand != 0);
 
@@ -2451,10 +2447,10 @@ namespace jkj {
                         return {significand, exponent};
                     }
 
-                    template <class Format, class DecimalSignificand, class DecimalExponent>
-                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponent, false>
+                    template <class Format, class DecimalSignificand, class DecimalExponentType>
+                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponentType, false>
                     no_trailing_zeros(DecimalSignificand significand,
-                                      DecimalExponent exponent) noexcept {
+                                      DecimalExponentType exponent) noexcept {
                         return {significand, exponent};
                     }
                 } remove = {};
@@ -2463,17 +2459,17 @@ namespace jkj {
                     using trailing_zero_policy = report_t;
                     static constexpr bool report_trailing_zeros = true;
 
-                    template <class Format, class DecimalSignificand, class DecimalExponent>
-                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponent, true>
+                    template <class Format, class DecimalSignificand, class DecimalExponentType>
+                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponentType, true>
                     on_trailing_zeros(DecimalSignificand significand,
-                                      DecimalExponent exponent) noexcept {
+                                      DecimalExponentType exponent) noexcept {
                         return {significand, exponent, true};
                     }
 
-                    template <class Format, class DecimalSignificand, class DecimalExponent>
-                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponent, true>
+                    template <class Format, class DecimalSignificand, class DecimalExponentType>
+                    static constexpr unsigned_decimal_fp<DecimalSignificand, DecimalExponentType, true>
                     no_trailing_zeros(DecimalSignificand significand,
-                                      DecimalExponent exponent) noexcept {
+                                      DecimalExponentType exponent) noexcept {
                         return {significand, exponent, false};
                     }
                 } report = {};
@@ -2871,9 +2867,9 @@ namespace jkj {
                     template <class FloatFormat>
                     using cache_holder_type = cache_holder<FloatFormat>;
 
-                    template <class FloatFormat, class DecimalExponent>
+                    template <class FloatFormat, class ShiftAmountType, class DecimalExponentType>
                     static constexpr typename cache_holder_type<FloatFormat>::cache_entry_type
-                    get_cache(DecimalExponent k) noexcept {
+                    get_cache(DecimalExponentType k) noexcept {
 #if JKJ_HAS_CONSTEXPR14
                         assert(k >= cache_holder_type<FloatFormat>::min_k &&
                                k <= cache_holder_type<FloatFormat>::max_k);
@@ -2888,13 +2884,13 @@ namespace jkj {
                     template <class FloatFormat>
                     using cache_holder_type = compressed_cache_holder<FloatFormat>;
 
-                    template <class FloatFormat, class DecimalExponent>
+                    template <class FloatFormat, class ShiftAmountType, class DecimalExponentType>
                     static JKJ_CONSTEXPR20 typename cache_holder<FloatFormat>::cache_entry_type
-                    get_cache(DecimalExponent k) noexcept {
+                    get_cache(DecimalExponentType k) noexcept {
                         assert(k >= cache_holder<FloatFormat>::min_k &&
                                k <= cache_holder<FloatFormat>::max_k);
 
-                        return cache_holder_type<FloatFormat>::get_cache(k);
+                        return cache_holder_type<FloatFormat>::template get_cache<ShiftAmountType>(k);
                     }
                 } compact = {};
             }
@@ -2909,6 +2905,9 @@ namespace jkj {
                     template <class FormatTraits, detail::stdr::int_least32_t lower_bound,
                               detail::stdr::uint_least32_t upper_bound>
                     using decimal_exponent_type = typename FormatTraits::exponent_int;
+
+                    template <class FormatTraits>
+                    using shift_amount_type = typename FormatTraits::exponent_int;
                 } match;
 
                 JKJ_INLINE_VARIABLE struct prefer_32_t {
@@ -2926,6 +2925,9 @@ namespace jkj {
                         FormatTraits::format::exponent_bits <=
                             detail::value_bits<detail::stdr::int_least32_t>::value,
                         detail::stdr::int_least32_t, typename FormatTraits::exponent_int>::type;
+
+                    template <class FormatTraits>
+                    using shift_amount_type = detail::stdr::int_least32_t;
                 } prefer_32;
 
                 JKJ_INLINE_VARIABLE struct minimal_t {
@@ -2970,6 +2972,9 @@ namespace jkj {
                                                        detail::stdr::int_least32_t>::max(),
                                 detail::stdr::int_least32_t,
                                 typename FormatTraits::exponent_int>::type>::type>::type;
+
+                    template <class FormatTraits>
+                    using shift_amount_type = detail::stdr::int_least8_t;
                 } minimal;
             }
         }
@@ -3004,9 +3009,9 @@ namespace jkj {
             };
         };
 
-        template <>
+        template <class ExponentInt>
         struct multiplication_traits<
-            ieee754_binary_traits<ieee754_binary32, detail::stdr::uint_least32_t>,
+            ieee754_binary_traits<ieee754_binary32, detail::stdr::uint_least32_t, ExponentInt>,
             detail::stdr::uint_least64_t, 64>
             : public multiplication_traits_base<
                   ieee754_binary_traits<ieee754_binary32, detail::stdr::uint_least32_t>,
@@ -3017,52 +3022,53 @@ namespace jkj {
                 return {carrier_uint(r >> 32), carrier_uint(r) == 0};
             }
 
-            static constexpr detail::stdr::uint_least64_t
-            compute_delta(cache_entry_type const& cache, detail::stdr::uint_fast8_t beta) noexcept {
-                return detail::stdr::uint_least64_t(cache >>
-                                                    detail::stdr::uint_fast8_t(cache_bits - 1 - beta));
+            template <class ShiftAmountType>
+            static constexpr detail::stdr::uint_least64_t compute_delta(cache_entry_type const& cache,
+                                                                        ShiftAmountType beta) noexcept {
+                return detail::stdr::uint_least64_t(cache >> ShiftAmountType(cache_bits - 1 - beta));
             }
 
-            static JKJ_CONSTEXPR20 compute_mul_parity_result
-            compute_mul_parity(carrier_uint two_f, cache_entry_type const& cache,
-                               detail::stdr::uint_fast8_t beta) noexcept {
+            template <class ShiftAmountType>
+            static JKJ_CONSTEXPR20 compute_mul_parity_result compute_mul_parity(
+                carrier_uint two_f, cache_entry_type const& cache, ShiftAmountType beta) noexcept {
                 assert(beta >= 1);
                 assert(beta <= 32);
 
                 auto const r = detail::wuint::umul96_lower64(two_f, cache);
-                return {((r >> detail::stdr::uint_fast8_t(64 - beta)) & 1) != 0,
-                        (UINT32_C(0xffffffff) & (r >> detail::stdr::uint_fast8_t(32 - beta))) == 0};
+                return {((r >> ShiftAmountType(64 - beta)) & 1) != 0,
+                        (UINT32_C(0xffffffff) & (r >> ShiftAmountType(32 - beta))) == 0};
             }
 
+            template <class ShiftAmountType>
             static constexpr carrier_uint
             compute_left_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
-                                                            detail::stdr::uint_fast8_t beta) noexcept {
-                return carrier_uint(
-                    (cache - (cache >> (significand_bits + 2))) >>
-                    detail::stdr::uint_fast8_t(cache_bits - significand_bits - 1 - beta));
+                                                            ShiftAmountType beta) noexcept {
+                return carrier_uint((cache - (cache >> (significand_bits + 2))) >>
+                                    ShiftAmountType(cache_bits - significand_bits - 1 - beta));
             }
 
+            template <class ShiftAmountType>
             static constexpr carrier_uint
             compute_right_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
-                                                             detail::stdr::uint_fast8_t beta) noexcept {
-                return carrier_uint(
-                    (cache + (cache >> (significand_bits + 1))) >>
-                    detail::stdr::uint_fast8_t(cache_bits - significand_bits - 1 - beta));
+                                                             ShiftAmountType beta) noexcept {
+                return carrier_uint((cache + (cache >> (significand_bits + 1))) >>
+                                    ShiftAmountType(cache_bits - significand_bits - 1 - beta));
             }
 
+            template <class ShiftAmountType>
             static constexpr carrier_uint
             compute_round_up_for_shorter_interval_case(cache_entry_type const& cache,
-                                                       detail::stdr::uint_fast8_t beta) noexcept {
-                return (carrier_uint(cache >> detail::stdr::uint_fast8_t(cache_bits - significand_bits -
-                                                                         2 - beta)) +
+                                                       ShiftAmountType beta) noexcept {
+                return (carrier_uint(cache >>
+                                     ShiftAmountType(cache_bits - significand_bits - 2 - beta)) +
                         1) /
                        2;
             }
         };
 
-        template <>
+        template <class ExponentInt>
         struct multiplication_traits<
-            ieee754_binary_traits<ieee754_binary64, detail::stdr::uint_least64_t>,
+            ieee754_binary_traits<ieee754_binary64, detail::stdr::uint_least64_t, ExponentInt>,
             detail::wuint::uint128, 128>
             : public multiplication_traits_base<
                   ieee754_binary_traits<ieee754_binary64, detail::stdr::uint_least64_t>,
@@ -3073,43 +3079,46 @@ namespace jkj {
                 return {r.high(), r.low() == 0};
             }
 
-            static constexpr detail::stdr::uint_least64_t
-            compute_delta(cache_entry_type const& cache, detail::stdr::uint_fast8_t beta) noexcept {
+            template <class ShiftAmountType>
+            static constexpr detail::stdr::uint_least64_t compute_delta(cache_entry_type const& cache,
+                                                                        ShiftAmountType beta) noexcept {
                 return detail::stdr::uint_least64_t(cache.high() >>
-                                                    detail::stdr::uint_fast8_t(total_bits - 1 - beta));
+                                                    ShiftAmountType(total_bits - 1 - beta));
             }
 
-            static JKJ_CONSTEXPR20 compute_mul_parity_result
-            compute_mul_parity(carrier_uint two_f, cache_entry_type const& cache,
-                               detail::stdr::uint_fast8_t beta) noexcept {
+            template <class ShiftAmountType>
+            static JKJ_CONSTEXPR20 compute_mul_parity_result compute_mul_parity(
+                carrier_uint two_f, cache_entry_type const& cache, ShiftAmountType beta) noexcept {
                 assert(beta >= 1);
                 assert(beta < 64);
 
                 auto const r = detail::wuint::umul192_lower128(two_f, cache);
-                return {((r.high() >> detail::stdr::uint_fast8_t(64 - beta)) & 1) != 0,
+                return {((r.high() >> ShiftAmountType(64 - beta)) & 1) != 0,
                         (((r.high() << beta) & UINT64_C(0xffffffffffffffff)) |
-                         (r.low() >> detail::stdr::uint_fast8_t(64 - beta))) == 0};
+                         (r.low() >> ShiftAmountType(64 - beta))) == 0};
             }
 
+            template <class ShiftAmountType>
             static constexpr carrier_uint
             compute_left_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
-                                                            detail::stdr::uint_fast8_t beta) noexcept {
+                                                            ShiftAmountType beta) noexcept {
                 return (cache.high() - (cache.high() >> (significand_bits + 2))) >>
-                       detail::stdr::uint_fast8_t(total_bits - significand_bits - 1 - beta);
+                       ShiftAmountType(total_bits - significand_bits - 1 - beta);
             }
 
+            template <class ShiftAmountType>
             static constexpr carrier_uint
             compute_right_endpoint_for_shorter_interval_case(cache_entry_type const& cache,
-                                                             detail::stdr::uint_fast8_t beta) noexcept {
+                                                             ShiftAmountType beta) noexcept {
                 return (cache.high() + (cache.high() >> (significand_bits + 1))) >>
-                       detail::stdr::uint_fast8_t(total_bits - significand_bits - 1 - beta);
+                       ShiftAmountType(total_bits - significand_bits - 1 - beta);
             }
 
+            template <class ShiftAmountType>
             static constexpr carrier_uint
             compute_round_up_for_shorter_interval_case(cache_entry_type const& cache,
-                                                       detail::stdr::uint_fast8_t beta) noexcept {
-                return ((cache.high() >>
-                         detail::stdr::uint_fast8_t(total_bits - significand_bits - 2 - beta)) +
+                                                       ShiftAmountType beta) noexcept {
+                return ((cache.high() >> ShiftAmountType(total_bits - significand_bits - 2 - beta)) +
                         1) /
                        2;
             }
@@ -3203,6 +3212,8 @@ namespace jkj {
 
                     using remainder_type_ = remainder_type<PreferredIntegerTypesPolicy>;
                     using decimal_exponent_type_ = decimal_exponent_type<PreferredIntegerTypesPolicy>;
+                    using shift_amount_type =
+                        typename PreferredIntegerTypesPolicy::template shift_amount_type<FormatTraits>;
 
                     using multiplication_traits_ =
                         multiplication_traits<FormatTraits,
@@ -3256,13 +3267,14 @@ namespace jkj {
                                 min_exponent - format::significand_bits,
                                 max_exponent - format::significand_bits, decimal_exponent_type_>(
                                 binary_exponent);
-                            auto const beta = stdr::uint_fast8_t(
+                            auto const beta = shift_amount_type(
                                 binary_exponent +
                                 log::floor_log2_pow10<min_k, max_k>(decimal_exponent_type_(-minus_k)));
 
                             // Compute xi and zi.
-                            auto const cache = CachePolicy::template get_cache<format>(
-                                decimal_exponent_type_(-minus_k));
+                            auto const cache =
+                                CachePolicy::template get_cache<format, shift_amount_type>(
+                                    decimal_exponent_type_(-minus_k));
 
                             auto xi =
                                 multiplication_traits_::compute_left_endpoint_for_shorter_interval_case(
@@ -3341,11 +3353,11 @@ namespace jkj {
                                               max_exponent - format::significand_bits,
                                               decimal_exponent_type_>(binary_exponent) -
                         kappa);
-                    auto const cache =
-                        CachePolicy::template get_cache<format>(decimal_exponent_type_(-minus_k));
+                    auto const cache = CachePolicy::template get_cache<format, shift_amount_type>(
+                        decimal_exponent_type_(-minus_k));
                     auto const beta =
-                        stdr::uint_fast8_t(binary_exponent + log::floor_log2_pow10<min_k, max_k>(
-                                                                 decimal_exponent_type_(-minus_k)));
+                        shift_amount_type(binary_exponent + log::floor_log2_pow10<min_k, max_k>(
+                                                                decimal_exponent_type_(-minus_k)));
 
                     // Compute zi and deltai.
                     // 10^kappa <= deltai < 10^(kappa + 1)
@@ -3411,7 +3423,8 @@ namespace jkj {
                                 multiplication_traits_::compute_mul_parity(two_fc - 1, cache, beta);
 
                             if (!(x_result.parity |
-                                  (x_result.is_integer & interval_type.include_left_endpoint()))) {
+                                  stdr::uint_fast8_t(x_result.is_integer &
+                                                     interval_type.include_left_endpoint()))) {
                                 break;
                             }
                         }
@@ -3505,6 +3518,8 @@ namespace jkj {
 
                     using remainder_type_ = remainder_type<PreferredIntegerTypesPolicy>;
                     using decimal_exponent_type_ = decimal_exponent_type<PreferredIntegerTypesPolicy>;
+                    using shift_amount_type =
+                        typename PreferredIntegerTypesPolicy::template shift_amount_type<FormatTraits>;
 
                     using multiplication_traits_ =
                         multiplication_traits<FormatTraits,
@@ -3534,11 +3549,11 @@ namespace jkj {
                                               format::max_exponent - format::significand_bits,
                                               decimal_exponent_type_>(binary_exponent) -
                         kappa);
-                    auto const cache =
-                        CachePolicy::template get_cache<format>(decimal_exponent_type_(-minus_k));
+                    auto const cache = CachePolicy::template get_cache<format, shift_amount_type>(
+                        decimal_exponent_type_(-minus_k));
                     auto const beta =
-                        stdr::uint_fast8_t(binary_exponent + log::floor_log2_pow10<min_k, max_k>(
-                                                                 decimal_exponent_type_(-minus_k)));
+                        shift_amount_type(binary_exponent + log::floor_log2_pow10<min_k, max_k>(
+                                                                decimal_exponent_type_(-minus_k)));
 
                     // Compute xi and deltai.
                     // 10^kappa <= deltai < 10^(kappa + 1)
@@ -3643,6 +3658,8 @@ namespace jkj {
 
                     using remainder_type_ = remainder_type<PreferredIntegerTypesPolicy>;
                     using decimal_exponent_type_ = decimal_exponent_type<PreferredIntegerTypesPolicy>;
+                    using shift_amount_type =
+                        typename PreferredIntegerTypesPolicy::template shift_amount_type<FormatTraits>;
 
                     using multiplication_traits_ =
                         multiplication_traits<FormatTraits,
@@ -3677,16 +3694,16 @@ namespace jkj {
                                               decimal_exponent_type_>(binary_exponent -
                                                                       (shorter_interval ? 1 : 0)) -
                         kappa);
-                    auto const cache =
-                        CachePolicy::template get_cache<format>(decimal_exponent_type_(-minus_k));
-                    auto const beta = stdr::uint_fast8_t(
+                    auto const cache = CachePolicy::template get_cache<format, shift_amount_type>(
+                        decimal_exponent_type_(-minus_k));
+                    auto const beta = shift_amount_type(
                         binary_exponent + log::floor_log2_pow10(decimal_exponent_type_(-minus_k)));
 
                     // Compute zi and deltai.
                     // 10^kappa <= deltai < 10^(kappa + 1)
                     auto const deltai =
                         static_cast<remainder_type_>(multiplication_traits_::compute_delta(
-                            cache, stdr::uint_fast8_t(beta - shorter_interval ? 1 : 0)));
+                            cache, shift_amount_type(beta - shorter_interval ? 1 : 0)));
                     carrier_uint const zi =
                         multiplication_traits_::compute_mul(two_fc << beta, cache).integer_part;
 
