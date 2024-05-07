@@ -2122,9 +2122,9 @@ namespace jkj {
                     // Try to recover the real cache.
                     auto const pow5 =
                         offset >= 7
-                            ? detail::stdr::uint_least32_t(detail::stdr::uint_least32_t(pow5_table[6]) *
+                            ? detail::stdr::uint_fast32_t(detail::stdr::uint_fast32_t(pow5_table[6]) *
                                                            pow5_table[offset - 6])
-                            : detail::stdr::uint_least32_t(pow5_table[offset]);
+                            : detail::stdr::uint_fast32_t(pow5_table[offset]);
                     auto mul_result = detail::wuint::umul128(base_cache, pow5);
                     auto const recovered_cache =
                         cache_entry_type((((mul_result.high() << ShiftAmountType(64 - alpha)) |
