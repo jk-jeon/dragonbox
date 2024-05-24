@@ -3495,8 +3495,8 @@ namespace jkj {
                         // interval.
                         if (!interval_type.include_right_endpoint()) {
                             // Is r divisible by 10^kappa?
-                            if (z_result.is_integer &&
-                                div::check_divisibility_and_divide_by_pow10<kappa>(r)) {
+                            if (div::check_divisibility_and_divide_by_pow10<kappa>(r) &&
+				z_result.is_integer) {
                                 // This should be in the interval.
                                 decimal_significand += r - 1;
                             }
