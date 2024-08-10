@@ -3004,7 +3004,7 @@ namespace jkj {
                 significand = b ? r : significand;
 
                 r = detail::bits::rotr<64>(
-                    detail::stdr::uint_least64_t(significand * UINT32_C(14757395258967641293)), 1);
+                    detail::stdr::uint_least64_t(significand * UINT64_C(14757395258967641293)), 1);
                 b = r < UINT64_C(1844674407370955162);
                 s = s * 2 + b;
                 significand = b ? r : significand;
