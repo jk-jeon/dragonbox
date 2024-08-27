@@ -2,8 +2,8 @@
 
 This is a simplified implementation of the algorithm, that closely follows the
 one in `include/dragonbox/dragonbox.h`, but aims to be shorter overall, use less
-C++ template indirection, and offer slightly less flexibility for the benefit of
-simpliciy.
+C++ template indirection, and offer less flexibility and performance for the
+sake of simpliciy.
 
 Primary sacrifices over the implementation in `include/dragonbox/dragonbox.h`:
 
