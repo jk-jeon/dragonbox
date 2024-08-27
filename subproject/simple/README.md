@@ -13,7 +13,8 @@ Primary sacrifices over the implementation in `include/dragonbox/dragonbox.h`:
   implementation)
 - No support for fast digit-generation policy (always uses `compact`)
 - Assumes the existence of `if constexpr` (C++17)
-- Assumes `float` and `double` types are available and use IEEE-754
+- Assumes `float` and `double` types are available and use IEEE-754 32-bit and
+  64-bit representations, respectively
 - Generally assumes a modern standard compiler environment and C standard
   library
 
