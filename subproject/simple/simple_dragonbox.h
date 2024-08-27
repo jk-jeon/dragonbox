@@ -8,6 +8,7 @@
 #include <climits>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 
 namespace simple_dragonbox {
     namespace detail {
@@ -1229,8 +1230,11 @@ namespace simple_dragonbox {
             dont_care,
         };
 
-        static_assert(sizeof(float) == 4);
-        static_assert(sizeof(double) == 8);
+        template <class T, unsigned Size>
+        static constexpr bool valid_float = std::numeric_limits<T>::is_iec559 &&
+                                            std::numeric_limits<T>::radix == 2 && sizeof(T) == Size;
+        static_assert(valid_float<float, 4>, "simple_dragonbox: float may not be IEEE 754 binary32");
+        static_assert(valid_float<double, 8>, "simple_dragonbox: double may not be IEEE 754 binary64");
 
         constexpr void reverse(char* begin, char* end) {
             while (begin < --end) {
