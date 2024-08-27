@@ -71,7 +71,7 @@ namespace simple_dragonbox {
         uint64_t high;
         uint64_t low;
 
-        uint128& operator+=(uint64_t n) {
+        constexpr uint128& operator+=(uint64_t n) {
             auto const sum = (low + n) & UINT64_C(0xffffffffffffffff);
             high += (sum < low ? 1 : 0);
             low = sum;
