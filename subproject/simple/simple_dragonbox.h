@@ -4,12 +4,19 @@
 // Copyright 2024 Junekey Jeon, Toby Bell
 // TODO: License
 
-#include <assert.h>
-#include <limits.h>
-#include <stdint.h>
-#include <string.h>
+#include <cassert>
+#include <climits>
+#include <cstdint>
+#include <cstring>
 
 namespace simple_dragonbox {
+    using std::int16_t;
+    using std::int32_t;
+    using std::size_t;
+    using std::uint16_t;
+    using std::uint32_t;
+    using std::uint64_t;
+
     constexpr uint32_t rotr32(uint32_t n, unsigned r) {
         r &= 31;
         return (n >> r) | (n << ((32 - r) & 31));
@@ -1342,7 +1349,7 @@ namespace simple_dragonbox {
         constexpr impl(Float x) {
             carrier_uint bits;
             static_assert(sizeof(x) == sizeof(bits));
-            ::memcpy(&bits, &x, sizeof(x));
+            std::memcpy(&bits, &x, sizeof(x));
             significand = bits & ((carrier_uint(1) << format::significand_bits) - 1);
             exponent = bits >> format::significand_bits & ((1u << format::exponent_bits) - 1);
             sign = bits >> (format::significand_bits + format::exponent_bits);
@@ -1858,7 +1865,7 @@ namespace simple_dragonbox {
                     if (sign) {
                         *buffer++ = '-';
                     }
-                    ::memcpy(buffer, "Infinity", 8);
+                    std::memcpy(buffer, "Infinity", 8);
                     return buffer + 8;
                 }
                 else {
