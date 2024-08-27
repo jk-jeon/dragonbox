@@ -186,19 +186,17 @@ namespace simple_dragonbox {
         template <>
         struct float_format<float> {
             using carrier_uint = uint32_t;
-            enum {
-                total_bits = 32,
-                significand_bits = 23,
-                exponent_bits = 8,
-                min_exponent = -126,
-                max_exponent = 127,
-                exponent_bias = -127,
-                decimal_significand_digits = 9,
-                decimal_exponent_digits = 2,
-                cache_bits = 64,
-                min_k = -31,
-                max_k = 46,
-            };
+            static constexpr int total_bits = 32;
+            static constexpr int significand_bits = 23;
+            static constexpr int exponent_bits = 8;
+            static constexpr int min_exponent = -126;
+            static constexpr int max_exponent = 127;
+            static constexpr int exponent_bias = -127;
+            static constexpr int decimal_significand_digits = 9;
+            static constexpr int decimal_exponent_digits = 2;
+            static constexpr int cache_bits = 64;
+            static constexpr int min_k = -31;
+            static constexpr int max_k = 46;
 
             static void remove_trailing_zeros(uint32_t& significand, int& exponent) {
                 // See https://github.com/jk-jeon/rtz_benchmark.
@@ -283,19 +281,17 @@ namespace simple_dragonbox {
         template <>
         struct float_format<double> {
             using carrier_uint = uint64_t;
-            enum {
-                total_bits = 64,
-                significand_bits = 52,
-                exponent_bits = 11,
-                min_exponent = -1022,
-                max_exponent = 1023,
-                exponent_bias = -1023,
-                decimal_significand_digits = 17,
-                decimal_exponent_digits = 3,
-                cache_bits = 128,
-                min_k = -292,
-                max_k = 326,
-            };
+            static constexpr int total_bits = 64;
+            static constexpr int significand_bits = 52;
+            static constexpr int exponent_bits = 11;
+            static constexpr int min_exponent = -1022;
+            static constexpr int max_exponent = 1023;
+            static constexpr int exponent_bias = -1023;
+            static constexpr int decimal_significand_digits = 17;
+            static constexpr int decimal_exponent_digits = 3;
+            static constexpr int cache_bits = 128;
+            static constexpr int min_k = -292;
+            static constexpr int max_k = 326;
 
             static void remove_trailing_zeros(uint64_t& significand, int& exponent) {
                 // See https://github.com/jk-jeon/rtz_benchmark.
@@ -1050,14 +1046,13 @@ namespace simple_dragonbox {
         template <>
         struct cache_holder<float, cache_type::compact> {
             using format = float_format<float>;
-            enum {
-                cache_bits = format::cache_bits,
-                min_k = format::min_k,
-                max_k = format::max_k,
-                compression_ratio = 13,
-                compressed_table_size = (max_k - min_k + compression_ratio) / compression_ratio,
-                pow5_table_size = (compression_ratio + 1) / 2,
-            };
+            static constexpr int cache_bits = format::cache_bits;
+            static constexpr int min_k = format::min_k;
+            static constexpr int max_k = format::max_k;
+            static constexpr int compression_ratio = 13;
+            static constexpr int compressed_table_size =
+                (max_k - min_k + compression_ratio) / compression_ratio;
+            static constexpr int pow5_table_size = (compression_ratio + 1) / 2;
 
             uint64_t cache[compressed_table_size]{};
             uint16_t pow5_table[pow5_table_size]{};
@@ -1123,14 +1118,13 @@ namespace simple_dragonbox {
         template <>
         struct cache_holder<double, cache_type::compact> {
             using format = float_format<double>;
-            enum {
-                cache_bits = format::cache_bits,
-                min_k = format::min_k,
-                max_k = format::max_k,
-                compression_ratio = 27,
-                compressed_table_size = (max_k - min_k + compression_ratio) / compression_ratio,
-                pow5_table_size = compression_ratio,
-            };
+            static constexpr int cache_bits = format::cache_bits;
+            static constexpr int min_k = format::min_k;
+            static constexpr int max_k = format::max_k;
+            static constexpr int compression_ratio = 27;
+            static constexpr int compressed_table_size =
+                (max_k - min_k + compression_ratio) / compression_ratio;
+            static constexpr int pow5_table_size = compression_ratio;
 
             uint128 cache[compressed_table_size]{};
             uint64_t pow5_table[pow5_table_size]{};
@@ -1256,50 +1250,49 @@ namespace simple_dragonbox {
             static constexpr int min(int x, int y) { return x < y ? x : y; }
             static constexpr int max(int x, int y) { return x > y ? x : y; }
 
-            enum {
-                min_exponent = format::min_exponent,
-                max_exponent = format::max_exponent,
-                significand_bits = format::significand_bits,
-                carrier_bits = 8 * sizeof(carrier_uint),
-                kappa = floor_log10_pow2(carrier_bits - significand_bits - 2) - 1,
+            static constexpr int min_exponent = format::min_exponent;
+            static constexpr int max_exponent = format::max_exponent;
+            static constexpr int significand_bits = format::significand_bits;
+            static constexpr int carrier_bits = 8 * sizeof(carrier_uint);
+            static constexpr int kappa = floor_log10_pow2(carrier_bits - significand_bits - 2) - 1;
 
-                min_k = min(-floor_log10_pow2_minus_log10_4_over_3(max_exponent - significand_bits),
-                            -floor_log10_pow2(max_exponent - significand_bits) + kappa),
+            static constexpr int min_k =
+                min(-floor_log10_pow2_minus_log10_4_over_3(max_exponent - significand_bits),
+                    -floor_log10_pow2(max_exponent - significand_bits) + kappa);
 
-                // We do invoke shorter_interval_case for exponent == min_exponent case,
-                // so we should not add 1 here.
-                max_k =
-                    max(-floor_log10_pow2_minus_log10_4_over_3(min_exponent - significand_bits /*+ 1*/),
-                        -floor_log10_pow2(min_exponent - significand_bits) + kappa),
+            // We do invoke shorter_interval_case for exponent == min_exponent case;
+            // so we should not add 1 here.
+            static constexpr int max_k =
+                max(-floor_log10_pow2_minus_log10_4_over_3(min_exponent - significand_bits /*+ 1*/),
+                    -floor_log10_pow2(min_exponent - significand_bits) + kappa);
 
-                case_shorter_interval_left_endpoint_lower_threshold = 2,
+            static constexpr int case_shorter_interval_left_endpoint_lower_threshold = 2;
 
-                case_shorter_interval_left_endpoint_upper_threshold =
-                    2 +
-                    floor_log2(
-                        compute_power<
-                            count_factors<5>((carrier_uint(1) << (significand_bits + 2)) - 1) + 1>(10) /
-                        3),
+            static constexpr int case_shorter_interval_left_endpoint_upper_threshold =
+                2 +
+                floor_log2(
+                    compute_power<count_factors<5>((carrier_uint(1) << (significand_bits + 2)) - 1) +
+                                  1>(10) /
+                    3);
 
-                case_shorter_interval_right_endpoint_lower_threshold = 0,
+            static constexpr int case_shorter_interval_right_endpoint_lower_threshold = 0;
 
-                case_shorter_interval_right_endpoint_upper_threshold =
-                    2 +
-                    floor_log2(
-                        compute_power<
-                            count_factors<5>((carrier_uint(1) << (significand_bits + 1)) + 1) + 1>(10) /
-                        3),
+            static constexpr int case_shorter_interval_right_endpoint_upper_threshold =
+                2 +
+                floor_log2(
+                    compute_power<count_factors<5>((carrier_uint(1) << (significand_bits + 1)) + 1) +
+                                  1>(10) /
+                    3);
 
-                shorter_interval_tie_lower_threshold =
-                    -floor_log5_pow2_minus_log5_3(significand_bits + 4) - 2 - significand_bits,
+            static constexpr int shorter_interval_tie_lower_threshold =
+                -floor_log5_pow2_minus_log5_3(significand_bits + 4) - 2 - significand_bits;
 
-                shorter_interval_tie_upper_threshold =
-                    -floor_log5_pow2(significand_bits + 2) - 2 - significand_bits,
+            static constexpr int shorter_interval_tie_upper_threshold =
+                -floor_log5_pow2(significand_bits + 2) - 2 - significand_bits;
 
-                // sign + significand + decimal_point + exp_marker + exp_sign + exp
-                max_output_string_length =
-                    4 + format::decimal_significand_digits + format::decimal_exponent_digits,
-            };
+            // sign + significand + decimal_point + exp_marker + exp_sign + exp
+            static constexpr int max_output_string_length =
+                4 + format::decimal_significand_digits + format::decimal_exponent_digits;
 
             static_assert(kappa >= 1);
             static_assert(carrier_bits >= significand_bits + 2 + floor_log2_pow10(kappa + 1));
