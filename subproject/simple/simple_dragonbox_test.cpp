@@ -44,7 +44,7 @@ static bool test_simple_dragonbox(bool& success, Arg... arg) {
 
     std::cout << "test all shorter interval cases, type=" << type_name << " compact_cache=" << compact << " ... \n";
 
-    using format = simple_dragonbox::float_format<Float>;
+    using format = simple_dragonbox::detail::float_format<Float>;
     using carrier_uint = typename format::carrier_uint;
 
     for (int e = format::min_exponent; e <= format::max_exponent; ++e) {

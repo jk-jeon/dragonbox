@@ -104,8 +104,8 @@ include:
 # Internal direct API
 
 Internally, `simple_dragonbox` uses a more explicit, direct interface to express
-the various policies, via a class called `simple_dragonbox::impl`. The `impl`
-class has four template parameters: `Float`, `BinaryRoundMode`,
+the various policies, via a class called `simple_dragonbox::detail::impl`. The
+`impl` class has four template parameters: `Float`, `BinaryRoundMode`,
 `DecimalRoundMode`, and `CacheType`, which correspond to the floating point
 type and three categories of policies above. These template parameters can be
 specified explicitly to instantiate a particular variant of the algorithm. The
@@ -116,10 +116,11 @@ performing the desired conversions.
 For example,
 
 ```cpp
-using impl = simple_dragonbox::impl<double,
-                                    simple_dragonbox::binary_round_mode::toward_zero,
-                                    simple_dragonbox::decimal_round_mode::toward_zero,
-                                    simple_dragonbox::cache_type::compact>;
+namespace detail = simple_dragonbox::detail;
+using impl = detail::impl<double,
+                          detail::binary_round_mode::toward_zero,
+                          detail::decimal_round_mode::toward_zero,
+                          detail::cache_type::compact>;
 
 char buffer[32];
 auto x = impl(3.14);
