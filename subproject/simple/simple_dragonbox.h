@@ -1,4 +1,5 @@
-#pragma once
+#ifndef JKJ_HEADER_SIMPLE_DRAGONBOX
+#define JKJ_HEADER_SIMPLE_DRAGONBOX
 
 // Copyright 2024 Junekey Jeon, Toby Bell
 // TODO: License
@@ -1994,3 +1995,5 @@ namespace simple_dragonbox {
     template <class Float>
     constexpr size_t max_output_string_length = impl<Float>::max_output_string_length;
 }
+
+#endif
