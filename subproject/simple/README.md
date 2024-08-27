@@ -5,18 +5,18 @@ one in `include/dragonbox/dragonbox.h`, but aims to be shorter overall, use less
 C++ template indirection, and offer less flexibility and performance for the
 sake of simpliciy.
 
-Primary sacrifices over the implementation in `include/dragonbox/dragonbox.h`:
+Simplifications over the implementation in `include/dragonbox/dragonbox.h` are
+made based primarily on the following assumptions:
 
-- No support for `sign` policies (always uses `return_sign`)
-- No support for `trailing_zeros` policies (always uses `remove`)
-- No support for 128-bit compiler intrinsics (always uses portable
-  implementation)
-- No support for fast digit-generation policy (always uses `compact`)
-- Assumes the existence of `if constexpr` (C++17)
-- Assumes `float` and `double` types are available and use IEEE-754 32-bit and
-  64-bit representations, respectively
-- Generally assumes a modern standard compiler environment and C standard
-  library
+- No need to support `sign` policies (always uses `return_sign`).
+- No need to support `trailing_zeros` policies (always uses `remove`).
+- No need to support 128-bit compiler intrinsics (always uses portable
+  implementation).
+- No need to support the `fast` digit-generation policy (always uses `compact`).
+- `if constexpr` is available (C++17).
+- `float` and `double` use IEEE-754 32-bit and 64-bit representations,
+  respectively.
+- A modern compiler and standard library are available.
 
 Note the `cache`, `binary_to_decimal_rounding`, and `decimal_to_binary_rounding`
 policies are still supported.
