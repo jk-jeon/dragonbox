@@ -340,19 +340,19 @@ namespace jkj {
                     UINT64_C(0xe596b7b0c643c71a), UINT64_C(0x8f7e32ce7bea5c70),
                     UINT64_C(0xb35dbf821ae4f38c), UINT64_C(0xe0352f62a19e306f)};
 
-                template <cache_type>
+                template <cache_type, class Dummy = void>
                 struct cache_holder;
 
-                template <>
-                struct cache_holder<cache_type::full> {
+                template <class Dummy>
+                struct cache_holder<cache_type::full, Dummy> {
                     uint64_t get_cache(int k) const {
                         assert(k >= min_k && k <= max_k);
                         return cache[k - min_k];
                     }
                 };
 
-                template <>
-                struct cache_holder<cache_type::compact> {
+                template <class Dummy>
+                struct cache_holder<cache_type::compact, Dummy> {
                     static constexpr int compression_ratio = 13;
                     static constexpr int compressed_table_size =
                         (max_k - min_k + compression_ratio) / compression_ratio;
@@ -1132,19 +1132,19 @@ namespace jkj {
                     {UINT64_C(0xc5a05277621be293), UINT64_C(0xc7098b7305241886)},
                     {UINT64_C(0xf70867153aa2db38), UINT64_C(0xb8cbee4fc66d1ea8)}};
 
-                template <cache_type>
+                template <cache_type, class Dummy = void>
                 struct cache_holder;
 
-                template <>
-                struct cache_holder<cache_type::full> {
+                template <class Dummy>
+                struct cache_holder<cache_type::full, Dummy> {
                     constexpr uint128 get_cache(int k) const {
                         assert(k >= min_k && k <= max_k);
                         return cache[k - min_k];
                     }
                 };
 
-                template <>
-                struct cache_holder<cache_type::compact> {
+                template <class Dummy>
+                struct cache_holder<cache_type::compact, Dummy> {
                     static constexpr int compression_ratio = 27;
                     static constexpr int compressed_table_size =
                         (max_k - min_k + compression_ratio) / compression_ratio;
