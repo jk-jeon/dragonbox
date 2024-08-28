@@ -1,9 +1,12 @@
-add_library(simple_dragonbox INTERFACE simple_dragonbox.h)
-target_compile_features(simple_dragonbox INTERFACE cxx_std_17)
+cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
-add_executable(simple_dragonbox_test simple_dragonbox_test.cpp)
-target_link_libraries(simple_dragonbox_test PRIVATE
-    simple_dragonbox
-    dragonbox::common
-    ryu::ryu
-)
+project(dragonbox_simple LANGUAGES CXX)
+
+add_library(dragonbox_simple INTERFACE include/simple_dragonbox.h)
+add_library(dragonbox::simple ALIAS dragonbox_simple)
+
+target_include_directories(dragonbox_simple
+        INTERFACE
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
+
+target_compile_features(dragonbox_simple INTERFACE cxx_std_17)
