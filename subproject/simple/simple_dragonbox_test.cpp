@@ -54,7 +54,7 @@ static bool test_simple_dragonbox(bool& success, Arg... arg) {
 
         Float x;
         static_assert(sizeof(br) == sizeof(x));
-        ::memcpy(&x, &br, sizeof(br));
+        std::memcpy(&x, &br, sizeof(br));
 
         simple_dragonbox::to_chars(x, buffer1, arg...);
         reference_implementation(x, buffer2);
