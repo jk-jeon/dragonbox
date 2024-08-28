@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.19 FATAL_ERROR)
 
 project(dragonbox
         VERSION 1.1.3
@@ -19,10 +19,10 @@ endif()
 
 # ---- Declare library (dragonbox) ----
 
-add_library(dragonbox INTERFACE)
-add_library(dragonbox::dragonbox ALIAS dragonbox)
-
 set(dragonbox_headers include/dragonbox/dragonbox.h)
+
+add_library(dragonbox INTERFACE ${dragonbox_headers})
+add_library(dragonbox::dragonbox ALIAS dragonbox)
 
 target_include_directories(dragonbox
         ${dragonbox_warning_guard}
@@ -33,9 +33,7 @@ target_compile_features(dragonbox INTERFACE cxx_std_17)
 
 # ---- Declare library (dragonbox_to_chars) ----
 
-set(dragonbox_to_chars_headers
-        ${dragonbox_headers}
-        include/dragonbox/dragonbox_to_chars.h)
+set(dragonbox_to_chars_headers include/dragonbox/dragonbox_to_chars.h)
 
 set(dragonbox_to_chars_sources source/dragonbox_to_chars.cpp)
 
@@ -48,6 +46,8 @@ target_include_directories(dragonbox_to_chars
         ${dragonbox_warning_guard}
         PUBLIC
         "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>")
+
+target_link_libraries(dragonbox_to_chars PUBLIC dragonbox)
 
 target_compile_features(dragonbox_to_chars PUBLIC cxx_std_17)
 
