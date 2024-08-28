@@ -201,7 +201,7 @@ namespace simple_dragonbox {
             static constexpr int min_k = -31;
             static constexpr int max_k = 46;
 
-            static void remove_trailing_zeros(uint32_t& significand, int& exponent) {
+            static constexpr void remove_trailing_zeros(uint32_t& significand, int& exponent) {
                 // See https://github.com/jk-jeon/rtz_benchmark.
                 // The idea of branchless search below is by reddit users r/pigeon768 and
                 // r/TheoreticalDumbass.
@@ -224,17 +224,17 @@ namespace simple_dragonbox {
                 exponent += s;
             }
 
-            static compute_mul_result<uint32_t> compute_mul(uint32_t u, uint64_t cache) {
+            static constexpr compute_mul_result<uint32_t> compute_mul(uint32_t u, uint64_t cache) {
                 auto const r = umul96_upper64(u, cache);
                 return {uint32_t(r >> 32), uint32_t(r) == 0};
             }
 
-            static uint32_t compute_delta(uint64_t cache, int beta) {
+            static constexpr uint32_t compute_delta(uint64_t cache, int beta) {
                 return uint32_t(cache >> (cache_bits - 1 - beta));
             }
 
-            static compute_mul_parity_result compute_mul_parity(uint32_t two_f, uint64_t cache,
-                                                                int beta) {
+            static constexpr compute_mul_parity_result compute_mul_parity(uint32_t two_f, uint64_t cache,
+                                                                          int beta) {
                 assert(beta >= 1);
                 assert(beta <= 32);
                 auto const r = umul96_lower64(two_f, cache);
@@ -242,22 +242,22 @@ namespace simple_dragonbox {
                         (UINT32_C(0xffffffff) & (r >> (32 - beta))) == 0};
             }
 
-            static uint32_t compute_left_endpoint_for_shorter_interval_case(uint64_t cache, int beta) {
+            static constexpr uint32_t compute_left_endpoint_for_shorter_interval_case(uint64_t cache, int beta) {
                 return (cache - (cache >> (significand_bits + 2))) >>
                        (cache_bits - significand_bits - 1 - beta);
             }
 
-            static uint32_t compute_right_endpoint_for_shorter_interval_case(uint64_t cache, int beta) {
+            static constexpr uint32_t compute_right_endpoint_for_shorter_interval_case(uint64_t cache, int beta) {
                 return (cache + (cache >> (significand_bits + 1))) >>
                        (cache_bits - significand_bits - 1 - beta);
             }
 
-            static uint32_t compute_round_up_for_shorter_interval_case(uint64_t cache, int beta) {
+            static constexpr uint32_t compute_round_up_for_shorter_interval_case(uint64_t cache, int beta) {
                 return (uint32_t(cache >> (cache_bits - significand_bits - 2 - beta)) + 1) / 2;
             }
 
             template <int N, uint32_t n_max>
-            static uint32_t divide_by_pow10(uint32_t n) {
+            static constexpr uint32_t divide_by_pow10(uint32_t n) {
                 static_assert(N >= 0, "");
 
                 // Specialize for 32-bit division by 10.
@@ -353,7 +353,7 @@ namespace simple_dragonbox {
                     }
                 }
 
-                uint64_t get_cache(int k) const {
+                constexpr uint64_t get_cache(int k) const {
                     assert(k >= min_k && k <= max_k);
 
                     // Compute the base index.
@@ -406,7 +406,7 @@ namespace simple_dragonbox {
             static constexpr int min_k = -292;
             static constexpr int max_k = 326;
 
-            static void remove_trailing_zeros(uint64_t& significand, int& exponent) {
+            static constexpr void remove_trailing_zeros(uint64_t& significand, int& exponent) {
                 // See https://github.com/jk-jeon/rtz_benchmark.
                 // The idea of branchless search below is by reddit users r/pigeon768 and
                 // r/TheoreticalDumbass.
@@ -434,17 +434,17 @@ namespace simple_dragonbox {
                 exponent += s;
             }
 
-            static compute_mul_result<uint64_t> compute_mul(uint64_t u, uint128 cache) {
+            static constexpr compute_mul_result<uint64_t> compute_mul(uint64_t u, uint128 cache) {
                 auto const r = umul192_upper128(u, cache);
                 return {r.high, r.low == 0};
             }
 
-            static uint64_t compute_delta(uint128 cache, int beta) {
+            static constexpr uint64_t compute_delta(uint128 cache, int beta) {
                 return cache.high >> (total_bits - 1 - beta);
             }
 
-            static compute_mul_parity_result compute_mul_parity(uint64_t two_f, uint128 cache,
-                                                                int beta) {
+            static constexpr compute_mul_parity_result compute_mul_parity(uint64_t two_f, uint128 cache,
+                                                                          int beta) {
                 assert(beta >= 1);
                 assert(beta < 64);
                 auto const r = umul192_lower128(two_f, cache);
@@ -453,22 +453,22 @@ namespace simple_dragonbox {
                             0};
             }
 
-            static uint64_t compute_left_endpoint_for_shorter_interval_case(uint128 cache, int beta) {
+            static constexpr uint64_t compute_left_endpoint_for_shorter_interval_case(uint128 cache, int beta) {
                 return (cache.high - (cache.high >> (significand_bits + 2))) >>
                        (total_bits - significand_bits - 1 - beta);
             }
 
-            static uint64_t compute_right_endpoint_for_shorter_interval_case(uint128 cache, int beta) {
+            static constexpr uint64_t compute_right_endpoint_for_shorter_interval_case(uint128 cache, int beta) {
                 return (cache.high + (cache.high >> (significand_bits + 1))) >>
                        (total_bits - significand_bits - 1 - beta);
             }
 
-            static uint64_t compute_round_up_for_shorter_interval_case(uint128 cache, int beta) {
+            static constexpr uint64_t compute_round_up_for_shorter_interval_case(uint128 cache, int beta) {
                 return ((cache.high >> (total_bits - significand_bits - 2 - beta)) + 1) / 2;
             }
 
             template <int N, uint64_t n_max>
-            static uint64_t divide_by_pow10(uint64_t n) {
+            static constexpr uint64_t divide_by_pow10(uint64_t n) {
                 static_assert(N >= 0, "");
 
                 // Specialize for 64-bit division by 10.
@@ -1114,7 +1114,7 @@ namespace simple_dragonbox {
 
             template <>
             struct cache_holder<cache_type::full> {
-                uint128 get_cache(int k) const {
+                constexpr uint128 get_cache(int k) const {
                     assert(k >= min_k && k <= max_k);
                     return cache[k - min_k];
                 }
@@ -1141,7 +1141,7 @@ namespace simple_dragonbox {
                     }
                 }
 
-                uint128 get_cache(int k) const {
+                constexpr uint128 get_cache(int k) const {
                     assert(k >= min_k && k <= max_k);
 
                     // Compute the base index.
@@ -1306,7 +1306,7 @@ namespace simple_dragonbox {
             static constexpr typename format::template cache_holder<CacheType> cache_;
 
             template <int N>
-            static bool check_divisibility_and_divide_by_pow10(carrier_uint& n) {
+            static constexpr bool check_divisibility_and_divide_by_pow10(carrier_uint& n) {
                 // Make sure the computation for max_n does not overflow.
                 static_assert(N + 1 <= floor_log10_pow2(carrier_bits), "");
                 assert(n <= compute_power<N + 1>(carrier_uint(10)));
@@ -1324,14 +1324,14 @@ namespace simple_dragonbox {
             // Compute floor(n / 10^N) for small n and N.
             // Precondition: n <= 10^(N+1)
             template <int N>
-            static carrier_uint small_division_by_pow10(carrier_uint n) {
+            static constexpr carrier_uint small_division_by_pow10(carrier_uint n) {
                 // Make sure the computation for max_n does not overflow.
                 static_assert(N + 1 <= floor_log10_pow2(carrier_bits), "");
                 assert(n <= compute_power<N + 1>(carrier_uint(10)));
                 return carrier_uint((n * divide_magic_number[N - 1]) >> 16);
             }
 
-            static bool prefer_round_down(carrier_uint decimal_significand) {
+            static constexpr bool prefer_round_down(carrier_uint decimal_significand) {
                 using e = decimal_round_mode;
                 switch (DecimalRoundMode) {
                 case e::dont_care:
@@ -1351,7 +1351,7 @@ namespace simple_dragonbox {
             int exponent;
             bool sign;
 
-            constexpr impl(Float x) {
+            constexpr constexpr impl(Float x) {
                 carrier_uint bits;
                 static_assert(sizeof(x) == sizeof(bits));
                 std::memcpy(&bits, &x, sizeof(x));
@@ -1360,7 +1360,7 @@ namespace simple_dragonbox {
                 sign = bits >> (format::significand_bits + format::exponent_bits);
             }
 
-            bool is_finite() const { return exponent != (1u << format::exponent_bits) - 1; }
+            constexpr bool is_finite() const { return exponent != (1u << format::exponent_bits) - 1; }
 
             struct decimal_result {
                 carrier_uint significand;
@@ -1368,7 +1368,7 @@ namespace simple_dragonbox {
                 bool sign;
             };
 
-            decimal_result to_decimal() {
+            constexpr decimal_result to_decimal() {
                 assert(is_finite() && (significand || exponent));
                 bool even = significand % 2 == 0;
                 using e = binary_round_mode;
@@ -1404,41 +1404,40 @@ namespace simple_dragonbox {
                 }
             }
 
-            auto nearest_to_even() {
+            constexpr auto nearest_to_even() {
                 bool even = significand % 2 == 0;
                 return nearest({even, even}, {true, true});
             }
 
-            auto nearest_to_odd() {
+            constexpr auto nearest_to_odd() {
                 bool even = significand % 2 == 0;
                 return nearest({!even, even}, {false, false});
             }
 
-            auto nearest_toward_plus_infinity() { return nearest({!sign, sign}, {!sign, sign}); }
+            constexpr auto nearest_toward_plus_infinity() { return nearest({!sign, sign}, {!sign, sign}); }
 
-            auto nearest_toward_minus_infinity() { return nearest({sign, !sign}, {sign, !sign}); }
+            constexpr auto nearest_toward_minus_infinity() { return nearest({sign, !sign}, {sign, !sign}); }
 
-            auto nearest_toward_zero() { return nearest({false, true}, {false, true}); }
+            constexpr auto nearest_toward_zero() { return nearest({false, true}, {false, true}); }
 
-            auto nearest_away_from_zero() { return nearest({true, false}, {true, false}); }
+            constexpr auto nearest_away_from_zero() { return nearest({true, false}, {true, false}); }
 
-            auto nearest_always_closed() { return nearest({true, true}, {true, true}); }
+            constexpr auto nearest_always_closed() { return nearest({true, true}, {true, true}); }
 
-            auto nearest_always_open() { return nearest({false, false}, {false, false}); }
+            constexpr auto nearest_always_open() { return nearest({false, false}, {false, false}); }
 
-            decimal_result no_trailing_zeros(carrier_uint significand, int exponent) {
+            constexpr decimal_result no_trailing_zeros(carrier_uint significand, int exponent) {
                 return {significand, exponent, sign};
             }
 
-            decimal_result may_have_trailing_zeros(carrier_uint significand, int exponent) {
+            constexpr decimal_result may_have_trailing_zeros(carrier_uint significand, int exponent) {
                 format::remove_trailing_zeros(significand, exponent);
                 return {significand, exponent, sign};
             }
 
             //// The main algorithm assumes the input is a normal/subnormal finite number.
 
-            auto nearest(interval normal_interval, interval shorter_interval) {
-
+            constexpr auto nearest(interval normal_interval, interval shorter_interval) {
                 carrier_uint two_fc = significand * 2;
                 auto binary_exponent = exponent;
 
@@ -1674,8 +1673,7 @@ namespace simple_dragonbox {
                 return no_trailing_zeros(decimal_significand, minus_k + kappa);
             }
 
-            auto left_closed_directed() {
-
+            constexpr auto left_closed_directed() {
                 carrier_uint two_fc = significand * 2;
                 auto binary_exponent = exponent;
 
@@ -1780,8 +1778,7 @@ namespace simple_dragonbox {
                 return no_trailing_zeros(decimal_significand, minus_k + kappa);
             }
 
-            auto right_closed_directed() {
-
+            constexpr auto right_closed_directed() {
                 carrier_uint two_fc = significand * 2;
                 auto binary_exponent = exponent;
                 bool shorter_interval = false;
@@ -1855,17 +1852,17 @@ namespace simple_dragonbox {
                 return no_trailing_zeros(decimal_significand, minus_k + kappa);
             }
 
-            static bool is_right_endpoint_integer_shorter_interval(int binary_exponent) {
+            static constexpr bool is_right_endpoint_integer_shorter_interval(int binary_exponent) {
                 return binary_exponent >= case_shorter_interval_right_endpoint_lower_threshold &&
                        binary_exponent <= case_shorter_interval_right_endpoint_upper_threshold;
             }
 
-            static bool is_left_endpoint_integer_shorter_interval(int binary_exponent) {
+            static constexpr bool is_left_endpoint_integer_shorter_interval(int binary_exponent) {
                 return binary_exponent >= case_shorter_interval_left_endpoint_lower_threshold &&
                        binary_exponent <= case_shorter_interval_left_endpoint_upper_threshold;
             }
 
-            char* to_chars(char* buffer) {
+            constexpr char* to_chars(char* buffer) {
                 if (!is_finite()) {
                     if (!significand) {
                         if (sign) {
