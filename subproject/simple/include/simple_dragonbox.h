@@ -1328,7 +1328,7 @@ namespace jkj {
                 static_assert(carrier_bits >= significand_bits + 2 + floor_log2_pow10(kappa + 1));
                 static_assert(min_k >= format::min_k && max_k <= format::max_k);
 
-                static constexpr typename format::template cache_holder<CacheType> cache_;
+                static constexpr typename format::template cache_holder<CacheType> cache_{};
 
                 template <int N>
                 static constexpr bool check_divisibility_and_divide_by_pow10(carrier_uint& n) {
