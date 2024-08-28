@@ -30,13 +30,3 @@ target_include_directories(dragonbox_common
 target_compile_features(dragonbox_common PUBLIC cxx_std_17)
 
 target_link_libraries(dragonbox_common PUBLIC dragonbox::dragonbox)
-
-# ---- MSVC Specifics ----
-if (MSVC)
-    # No need to not generate PDB
-    # /permissive- should be the default
-    # The compilation will fail without /experimental:newLambdaProcessor
-    target_compile_options(dragonbox_common PUBLIC
-              /Zi /permissive-
-              $<$<NOT:$<CXX_COMPILER_ID:Clang>>:/experimental:newLambdaProcessor>)
-endif()

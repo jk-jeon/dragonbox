@@ -108,17 +108,3 @@ if (DRAGONBOX_ENABLE_SUBPROJECT)
     add_subdirectory("subproject/test")
     add_subdirectory("subproject/simple")
 endif()
-
-# ---- MSVC Specifics ----
-if (MSVC)
-    # No need to not generate PDB
-    # /permissive- should be the default
-    # The compilation will fail without /experimental:newLambdaProcessor
-    target_compile_options(dragonbox INTERFACE
-              /Zi /permissive-
-              $<$<NOT:$<CXX_COMPILER_ID:Clang>>:/experimental:newLambdaProcessor>)
-    target_compile_options(dragonbox_to_chars PUBLIC
-              /Zi /permissive-
-              $<$<NOT:$<CXX_COMPILER_ID:Clang>>:/experimental:newLambdaProcessor>
-              $<$<CONFIG:Release>:/GL>)
-endif()
