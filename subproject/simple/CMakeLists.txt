@@ -1,10 +1,14 @@
-cmake_minimum_required(VERSION 3.19 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 project(dragonbox_simple LANGUAGES CXX)
 
 set(dragonbox_simple_headers include/simple_dragonbox.h)
 
-add_library(dragonbox_simple INTERFACE ${dragonbox_simple_headers})
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.19.0")
+	add_library(dragonbox_simple INTERFACE ${dragonbox_simple_headers})
+else()
+	add_library(dragonbox_simple INTERFACE)
+endif()
 add_library(dragonbox::simple ALIAS dragonbox_simple)
 
 target_include_directories(dragonbox_simple
