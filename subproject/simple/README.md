@@ -3,7 +3,7 @@
 This is a simplified implementation of the algorithm, that closely follows the
 one in `include/dragonbox/dragonbox.h`, but aims to be shorter overall, use less
 C++ template indirection, and offer less flexibility and performance for the
-sake of simpliciy.
+sake of simplicity.
 
 Simplifications over the implementation in `include/dragonbox/dragonbox.h` are
 made based primarily on the following assumptions:
@@ -14,7 +14,7 @@ made based primarily on the following assumptions:
   implementation).
 - No need to support the `fast` digit-generation policy (always uses `compact`).
 - `if constexpr` is available (C++17).
-- `float` and `double` use IEEE-754 32-bit and 64-bit representations,
+- `float` and `double` use [IEEE-754 binary32](https://en.wikipedia.org/wiki/Single-precision_floating-point_format) and [IEEE-754 binary64](https://en.wikipedia.org/wiki/Double-precision_floating-point_format) representations,
   respectively.
 - A modern compiler and standard library are available.
 
