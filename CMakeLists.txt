@@ -106,6 +106,7 @@ if (DRAGONBOX_ENABLE_SUBPROJECT)
     add_subdirectory("subproject/benchmark")
     add_subdirectory("subproject/meta")
     add_subdirectory("subproject/test")
+    add_subdirectory("subproject/simple")
 endif()
 
 # ---- MSVC Specifics ----
