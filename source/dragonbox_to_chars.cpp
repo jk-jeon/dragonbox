@@ -522,12 +522,10 @@ namespace jkj {
                 if (exponent >= 100) {
                     // d1 = exponent / 10; d2 = exponent % 10;
                     // 6554 = ceil(2^16 / 10)
-                    auto prod = stdr::uint_least32_t(exponent) * UINT32_C(6554);
-                    auto d1 = int(prod >> 16);
-                    prod = (prod & UINT16_C(0xffff)) * 5; // * 10
-                    auto d2 = int(prod >> 15);            // >> 16
-                    print_2_digits(d1, buffer);
-                    print_1_digit(d2, buffer + 2);
+                    auto d1 = (std::uint_least32_t(exponent) * UINT32_C(6554)) >> 16;
+                    auto d2 = std::uint_least32_t(exponent) - UINT32_C(10) * d1;
+                    print_2_digits(int(d1), buffer);
+                    print_1_digit(int(d2), buffer + 2);
                     buffer += 3;
                 }
                 else if (exponent >= 10) {
