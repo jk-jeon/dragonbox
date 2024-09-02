@@ -350,7 +350,7 @@ namespace jkj {
                 make_float_bits<Float, ConversionTraits, FormatTraits>(x), buffer);
         }
 
-        // Null-terminate and bypass the return value of fp_to_chars_n
+        // Null-terminate and bypass the return value of to_chars_n
         template <class Float,
                   class ConversionTraits = default_float_bit_carrier_conversion_traits<Float>,
                   class FormatTraits = ieee754_binary_traits<typename ConversionTraits::format,
