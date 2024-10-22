@@ -29,7 +29,7 @@
 #endif
 
 // To use the library with toolchains without standard C++ headers, the users may define this macro
-// into their custom namespace which contains the defintions of all the standard C++ library
+// into their custom namespace which contains the definitions of all the standard C++ library
 // features used in this header. (The list can be found below.)
 #ifndef JKJ_STD_REPLACEMENT_NAMESPACE
     #define JKJ_STD_REPLACEMENT_NAMESPACE std
