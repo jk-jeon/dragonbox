@@ -2098,9 +2098,10 @@ namespace jkj {
             static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept {
                 // Compute the base index.
                 // Supposed to compute (k - min_k) / compression_ratio.
+                // Parentheses around min/max are to prevent macro expansions (e.g. in Windows.h).
                 static_assert(max_k - min_k <= 89 && compression_ratio == 13, "");
-                static_assert(max_k - min_k <= detail::stdr::numeric_limits<DecimalExponentType>::max(),
-                              "");
+                static_assert(
+                    max_k - min_k <= (detail::stdr::numeric_limits<DecimalExponentType>::max)(), "");
                 auto const cache_index =
                     DecimalExponentType(detail::stdr::uint_fast16_t(DecimalExponentType(k - min_k) *
                                                                     detail::stdr::int_fast16_t(79)) >>
@@ -2200,9 +2201,10 @@ namespace jkj {
             static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept {
                 // Compute the base index.
                 // Supposed to compute (k - min_k) / compression_ratio.
+                // Parentheses around min/max are to prevent macro expansions (e.g. in Windows.h).
                 static_assert(max_k - min_k <= 619 && compression_ratio == 27, "");
-                static_assert(max_k - min_k <= detail::stdr::numeric_limits<DecimalExponentType>::max(),
-                              "");
+                static_assert(
+                    max_k - min_k <= (detail::stdr::numeric_limits<DecimalExponentType>::max)(), "");
                 auto const cache_index =
                     DecimalExponentType(detail::stdr::uint_fast32_t(DecimalExponentType(k - min_k) *
                                                                     detail::stdr::int_fast32_t(607)) >>
@@ -2873,10 +2875,11 @@ namespace jkj {
                 JKJ_INLINE_VARIABLE struct prefer_32_t {
                     using preferred_integer_types_policy = prefer_32_t;
 
+                    // Parentheses around min/max are to prevent macro expansions (e.g. in Windows.h).
                     template <class FormatTraits, detail::stdr::uint_least64_t upper_bound>
                     using remainder_type = typename detail::stdr::conditional<
                         upper_bound <=
-                            detail::stdr::numeric_limits<detail::stdr::uint_least32_t>::max(),
+                            (detail::stdr::numeric_limits<detail::stdr::uint_least32_t>::max)(),
                         detail::stdr::uint_least32_t, typename FormatTraits::carrier_uint>::type;
 
                     template <class FormatTraits, detail::stdr::int_least32_t lower_bound,
@@ -2893,43 +2896,46 @@ namespace jkj {
                 JKJ_INLINE_VARIABLE struct minimal_t {
                     using preferred_integer_types_policy = minimal_t;
 
+                    // Parentheses around min/max are to prevent macro expansions (e.g. in Windows.h).
                     template <class FormatTraits, detail::stdr::uint_least64_t upper_bound>
                     using remainder_type = typename detail::stdr::conditional<
-                        upper_bound <= detail::stdr::numeric_limits<detail::stdr::uint_least8_t>::max(),
+                        upper_bound <=
+                            (detail::stdr::numeric_limits<detail::stdr::uint_least8_t>::max)(),
                         detail::stdr::uint_least8_t,
                         typename detail::stdr::conditional<
                             upper_bound <=
-                                detail::stdr::numeric_limits<detail::stdr::uint_least16_t>::max(),
+                                (detail::stdr::numeric_limits<detail::stdr::uint_least16_t>::max)(),
                             detail::stdr::uint_least16_t,
                             typename detail::stdr::conditional<
                                 upper_bound <=
-                                    detail::stdr::numeric_limits<detail::stdr::uint_least32_t>::max(),
+                                    (detail::stdr::numeric_limits<detail::stdr::uint_least32_t>::max)(),
                                 detail::stdr::uint_least32_t,
                                 typename detail::stdr::conditional<
-                                    upper_bound <= detail::stdr::numeric_limits<
-                                                       detail::stdr::uint_least64_t>::max(),
+                                    upper_bound <= (detail::stdr::numeric_limits<
+                                                       detail::stdr::uint_least64_t>::max)(),
                                     detail::stdr::uint_least64_t,
                                     typename FormatTraits::carrier_uint>::type>::type>::type>::type;
 
+                    // Parentheses around min/max are to prevent macro expansions (e.g. in Windows.h).
                     template <class FormatTraits, detail::stdr::int_least32_t lower_bound,
                               detail::stdr::uint_least32_t upper_bound>
                     using decimal_exponent_type = typename detail::stdr::conditional<
                         lower_bound >=
-                                detail::stdr::numeric_limits<detail::stdr::int_least8_t>::min() &&
+                                (detail::stdr::numeric_limits<detail::stdr::int_least8_t>::min)() &&
                             upper_bound <=
-                                detail::stdr::numeric_limits<detail::stdr::int_least8_t>::max(),
+                                (detail::stdr::numeric_limits<detail::stdr::int_least8_t>::max)(),
                         detail::stdr::int_least8_t,
                         typename detail::stdr::conditional<
-                            lower_bound >=
-                                    detail::stdr::numeric_limits<detail::stdr::int_least16_t>::min() &&
+                            lower_bound >= (detail::stdr::numeric_limits<
+                                               detail::stdr::int_least16_t>::min)() &&
                                 upper_bound <=
-                                    detail::stdr::numeric_limits<detail::stdr::int_least16_t>::max(),
+                                    (detail::stdr::numeric_limits<detail::stdr::int_least16_t>::max)(),
                             detail::stdr::int_least16_t,
                             typename detail::stdr::conditional<
-                                lower_bound >= detail::stdr::numeric_limits<
-                                                   detail::stdr::int_least32_t>::min() &&
-                                    upper_bound <= detail::stdr::numeric_limits<
-                                                       detail::stdr::int_least32_t>::max(),
+                                lower_bound >= (detail::stdr::numeric_limits<
+                                                   detail::stdr::int_least32_t>::min)() &&
+                                    upper_bound <= (detail::stdr::numeric_limits<
+                                                       detail::stdr::int_least32_t>::max)(),
                                 detail::stdr::int_least32_t,
                                 typename FormatTraits::exponent_int>::type>::type>::type;
 
@@ -3192,19 +3198,20 @@ namespace jkj {
                 static_assert(carrier_bits >= significand_bits + 2 + log::floor_log2_pow10(kappa + 1),
                               "");
 
-                static constexpr int min(int x, int y) noexcept { return x < y ? x : y; }
-                static constexpr int max(int x, int y) noexcept { return x > y ? x : y; }
+                // Trailing underscores are to avoid name clash with macros (e.g. Windows.h).
+                static constexpr int min_(int x, int y) noexcept { return x < y ? x : y; }
+                static constexpr int max_(int x, int y) noexcept { return x > y ? x : y; }
 
                 static constexpr int min_k =
-                    min(-log::floor_log10_pow2_minus_log10_4_over_3(max_exponent - significand_bits),
-                        -log::floor_log10_pow2(max_exponent - significand_bits) + kappa);
+                    min_(-log::floor_log10_pow2_minus_log10_4_over_3(max_exponent - significand_bits),
+                         -log::floor_log10_pow2(max_exponent - significand_bits) + kappa);
 
                 // We do invoke shorter_interval_case for exponent == min_exponent case,
                 // so we should not add 1 here.
                 static constexpr int max_k =
-                    max(-log::floor_log10_pow2_minus_log10_4_over_3(min_exponent -
-                                                                    significand_bits /*+ 1*/),
-                        -log::floor_log10_pow2(min_exponent - significand_bits) + kappa);
+                    max_(-log::floor_log10_pow2_minus_log10_4_over_3(min_exponent -
+                                                                     significand_bits /*+ 1*/),
+                         -log::floor_log10_pow2(min_exponent - significand_bits) + kappa);
 
                 static constexpr int case_shorter_interval_left_endpoint_lower_threshold = 2;
                 static constexpr int case_shorter_interval_left_endpoint_upper_threshold =
@@ -3234,8 +3241,8 @@ namespace jkj {
                 template <class PreferredIntegerTypesPolicy>
                 using decimal_exponent_type =
                     typename PreferredIntegerTypesPolicy::template decimal_exponent_type<
-                        FormatTraits, detail::stdr::int_least32_t(min(-max_k, min_k)),
-                        detail::stdr::int_least32_t(max(max_k, -min_k + kappa + 1))>;
+                        FormatTraits, detail::stdr::int_least32_t(min_(-max_k, min_k)),
+                        detail::stdr::int_least32_t(max_(max_k, -min_k + kappa + 1))>;
 
                 template <class SignPolicy, class TrailingZeroPolicy, class PreferredIntegerTypesPolicy>
                 using return_type =
@@ -4024,9 +4031,8 @@ namespace jkj {
             using make_policy_holder =
                 typename make_policy_holder_impl<DetectorDefaultPairList, Policies...>::type;
 
-
-            // Policy kind detectors.
-            struct is_sign_policy {
+                // Policy kind detectors.
+                struct is_sign_policy {
                 constexpr bool operator()(...) noexcept { return false; }
                 template <class Policy, class = typename Policy::sign_policy>
                 constexpr bool operator()(dummy<Policy>) noexcept {
