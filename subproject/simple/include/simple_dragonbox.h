@@ -242,7 +242,7 @@ namespace jkj {
                     s = s * 2 + b;
                     significand = b ? r : significand;
 
-                    exponent += s;
+                    exponent += int(s);
                 }
 
                 static constexpr compute_mul_result<uint32_t> compute_mul(uint32_t u, uint64_t cache) {
@@ -265,14 +265,14 @@ namespace jkj {
 
                 static constexpr uint32_t
                 compute_left_endpoint_for_shorter_interval_case(uint64_t cache, int beta) {
-                    return (cache - (cache >> (significand_bits + 2))) >>
-                           (cache_bits - significand_bits - 1 - beta);
+                    return uint32_t((cache - (cache >> (significand_bits + 2))) >>
+                                    (cache_bits - significand_bits - 1 - beta));
                 }
 
                 static constexpr uint32_t
                 compute_right_endpoint_for_shorter_interval_case(uint64_t cache, int beta) {
-                    return (cache + (cache >> (significand_bits + 1))) >>
-                           (cache_bits - significand_bits - 1 - beta);
+                    return uint32_t((cache + (cache >> (significand_bits + 1))) >>
+                                    (cache_bits - significand_bits - 1 - beta));
                 }
 
                 static constexpr uint32_t compute_round_up_for_shorter_interval_case(uint64_t cache,
@@ -386,7 +386,7 @@ namespace jkj {
                     s = s * 2 + b;
                     significand = b ? r : significand;
 
-                    exponent += s;
+                    exponent += int(s);
                 }
 
                 static constexpr compute_mul_result<uint64_t> compute_mul(uint64_t u, uint128 cache) {

@@ -2977,7 +2977,7 @@ namespace jkj {
                 s = s * 2 + b;
                 significand = b ? r : significand;
 
-                exponent += s;
+                exponent += DecimalExponentType(s);
             }
         };
 
@@ -3015,7 +3015,7 @@ namespace jkj {
                 s = s * 2 + b;
                 significand = b ? r : significand;
 
-                exponent += s;
+                exponent += DecimalExponentType(s);
             }
         };
 
@@ -4031,8 +4031,8 @@ namespace jkj {
             using make_policy_holder =
                 typename make_policy_holder_impl<DetectorDefaultPairList, Policies...>::type;
 
-                // Policy kind detectors.
-                struct is_sign_policy {
+            // Policy kind detectors.
+            struct is_sign_policy {
                 constexpr bool operator()(...) noexcept { return false; }
                 template <class Policy, class = typename Policy::sign_policy>
                 constexpr bool operator()(dummy<Policy>) noexcept {
