@@ -1201,7 +1201,7 @@ namespace jkj {
                 // The main algorithm assumes the input is a normal/subnormal finite number.
                 static constexpr decimal_fp<carrier_uint>
                 to_decimal(carrier_uint binary_significand, int binary_exponent, bool is_negative) {
-                    bool is_odd = binary_significand % 2 != 0;
+                    bool is_even = binary_significand % 2 == 0;
                     carrier_uint two_fc = binary_significand * 2;
 
                     // Is the input a normal number?
@@ -1249,6 +1249,12 @@ namespace jkj {
                                 format::compute_left_endpoint_for_shorter_interval_case(cache, beta);
                             auto zi =
                                 format::compute_right_endpoint_for_shorter_interval_case(cache, beta);
+
+                            // If the left endpoint is not an integer, increase it.
+                            // (Both endpoints are always included since the significand is even.)
+                            if (!is_left_endpoint_integer_shorter_interval(binary_exponent)) {
+                                ++xi;
+                            }
 
                             // Try bigger divisor.
                             // zi is at most floor((f_c + 1/2) * 2^e * 10^k0).
@@ -1332,7 +1338,7 @@ namespace jkj {
                     do {
                         if (r < deltai) {
                             // Exclude the right endpoint if necessary.
-                            if ((r | carrier_uint(!z_result.is_integer) | carrier_uint(is_odd)) == 0) {
+                            if ((r | carrier_uint(!z_result.is_integer) | carrier_uint(is_even)) == 0) {
                                 --decimal_significand;
                                 r = big_divisor;
                                 break;
@@ -1346,7 +1352,7 @@ namespace jkj {
                             auto const x_result =
                                 format::compute_mul_parity(carrier_uint(two_fc - 1), cache, beta);
 
-                            if (!(x_result.parity | (x_result.is_integer & is_odd))) {
+                            if (!(x_result.parity | (x_result.is_integer & is_even))) {
                                 break;
                             }
                         }
@@ -1477,7 +1483,8 @@ namespace jkj {
         template <class Float>
         auto to_decimal(Float x) {
             auto const decomposed = detail::impl<Float>::decompose_float(x);
-            assert(detail::impl<Float>::is_finite(decomposed.exponent) && decomposed.significand != 0);
+            assert(detail::impl<Float>::is_finite(decomposed.exponent) &&
+                   (decomposed.significand != 0 || decomposed.exponent != 0));
             return detail::impl<Float>::to_decimal(decomposed.significand, decomposed.exponent,
                                                    decomposed.is_negative);
         }
