@@ -1,4 +1,4 @@
-// Copyright 2024 Junekey Jeon, Toby Bell
+// Copyright 2024-2025 Junekey Jeon, Toby Bell
 //
 // The contents of this file may be used under the terms of
 // the Apache License v2.0 with LLVM Exceptions.
@@ -27,6 +27,13 @@
 
 namespace jkj {
     namespace simple_dragonbox {
+        template <class SignificandType>
+        struct decimal_fp {
+            SignificandType significand;
+            int exponent;
+            bool is_negative;
+        };
+
         namespace detail {
             using std::int16_t;
             using std::int32_t;
@@ -58,6 +65,9 @@ namespace jkj {
                 }
                 return count;
             }
+
+            // Followings assume int is of at least 32-bits.
+            static_assert(std::numeric_limits<int>::digits >= 31);
 
             constexpr int floor_log10_pow2(int e) {
                 assert(-2620 <= e && e <= 2620);
@@ -192,11 +202,6 @@ namespace jkj {
             struct compute_mul_parity_result {
                 bool parity;
                 bool is_integer;
-            };
-
-            enum class cache_type {
-                full,
-                compact,
             };
 
             template <class T>
@@ -339,76 +344,6 @@ namespace jkj {
                     UINT64_C(0x92efd1b8d0cf37bf), UINT64_C(0xb7abc627050305ae),
                     UINT64_C(0xe596b7b0c643c71a), UINT64_C(0x8f7e32ce7bea5c70),
                     UINT64_C(0xb35dbf821ae4f38c), UINT64_C(0xe0352f62a19e306f)};
-
-                template <cache_type, class Dummy = void>
-                struct cache_holder;
-
-                template <class Dummy>
-                struct cache_holder<cache_type::full, Dummy> {
-                    uint64_t get_cache(int k) const {
-                        assert(k >= min_k && k <= max_k);
-                        return cache[k - min_k];
-                    }
-                };
-
-                template <class Dummy>
-                struct cache_holder<cache_type::compact, Dummy> {
-                    static constexpr int compression_ratio = 13;
-                    static constexpr int compressed_table_size =
-                        (max_k - min_k + compression_ratio) / compression_ratio;
-                    static constexpr int pow5_table_size = (compression_ratio + 1) / 2;
-
-                    uint64_t cache[compressed_table_size]{};
-                    uint16_t pow5_table[pow5_table_size]{};
-
-                    constexpr cache_holder() {
-                        for (size_t i = 0; i < compressed_table_size; ++i) {
-                            cache[i] = float_format::cache[i * compression_ratio];
-                        }
-                        uint16_t p = 1;
-                        for (size_t i = 0; i < pow5_table_size; ++i) {
-                            pow5_table[i] = p;
-                            p *= 5;
-                        }
-                    }
-
-                    constexpr uint64_t get_cache(int k) const {
-                        assert(k >= min_k && k <= max_k);
-
-                        // Compute the base index.
-                        // Supposed to compute (k - min_k) / compression_ratio.
-                        static_assert(max_k - min_k <= 89 && compression_ratio == 13, "");
-                        static_assert(max_k - min_k <= INT_MAX, "");
-                        auto const cache_index = int(uint16_t(int(k - min_k) * int16_t(79)) >> 10);
-                        auto const kb = int(cache_index * compression_ratio + min_k);
-                        auto const offset = int(k - kb);
-
-                        // Get the base cache.
-                        auto const base_cache = cache[cache_index];
-
-                        if (offset == 0) {
-                            return base_cache;
-                        }
-                        else {
-                            // Compute the required amount of bit-shift.
-                            auto const alpha = int(floor_log2_pow10(k) - floor_log2_pow10(kb) - offset);
-                            assert(alpha > 0 && alpha < 64);
-
-                            // Try to recover the real cache.
-                            auto const pow5 =
-                                offset >= 7 ? uint32_t(uint32_t(pow5_table[6]) * pow5_table[offset - 6])
-                                            : uint32_t(pow5_table[offset]);
-                            auto mul_result = umul128(base_cache, pow5);
-                            auto const recovered_cache = uint64_t(
-                                (((mul_result.high << int(64 - alpha)) | (mul_result.low >> alpha)) +
-                                 1) &
-                                UINT64_C(0xffffffffffffffff));
-                            assert(recovered_cache != 0);
-
-                            return recovered_cache;
-                        }
-                    }
-                };
             };
 
             template <>
@@ -1131,83 +1066,6 @@ namespace jkj {
                     {UINT64_C(0x9e19db92b4e31ba9), UINT64_C(0x6c07a2c26a8346d2)},
                     {UINT64_C(0xc5a05277621be293), UINT64_C(0xc7098b7305241886)},
                     {UINT64_C(0xf70867153aa2db38), UINT64_C(0xb8cbee4fc66d1ea8)}};
-
-                template <cache_type, class Dummy = void>
-                struct cache_holder;
-
-                template <class Dummy>
-                struct cache_holder<cache_type::full, Dummy> {
-                    constexpr uint128 get_cache(int k) const {
-                        assert(k >= min_k && k <= max_k);
-                        return cache[k - min_k];
-                    }
-                };
-
-                template <class Dummy>
-                struct cache_holder<cache_type::compact, Dummy> {
-                    static constexpr int compression_ratio = 27;
-                    static constexpr int compressed_table_size =
-                        (max_k - min_k + compression_ratio) / compression_ratio;
-                    static constexpr int pow5_table_size = compression_ratio;
-
-                    uint128 cache[compressed_table_size]{};
-                    uint64_t pow5_table[pow5_table_size]{};
-
-                    constexpr cache_holder() {
-                        for (size_t i = 0; i < compressed_table_size; ++i) {
-                            cache[i] = float_format::cache[i * compression_ratio];
-                        }
-                        uint64_t p = 1;
-                        for (size_t i = 0; i < pow5_table_size; ++i) {
-                            pow5_table[i] = p;
-                            p *= 5;
-                        }
-                    }
-
-                    constexpr uint128 get_cache(int k) const {
-                        assert(k >= min_k && k <= max_k);
-
-                        // Compute the base index.
-                        // Supposed to compute (k - min_k) / compression_ratio.
-                        static_assert(max_k - min_k <= 619 && compression_ratio == 27, "");
-                        static_assert(max_k - min_k <= INT_MAX, "");
-                        auto const cache_index = int(uint32_t(int(k - min_k) * int32_t(607)) >> 14);
-                        auto const kb = int(cache_index * compression_ratio + min_k);
-                        auto const offset = int(k - kb);
-
-                        // Get the base cache.
-                        auto const base_cache = cache[cache_index];
-
-                        if (offset == 0) {
-                            return base_cache;
-                        }
-                        else {
-                            // Compute the required amount of bit-shift.
-                            auto const alpha = int(floor_log2_pow10(k) - floor_log2_pow10(kb) - offset);
-                            assert(alpha > 0 && alpha < 64);
-
-                            // Try to recover the real cache.
-                            auto const pow5 = pow5_table[offset];
-                            auto recovered_cache = umul128(base_cache.high, pow5);
-                            auto const middle_low = umul128(base_cache.low, pow5);
-
-                            recovered_cache += middle_low.high;
-
-                            auto const high_to_middle = uint64_t(
-                                (recovered_cache.high << (64 - alpha)) & UINT64_C(0xffffffffffffffff));
-                            auto const middle_to_low = uint64_t((recovered_cache.low << (64 - alpha)) &
-                                                                UINT64_C(0xffffffffffffffff));
-
-                            recovered_cache = {(recovered_cache.low >> alpha) | high_to_middle,
-                                               ((middle_low.low >> alpha) | middle_to_low)};
-
-                            assert(recovered_cache.low != UINT64_C(0xffffffffffffffff));
-                            recovered_cache = {recovered_cache.high, uint64_t(recovered_cache.low + 1)};
-
-                            return recovered_cache;
-                        }
-                    }
-                };
             };
 
             template <int a, class UInt>
@@ -1222,36 +1080,6 @@ namespace jkj {
             }
 
             static constexpr uint32_t divide_magic_number[2]{6554, 656};
-
-            struct interval {
-                bool include_left_endpoint;
-                bool include_right_endpoint;
-            };
-
-            enum class binary_round_mode {
-                nearest_to_even,
-                nearest_to_odd,
-                nearest_toward_plus_infinity,
-                nearest_toward_minus_infinity,
-                nearest_toward_zero,
-                nearest_away_from_zero,
-                nearest_to_even_static_boundary,
-                nearest_to_odd_static_boundary,
-                nearest_toward_plus_infinity_static_boundary,
-                nearest_toward_minus_infinity_static_boundary,
-                toward_plus_infinity,
-                toward_minus_infinity,
-                toward_zero,
-                away_from_zero,
-            };
-
-            enum class decimal_round_mode {
-                to_even,
-                to_odd,
-                away_from_zero,
-                toward_zero,
-                dont_care,
-            };
 
             template <class T, unsigned Size>
             static constexpr bool valid_float = std::numeric_limits<T>::is_iec559 &&
@@ -1269,9 +1097,7 @@ namespace jkj {
                 }
             }
 
-            template <class Float, binary_round_mode BinaryRoundMode = binary_round_mode(),
-                      decimal_round_mode DecimalRoundMode = decimal_round_mode(),
-                      cache_type CacheType = cache_type()>
+            template <class Float>
             struct impl {
                 using format = float_format<Float>;
                 using carrier_uint = typename format::carrier_uint;
@@ -1320,15 +1146,9 @@ namespace jkj {
                 static constexpr int shorter_interval_tie_upper_threshold =
                     -floor_log5_pow2(significand_bits + 2) - 2 - significand_bits;
 
-                // sign + significand + decimal_point + exp_marker + exp_sign + exp
-                static constexpr int max_output_string_length =
-                    4 + format::decimal_significand_digits + format::decimal_exponent_digits;
-
                 static_assert(kappa >= 1);
                 static_assert(carrier_bits >= significand_bits + 2 + floor_log2_pow10(kappa + 1));
                 static_assert(min_k >= format::min_k && max_k <= format::max_k);
-
-                static constexpr typename format::template cache_holder<CacheType> cache_{};
 
                 template <int N>
                 static constexpr bool check_divisibility_and_divide_by_pow10(carrier_uint& n) {
@@ -1356,124 +1176,33 @@ namespace jkj {
                     return carrier_uint((n * divide_magic_number[N - 1]) >> 16);
                 }
 
-                static constexpr bool prefer_round_down(carrier_uint decimal_significand) {
-                    using e = decimal_round_mode;
-                    switch (DecimalRoundMode) {
-                    case e::dont_care:
-                        return false;
-                    case e::to_even:
-                        return decimal_significand % 2 != 0;
-                    case e::to_odd:
-                        return decimal_significand % 2 == 0;
-                    case e::away_from_zero:
-                        return false;
-                    case e::toward_zero:
-                        return true;
-                    }
-                }
+                struct binary_fp {
+                    carrier_uint significand;
+                    int exponent;
+                    bool is_negative;
+                };
 
-                carrier_uint significand;
-                int exponent;
-                bool sign;
-
-                constexpr impl(Float x) {
+                static binary_fp decompose_float(Float x) {
                     carrier_uint bits;
                     static_assert(sizeof(x) == sizeof(bits));
                     std::memcpy(&bits, &x, sizeof(x));
-                    significand = bits & ((carrier_uint(1) << format::significand_bits) - 1);
-                    exponent = bits >> format::significand_bits & ((1u << format::exponent_bits) - 1);
-                    sign = bits >> (format::significand_bits + format::exponent_bits);
+                    return {// significand
+                            carrier_uint(bits & ((carrier_uint(1) << format::significand_bits) - 1)),
+                            // exponent
+                            int(bits >> format::significand_bits & ((1u << format::exponent_bits) - 1)),
+                            // is_negative
+                            bool(bits >> (format::significand_bits + format::exponent_bits))};
                 }
 
-                constexpr bool is_finite() const {
-                    return exponent != (1u << format::exponent_bits) - 1;
+                static constexpr bool is_finite(int binary_exponent) {
+                    return binary_exponent != (1u << format::exponent_bits) - 1;
                 }
 
-                struct decimal_result {
-                    carrier_uint significand;
-                    int exponent;
-                    bool sign;
-                };
-
-                constexpr decimal_result to_decimal() {
-                    assert(is_finite() && (significand || exponent));
-                    bool even = significand % 2 == 0;
-                    using e = binary_round_mode;
-                    switch (BinaryRoundMode) {
-                    case e::nearest_to_even:
-                        return nearest_to_even();
-                    case e::nearest_to_odd:
-                        return nearest_to_odd();
-                    case e::nearest_toward_plus_infinity:
-                        return nearest_toward_plus_infinity();
-                    case e::nearest_toward_minus_infinity:
-                        return nearest_toward_minus_infinity();
-                    case e::nearest_toward_zero:
-                        return nearest_toward_zero();
-                    case e::nearest_away_from_zero:
-                        return nearest_away_from_zero();
-                    case e::nearest_to_even_static_boundary:
-                        return even ? nearest_always_closed() : nearest_always_open();
-                    case e::nearest_to_odd_static_boundary:
-                        return even ? nearest_always_open() : nearest_always_closed();
-                    case e::nearest_toward_plus_infinity_static_boundary:
-                        return sign ? nearest_toward_zero() : nearest_away_from_zero();
-                    case e::nearest_toward_minus_infinity_static_boundary:
-                        return sign ? nearest_away_from_zero() : nearest_toward_zero();
-                    case e::toward_plus_infinity:
-                        return sign ? left_closed_directed() : right_closed_directed();
-                    case e::toward_minus_infinity:
-                        return sign ? right_closed_directed() : left_closed_directed();
-                    case e::toward_zero:
-                        return left_closed_directed();
-                    case e::away_from_zero:
-                        return right_closed_directed();
-                    }
-                }
-
-                constexpr auto nearest_to_even() {
-                    bool even = significand % 2 == 0;
-                    return nearest({even, even}, {true, true});
-                }
-
-                constexpr auto nearest_to_odd() {
-                    bool even = significand % 2 == 0;
-                    return nearest({!even, even}, {false, false});
-                }
-
-                constexpr auto nearest_toward_plus_infinity() {
-                    return nearest({!sign, sign}, {!sign, sign});
-                }
-
-                constexpr auto nearest_toward_minus_infinity() {
-                    return nearest({sign, !sign}, {sign, !sign});
-                }
-
-                constexpr auto nearest_toward_zero() { return nearest({false, true}, {false, true}); }
-
-                constexpr auto nearest_away_from_zero() {
-                    return nearest({true, false}, {true, false});
-                }
-
-                constexpr auto nearest_always_closed() { return nearest({true, true}, {true, true}); }
-
-                constexpr auto nearest_always_open() { return nearest({false, false}, {false, false}); }
-
-                constexpr decimal_result no_trailing_zeros(carrier_uint significand, int exponent) {
-                    return {significand, exponent, sign};
-                }
-
-                constexpr decimal_result may_have_trailing_zeros(carrier_uint significand,
-                                                                 int exponent) {
-                    format::remove_trailing_zeros(significand, exponent);
-                    return {significand, exponent, sign};
-                }
-
-                //// The main algorithm assumes the input is a normal/subnormal finite number.
-
-                constexpr auto nearest(interval normal_interval, interval shorter_interval) {
-                    carrier_uint two_fc = significand * 2;
-                    auto binary_exponent = exponent;
+                // The main algorithm assumes the input is a normal/subnormal finite number.
+                static constexpr decimal_fp<carrier_uint>
+                to_decimal(carrier_uint binary_significand, int binary_exponent, bool is_negative) {
+                    bool is_odd = binary_significand % 2 != 0;
+                    carrier_uint two_fc = binary_significand * 2;
 
                     // Is the input a normal number?
                     if (binary_exponent != 0) {
@@ -1509,31 +1238,17 @@ namespace jkj {
 
                         // Shorter interval case.
                         if (two_fc == 0) {
-
                             // Compute k and beta.
                             int const minus_k = floor_log10_pow2_minus_log10_4_over_3(binary_exponent);
                             int const beta = binary_exponent + floor_log2_pow10(-minus_k);
 
                             // Compute xi and zi.
-                            auto const cache = cache_.get_cache(-minus_k);
+                            auto const cache = format::cache[-minus_k - format::min_k];
 
                             auto xi =
                                 format::compute_left_endpoint_for_shorter_interval_case(cache, beta);
                             auto zi =
                                 format::compute_right_endpoint_for_shorter_interval_case(cache, beta);
-
-                            // If we don't accept the right endpoint and
-                            // if the right endpoint is an integer, decrease it.
-                            if (!shorter_interval.include_right_endpoint &&
-                                is_right_endpoint_integer_shorter_interval(binary_exponent)) {
-                                --zi;
-                            }
-                            // If we don't accept the left endpoint or
-                            // if the left endpoint is not an integer, increase it.
-                            if (!shorter_interval.include_left_endpoint ||
-                                !is_left_endpoint_integer_shorter_interval(binary_exponent)) {
-                                ++xi;
-                            }
 
                             // Try bigger divisor.
                             // zi is at most floor((f_c + 1/2) * 2^e * 10^k0).
@@ -1545,15 +1260,17 @@ namespace jkj {
 
                             // If succeed, remove trailing zeros if necessary and return.
                             if (decimal_significand * 10 >= xi) {
-                                return may_have_trailing_zeros(decimal_significand, minus_k + 1);
+                                int decimal_exponent = minus_k + 1;
+                                format::remove_trailing_zeros(decimal_significand, decimal_exponent);
+                                return {decimal_significand, decimal_exponent, is_negative};
                             }
 
                             // Otherwise, compute the round-up of y.
                             decimal_significand =
                                 format::compute_round_up_for_shorter_interval_case(cache, beta);
 
-                            // When tie occurs, choose one of them according to the rule.
-                            if (prefer_round_down(decimal_significand) &&
+                            // When tie occurs, choose the even one.
+                            if (decimal_significand % 2 != 0 &&
                                 binary_exponent >= shorter_interval_tie_lower_threshold &&
                                 binary_exponent <= shorter_interval_tie_upper_threshold) {
                                 --decimal_significand;
@@ -1561,7 +1278,7 @@ namespace jkj {
                             else if (decimal_significand < xi) {
                                 ++decimal_significand;
                             }
-                            return no_trailing_zeros(decimal_significand, minus_k);
+                            return {decimal_significand, minus_k, is_negative};
                         }
 
                         // Normal interval case.
@@ -1579,7 +1296,7 @@ namespace jkj {
 
                     // Compute k and beta.
                     int const minus_k = floor_log10_pow2(binary_exponent) - kappa;
-                    auto const cache = cache_.get_cache(-minus_k);
+                    auto const cache = format::cache[-minus_k - format::min_k];
                     int const beta = binary_exponent + floor_log2_pow10(-minus_k);
 
                     // Compute zi and deltai.
@@ -1602,8 +1319,8 @@ namespace jkj {
                     // Step 2: Try larger divisor; remove trailing zeros if necessary.
                     //////////////////////////////////////////////////////////////////////
 
-                    auto const big_divisor = compute_power<kappa + 1>(carrier_uint(10));
-                    auto const small_divisor = compute_power<kappa>(carrier_uint(10));
+                    constexpr auto big_divisor = compute_power<kappa + 1>(carrier_uint(10));
+                    constexpr auto small_divisor = compute_power<kappa>(carrier_uint(10));
 
                     // Using an upper bound on zi, we might be able to optimize the division
                     // better than the compiler; we are computing zi / big_divisor here.
@@ -1615,18 +1332,10 @@ namespace jkj {
                     do {
                         if (r < deltai) {
                             // Exclude the right endpoint if necessary.
-                            if ((r | carrier_uint(!z_result.is_integer) |
-                                 carrier_uint(normal_interval.include_right_endpoint)) == 0) {
-                                if (DecimalRoundMode == decimal_round_mode::dont_care) {
-                                    decimal_significand *= 10;
-                                    --decimal_significand;
-                                    return no_trailing_zeros(decimal_significand, minus_k + kappa);
-                                }
-                                else {
-                                    --decimal_significand;
-                                    r = big_divisor;
-                                    break;
-                                }
+                            if ((r | carrier_uint(!z_result.is_integer) | carrier_uint(is_odd)) == 0) {
+                                --decimal_significand;
+                                r = big_divisor;
+                                break;
                             }
                         }
                         else if (r > deltai) {
@@ -1637,13 +1346,14 @@ namespace jkj {
                             auto const x_result =
                                 format::compute_mul_parity(carrier_uint(two_fc - 1), cache, beta);
 
-                            if (!(x_result.parity |
-                                  (x_result.is_integer & normal_interval.include_left_endpoint))) {
+                            if (!(x_result.parity | (x_result.is_integer & is_odd))) {
                                 break;
                             }
                         }
 
-                        return may_have_trailing_zeros(decimal_significand, minus_k + kappa + 1);
+                        int decimal_exponent = minus_k + kappa + 1;
+                        format::remove_trailing_zeros(decimal_significand, decimal_exponent);
+                        return {decimal_significand, decimal_exponent, is_negative};
                     } while (false);
 
 
@@ -1653,241 +1363,40 @@ namespace jkj {
 
                     decimal_significand *= 10;
 
-                    if (DecimalRoundMode == decimal_round_mode::dont_care) {
-                        // Normally, we want to compute
-                        // significand += r / small_divisor
-                        // and return, but we need to take care of the case that the resulting
-                        // value is exactly the right endpoint, while that is not included in the
-                        // interval.
-                        if (!normal_interval.include_right_endpoint) {
-                            // Is r divisible by 10^kappa?
-                            if (check_divisibility_and_divide_by_pow10<kappa>(r) &&
-                                z_result.is_integer) {
-                                // This should be in the interval.
-                                decimal_significand += r - 1;
-                            }
-                            else {
-                                decimal_significand += r;
-                            }
+                    // delta is equal to 10^(kappa + elog10(2) - floor(elog10(2))), so dist cannot
+                    // be larger than r.
+                    auto dist = carrier_uint(r - (deltai / 2) + (small_divisor / 2));
+                    bool const approx_y_parity = ((dist ^ (small_divisor / 2)) & 1) != 0;
+
+                    // Is dist divisible by 10^kappa?
+                    bool const divisible_by_small_divisor =
+                        check_divisibility_and_divide_by_pow10<kappa>(dist);
+
+                    // Add dist / 10^kappa to the significand.
+                    decimal_significand += dist;
+
+                    if (divisible_by_small_divisor) {
+                        // Check z^(f) >= epsilon^(f).
+                        // We have either yi == zi - epsiloni or yi == (zi - epsiloni) - 1,
+                        // where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f).
+                        // Since there are only 2 possibilities, we only need to care about the
+                        // parity. Also, zi and r should have the same parity since the divisor
+                        // is an even number.
+                        auto const y_result = format::compute_mul_parity(two_fc, cache, beta);
+                        if (y_result.parity != approx_y_parity) {
+                            --decimal_significand;
                         }
                         else {
-                            decimal_significand += small_division_by_pow10<kappa>(r);
-                        }
-                    }
-                    else {
-                        // delta is equal to 10^(kappa + elog10(2) - floor(elog10(2))), so dist cannot
-                        // be larger than r.
-                        auto dist = carrier_uint(r - (deltai / 2) + (small_divisor / 2));
-                        bool const approx_y_parity = ((dist ^ (small_divisor / 2)) & 1) != 0;
-
-                        // Is dist divisible by 10^kappa?
-                        bool const divisible_by_small_divisor =
-                            check_divisibility_and_divide_by_pow10<kappa>(dist);
-
-                        // Add dist / 10^kappa to the significand.
-                        decimal_significand += dist;
-
-                        if (divisible_by_small_divisor) {
-                            // Check z^(f) >= epsilon^(f).
-                            // We have either yi == zi - epsiloni or yi == (zi - epsiloni) - 1,
-                            // where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f).
-                            // Since there are only 2 possibilities, we only need to care about the
-                            // parity. Also, zi and r should have the same parity since the divisor
-                            // is an even number.
-                            auto const y_result = format::compute_mul_parity(two_fc, cache, beta);
-                            if (y_result.parity != approx_y_parity) {
+                            // If z^(f) >= epsilon^(f), we might have a tie
+                            // when z^(f) == epsilon^(f), or equivalently, when y is an integer.
+                            // When tie happens, always choose the even one.
+                            if ((decimal_significand % 2) & y_result.is_integer) {
                                 --decimal_significand;
                             }
-                            else {
-                                // If z^(f) >= epsilon^(f), we might have a tie
-                                // when z^(f) == epsilon^(f), or equivalently, when y is an integer.
-                                // For tie-to-up case, we can just choose the upper one.
-                                if (prefer_round_down(decimal_significand) & y_result.is_integer) {
-                                    --decimal_significand;
-                                }
-                            }
-                        }
-                    }
-                    return no_trailing_zeros(decimal_significand, minus_k + kappa);
-                }
-
-                constexpr auto left_closed_directed() {
-                    carrier_uint two_fc = significand * 2;
-                    auto binary_exponent = exponent;
-
-                    // Is the input a normal number?
-                    if (binary_exponent != 0) {
-                        binary_exponent += format::exponent_bias - format::significand_bits;
-                        two_fc |= (carrier_uint(1) << (format::significand_bits + 1));
-                    }
-                    // Is the input a subnormal number?
-                    else {
-                        binary_exponent = min_exponent - format::significand_bits;
-                    }
-
-                    //////////////////////////////////////////////////////////////////////
-                    // Step 1: Schubfach multiplier calculation.
-                    //////////////////////////////////////////////////////////////////////
-
-                    // Compute k and beta.
-                    int const minus_k = floor_log10_pow2(binary_exponent) - kappa;
-                    auto const cache = cache_.get_cache(-minus_k);
-                    int const beta = binary_exponent + floor_log2_pow10(-minus_k);
-
-                    // Compute xi and deltai.
-                    // 10^kappa <= deltai < 10^(kappa + 1)
-                    auto const deltai = format::compute_delta(cache, beta);
-                    auto x_result = format::compute_mul(carrier_uint(two_fc << beta), cache);
-
-                    // Deal with the unique exceptional cases
-                    // 29711844 * 2^-82
-                    // = 6.1442653300000000008655037797566933477355632930994033813476... * 10^-18
-                    // and 29711844 * 2^-81
-                    // = 1.2288530660000000001731007559513386695471126586198806762695... * 10^-17
-                    // for binary32.
-                    if constexpr (carrier_bits == 32) {
-                        if (binary_exponent <= -80) {
-                            x_result.is_integer = false;
                         }
                     }
 
-                    if (!x_result.is_integer) {
-                        ++x_result.integer_part;
-                    }
-
-                    //////////////////////////////////////////////////////////////////////
-                    // Step 2: Try larger divisor; remove trailing zeros if necessary.
-                    //////////////////////////////////////////////////////////////////////
-
-                    auto const big_divisor = compute_power<kappa + 1>(carrier_uint(10));
-
-                    // Using an upper bound on xi, we might be able to optimize the division
-                    // better than the compiler; we are computing xi / big_divisor here.
-                    carrier_uint decimal_significand = format::template divide_by_pow10<
-                        kappa + 1, (carrier_uint(2) << significand_bits) * big_divisor - 1>(
-                        x_result.integer_part);
-                    auto r = carrier_uint(x_result.integer_part - big_divisor * decimal_significand);
-
-                    if (r != 0) {
-                        ++decimal_significand;
-                        r = carrier_uint(big_divisor - r);
-                    }
-
-                    do {
-                        if (r > deltai) {
-                            break;
-                        }
-                        else if (r == deltai) {
-                            // Compare the fractional parts.
-                            // This branch is never taken for the exceptional cases
-                            // 2f_c = 29711482, e = -81
-                            // (6.1442649164096937243516663440523473127541365101933479309082... *
-                            // 10^-18) and 2f_c = 29711482, e = -80
-                            // (1.2288529832819387448703332688104694625508273020386695861816... *
-                            // 10^-17).
-                            // For the case of compressed cache for binary32, there is another
-                            // exceptional case 2f_c = 33554430, e = -10 (16383.9990234375). In this
-                            // case, the recovered cache is two large to make compute_mul_parity
-                            // mistakenly conclude that z is not an integer, but actually z = 16384 is
-                            // an integer.
-                            if constexpr (carrier_bits == 32 && CacheType == cache_type::compact) {
-                                if (two_fc == 33554430 && binary_exponent == -10) {
-                                    break;
-                                }
-                            }
-                            auto const z_result =
-                                format::compute_mul_parity(carrier_uint(two_fc + 2), cache, beta);
-                            if (z_result.parity || z_result.is_integer) {
-                                break;
-                            }
-                        }
-
-                        // The ceiling is inside, so we are done.
-                        return may_have_trailing_zeros(decimal_significand, minus_k + kappa + 1);
-                    } while (false);
-
-
-                    //////////////////////////////////////////////////////////////////////
-                    // Step 3: Find the significand with the smaller divisor.
-                    //////////////////////////////////////////////////////////////////////
-
-                    decimal_significand *= 10;
-                    decimal_significand -= small_division_by_pow10<kappa>(r);
-                    return no_trailing_zeros(decimal_significand, minus_k + kappa);
-                }
-
-                constexpr auto right_closed_directed() {
-                    carrier_uint two_fc = significand * 2;
-                    auto binary_exponent = exponent;
-                    bool shorter_interval = false;
-
-                    // Is the input a normal number?
-                    if (binary_exponent != 0) {
-                        if (two_fc == 0 && binary_exponent != 1) {
-                            shorter_interval = true;
-                        }
-                        binary_exponent += format::exponent_bias - format::significand_bits;
-                        two_fc |= (carrier_uint(1) << (format::significand_bits + 1));
-                    }
-                    // Is the input a subnormal number?
-                    else {
-                        binary_exponent = min_exponent - format::significand_bits;
-                    }
-
-                    //////////////////////////////////////////////////////////////////////
-                    // Step 1: Schubfach multiplier calculation.
-                    //////////////////////////////////////////////////////////////////////
-
-                    // Compute k and beta.
-                    int const minus_k =
-                        floor_log10_pow2(binary_exponent - (shorter_interval ? 1 : 0)) - kappa;
-                    auto const cache = cache_.get_cache(-minus_k);
-                    int const beta = binary_exponent + floor_log2_pow10(-minus_k);
-
-                    // Compute zi and deltai.
-                    // 10^kappa <= deltai < 10^(kappa + 1)
-                    auto const deltai = format::compute_delta(cache, beta - (shorter_interval ? 1 : 0));
-                    carrier_uint const zi =
-                        format::compute_mul(carrier_uint(two_fc << beta), cache).integer_part;
-
-
-                    //////////////////////////////////////////////////////////////////////
-                    // Step 2: Try larger divisor; remove trailing zeros if necessary.
-                    //////////////////////////////////////////////////////////////////////
-
-                    auto const big_divisor = compute_power<kappa + 1>(carrier_uint(10));
-
-                    // Using an upper bound on zi, we might be able to optimize the division better
-                    // than the compiler; we are computing zi / big_divisor here.
-                    carrier_uint decimal_significand = format::template divide_by_pow10<
-                        kappa + 1, (carrier_uint(2) << significand_bits) * big_divisor - 1>(zi);
-                    auto const r = carrier_uint(zi - big_divisor * decimal_significand);
-
-                    do {
-                        if (r > deltai) {
-                            break;
-                        }
-                        else if (r == deltai) {
-                            // Compare the fractional parts.
-                            if (!format::compute_mul_parity(
-                                     carrier_uint(two_fc - (shorter_interval ? 1 : 2)), cache, beta)
-                                     .parity) {
-                                break;
-                            }
-                        }
-
-                        // The floor is inside, so we are done.
-                        return may_have_trailing_zeros(decimal_significand, minus_k + kappa + 1);
-                    } while (false);
-
-
-                    //////////////////////////////////////////////////////////////////////
-                    // Step 3: Find the significand with the small divisor.
-                    //////////////////////////////////////////////////////////////////////
-
-                    decimal_significand *= 10;
-                    decimal_significand += small_division_by_pow10<kappa>(r);
-                    return no_trailing_zeros(decimal_significand, minus_k + kappa);
+                    return {decimal_significand, minus_k + kappa, is_negative};
                 }
 
                 static constexpr bool is_right_endpoint_integer_shorter_interval(int binary_exponent) {
@@ -1900,10 +1409,12 @@ namespace jkj {
                            binary_exponent <= case_shorter_interval_left_endpoint_upper_threshold;
                 }
 
-                constexpr char* to_chars(char* buffer) {
-                    if (!is_finite()) {
-                        if (!significand) {
-                            if (sign) {
+                static char* to_chars_n(Float x, char* buffer) {
+                    binary_fp const decomposed = decompose_float(x);
+
+                    if (!is_finite(decomposed.exponent)) {
+                        if (decomposed.significand == 0) {
+                            if (decomposed.is_negative) {
                                 *buffer++ = '-';
                             }
                             std::memcpy(buffer, "Infinity", 8);
@@ -1917,18 +1428,19 @@ namespace jkj {
                         }
                     }
 
-                    if (sign) {
+                    if (decomposed.is_negative) {
                         *buffer++ = '-';
                     }
 
-                    if (!significand && !exponent) {
+                    if (decomposed.significand == 0 && decomposed.exponent == 0) {
                         buffer[0] = '0';
                         buffer[1] = 'E';
                         buffer[2] = '0';
                         return buffer + 3;
                     }
 
-                    auto [dec_sig, dec_exp, dec_sign] = to_decimal();
+                    auto [dec_sig, dec_exp, dec_sign] =
+                        to_decimal(decomposed.significand, decomposed.exponent, decomposed.is_negative);
 
                     if (dec_sig < 10) {
                         *buffer++ = char('0' + dec_sig);
@@ -1960,89 +1472,30 @@ namespace jkj {
                     return buffer;
                 }
             };
-
-            template <class T, T x>
-            struct policy_ {};
-
-            template <class T, class... Policies>
-            struct get_policy;
-
-            template <class T>
-            struct get_policy<T> {
-                static constexpr T value{};
-            };
-
-            template <class T, T x, class... Rest>
-            struct get_policy<T, policy_<T, x>, Rest...> {
-                static constexpr T value = x;
-            };
-
-            template <class T, class First, class... Rest>
-            struct get_policy<T, First, Rest...> : get_policy<T, Rest...> {};
-
-            template <class Float, class... Policies>
-            using make_impl = impl<Float, get_policy<binary_round_mode, Policies...>::value,
-                                   get_policy<decimal_round_mode, Policies...>::value,
-                                   get_policy<cache_type, Policies...>::value>;
-
         } // namespace detail
 
-        namespace policy {
-            namespace decimal_to_binary_rounding {
-                using type = detail::binary_round_mode;
-                constexpr detail::policy_<type, type::nearest_to_even> nearest_to_even;
-                constexpr detail::policy_<type, type::nearest_to_odd> nearest_to_odd;
-                constexpr detail::policy_<type, type::nearest_toward_plus_infinity>
-                    nearest_toward_plus_infinity;
-                constexpr detail::policy_<type, type::nearest_toward_minus_infinity>
-                    nearest_toward_minus_infinity;
-                constexpr detail::policy_<type, type::nearest_toward_zero> nearest_toward_zero;
-                constexpr detail::policy_<type, type::nearest_away_from_zero> nearest_away_from_zero;
-                constexpr detail::policy_<type, type::nearest_to_even_static_boundary>
-                    nearest_to_even_static_boundary;
-                constexpr detail::policy_<type, type::nearest_to_odd_static_boundary>
-                    nearest_to_odd_static_boundary;
-                constexpr detail::policy_<type, type::nearest_toward_plus_infinity_static_boundary>
-                    nearest_toward_plus_infinity_static_boundary;
-                constexpr detail::policy_<type, type::nearest_toward_minus_infinity_static_boundary>
-                    nearest_toward_minus_infinity_static_boundary;
-                constexpr detail::policy_<type, type::toward_plus_infinity> toward_plus_infinity;
-                constexpr detail::policy_<type, type::toward_minus_infinity> toward_minus_infinity;
-                constexpr detail::policy_<type, type::toward_zero> toward_zero;
-                constexpr detail::policy_<type, type::away_from_zero> away_from_zero;
-            }
-            namespace binary_to_decimal_rounding {
-                using type = detail::decimal_round_mode;
-                constexpr detail::policy_<type, type::to_even> to_even;
-                constexpr detail::policy_<type, type::to_odd> to_odd;
-                constexpr detail::policy_<type, type::away_from_zero> away_from_zero;
-                constexpr detail::policy_<type, type::toward_zero> toward_zero;
-                constexpr detail::policy_<type, type::dont_care> do_not_care;
-            }
-            namespace cache {
-                using type = detail::cache_type;
-                constexpr detail::policy_<type, type::full> full;
-                constexpr detail::policy_<type, type::compact> compact;
-            }
+        template <class Float>
+        auto to_decimal(Float x) {
+            auto const decomposed = detail::impl<Float>::decompose_float(x);
+            assert(detail::impl<Float>::is_finite(decomposed.exponent) && decomposed.significand != 0);
+            return detail::impl<Float>::to_decimal(decomposed.significand, decomposed.exponent,
+                                                   decomposed.is_negative);
         }
 
-
-        template <class Float, class... Policies>
-        constexpr auto to_decimal(Float x, Policies...) {
-            return detail::make_impl<Float, Policies...>(x).to_decimal();
-        }
-
-        // Null-terminate and bypass the return value of fp_to_chars_n
-        template <class Float, class... Policies>
-        constexpr char* to_chars(Float x, char* buffer, Policies... policies) {
-            auto ptr = detail::make_impl<Float, Policies...>(x).to_chars(buffer);
+        // Null-terminate and bypass the return value of impl::to_chars_n.
+        template <class Float>
+        char* to_chars(Float x, char* buffer) {
+            auto ptr = detail::impl<Float>::to_chars_n(x, buffer);
             *ptr = '\0';
             return ptr;
         }
 
         // Maximum required buffer size (excluding null-terminator)
         template <class Float>
-        constexpr size_t max_output_string_length = detail::impl<Float>::max_output_string_length;
+        static constexpr size_t max_output_string_length =
+            // sign(1) + significand + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp
+            1 + detail::float_format<Float>::decimal_significand_digits + 1 + 1 + 1 +
+            detail::float_format<Float>::decimal_exponent_digits;
     } // namespace simple_dragonbox
 } // namespace jkj
 
