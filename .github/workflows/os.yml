@@ -10,7 +10,7 @@ jobs:
     name: DragonBox ${{matrix.platform}}
     strategy:
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-2025]
+        platform: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
 
     steps:
