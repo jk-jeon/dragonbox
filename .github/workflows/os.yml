@@ -10,11 +10,11 @@ jobs:
     name: DragonBox ${{matrix.platform}}
     strategy:
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        platform: [ubuntu-latest, macos-latest, windows-2025]
     runs-on: ${{ matrix.platform }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Configure
       run: cmake -Ssubproject/test -Bbuild/test -DCMAKE_BUILD_TYPE:STRING=Debug
 
