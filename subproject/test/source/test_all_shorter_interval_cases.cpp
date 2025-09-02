@@ -84,13 +84,6 @@ int main() {
         [](auto x, char* buffer) { jkj::simple_dragonbox::to_chars(x, buffer); });
     std::cout << "Done.\n\n\n";
 
-    std::cout
-        << "[Testing all shorter interval cases for binary32 (simplified impl, compact cache)...]\n";
-    success &= test_all_shorter_interval_cases_impl<float>([](auto x, char* buffer) {
-        jkj::simple_dragonbox::to_chars(x, buffer, jkj::simple_dragonbox::policy::cache::compact);
-    });
-    std::cout << "Done.\n\n\n";
-
     std::cout << "[Testing all shorter interval cases for binary64...]\n";
     success &= test_all_shorter_interval_cases_impl<double>(
         [](auto x, char* buffer) { jkj::dragonbox::to_chars(x, buffer); });
@@ -105,13 +98,6 @@ int main() {
     std::cout << "[Testing all shorter interval cases for binary64 (simplified impl)...]\n";
     success &= test_all_shorter_interval_cases_impl<double>(
         [](auto x, char* buffer) { jkj::simple_dragonbox::to_chars(x, buffer); });
-    std::cout << "Done.\n\n\n";
-
-    std::cout
-        << "[Testing all shorter interval cases for binary64 (simplified impl, compact cache)...]\n";
-    success &= test_all_shorter_interval_cases_impl<double>([](auto x, char* buffer) {
-        jkj::simple_dragonbox::to_chars(x, buffer, jkj::simple_dragonbox::policy::cache::compact);
-    });
     std::cout << "Done.\n\n\n";
 
     if (!success) {

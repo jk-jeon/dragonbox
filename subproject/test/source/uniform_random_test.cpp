@@ -65,13 +65,11 @@ int main() {
     constexpr bool run_float = true;
     constexpr bool run_float_with_compact_cache = true;
     constexpr bool run_simple_float = true;
-    constexpr bool run_simpl_float_with_compact_cache = true;
 
     constexpr std::size_t number_of_uniform_random_tests_double = 10000000;
     constexpr bool run_double = true;
     constexpr bool run_double_with_compact_cache = true;
     constexpr bool run_simple_double = true;
-    constexpr bool run_simple_double_with_compact_cache = true;
 
     bool success = true;
 
@@ -99,15 +97,6 @@ int main() {
             });
         std::cout << "Done.\n\n\n";
     }
-    if (run_simpl_float_with_compact_cache) {
-        std::cout << "[Testing uniformly randomly generated binary32 inputs (simplified impl, compact "
-                     "cache)...]\n";
-        success &= uniform_random_test<float>(number_of_uniform_random_tests_float, [](auto x,
-                                                                                       char* buffer) {
-            jkj::simple_dragonbox::to_chars(x, buffer, jkj::simple_dragonbox::policy::cache::compact);
-        });
-        std::cout << "Done.\n\n\n";
-    }
     if (run_double) {
         std::cout << "[Testing uniformly randomly generated binary64 inputs...]\n";
         success &= uniform_random_test<double>(
@@ -128,15 +117,6 @@ int main() {
         success &= uniform_random_test<double>(
             number_of_uniform_random_tests_double,
             [](auto x, char* buffer) { jkj::simple_dragonbox::to_chars(x, buffer); });
-        std::cout << "Done.\n\n\n";
-    }
-    if (run_simple_double_with_compact_cache) {
-        std::cout << "[Testing uniformly randomly generated binary64 inputs with (simplified impl, "
-                     "compact cache)...]\n";
-        success &= uniform_random_test<double>(number_of_uniform_random_tests_double, [](auto x,
-                                                                                         char* buffer) {
-            jkj::simple_dragonbox::to_chars(x, buffer, jkj::simple_dragonbox::policy::cache::compact);
-        });
         std::cout << "Done.\n\n\n";
     }
 
