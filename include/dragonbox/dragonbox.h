@@ -1,4 +1,4 @@
-// Copyright 2020-2024 Junekey Jeon
+// Copyright 2020-2025 Junekey Jeon
 //
 // The contents of this file may be used under the terms of
 // the Apache License v2.0 with LLVM Exceptions.
@@ -18,6 +18,15 @@
 
 #ifndef JKJ_HEADER_DRAGONBOX
 #define JKJ_HEADER_DRAGONBOX
+
+// Users vendoring this library are advised to define the macro JKJ_NAMESPACE to avoid potential clash
+// with other libraries vendoring this library. Every (non-macro) entity in this library will live
+// inside the namespace JKJ_NAMESPACE, whose default is "jkj".
+#ifndef JKJ_NAMESPACE
+    #define JKJ_NAMESPACE jkj
+#else
+    #define JKJ_NAMESPACE_DEFINED 1
+#endif
 
 // Attribute for storing static data into a dedicated place, e.g. flash memory. Every ODR-used
 // static data declaration will be decorated with this macro. The users may define this macro,
@@ -202,7 +211,7 @@
     #include <immintrin.h>
 #endif
 
-namespace jkj {
+namespace JKJ_NAMESPACE {
     namespace dragonbox {
         ////////////////////////////////////////////////////////////////////////////////////////
         // The Compatibility layer for toolchains without standard C++ headers.
@@ -621,12 +630,12 @@ namespace jkj {
 
                 // clang-format off
 #if defined(__SIZEOF_INT128__)
-		// To silence "error: ISO C++ does not support '__int128' for 'type name'
-		// [-Wpedantic]"
+		        // To silence "error: ISO C++ does not support '__int128' for 'type name'
+		        // [-Wpedantic]"
 #if defined(__GNUC__)
-			__extension__
+			    __extension__
 #endif
-			using builtin_uint128_t = unsigned __int128;
+			    using builtin_uint128_t = unsigned __int128;
 #endif
                 // clang-format on
 
@@ -828,6 +837,24 @@ namespace jkj {
                     auto r = umul128(x, y.high());
                     r += umul128_upper64(x, y.low());
                     return r;
+                }
+
+                // Get 96-bit result of multiplication of a 32-bit unsigned integer and a 64-bit
+                // unsigned integer.
+                JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128 umul96(stdr::uint_fast32_t x,
+                                                                      stdr::uint_least64_t y) noexcept {
+#if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
+                    return umul128(stdr::uint_least64_t(x), y);
+#else
+                    auto const yh = stdr::uint_least32_t(y >> 32);
+                    auto const yl = stdr::uint_least32_t(y);
+
+                    auto const xyh = umul64(x, yh);
+                    auto const xyl = umul64(x, yl);
+
+
+                    return r;
+#endif
                 }
 
                 // Get upper 64-bits of multiplication of a 32-bit unsigned integer and a 64-bit
@@ -4202,6 +4229,11 @@ namespace jkj {
     #undef JKJ_STATIC_DATA_SECTION_DEFINED
 #else
     #undef JKJ_STATIC_DATA_SECTION
+#endif
+#if JKJ_NAMESPACE_DEFINED
+    #undef JKJ_NAMESPACE_DEFINED
+#else
+    #undef JKJ_NAMESPACE
 #endif
 
 #endif

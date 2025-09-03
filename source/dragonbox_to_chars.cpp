@@ -18,6 +18,10 @@
 
 #include "dragonbox/dragonbox_to_chars.h"
 
+#ifndef JKJ_NAMESPACE
+    #define JKJ_NAMESPACE jkj
+#endif
+
 #ifndef JKJ_STATIC_DATA_SECTION
     #define JKJ_STATIC_DATA_SECTION
 #endif
@@ -47,7 +51,7 @@
     #define JKJ_FORCEINLINE inline
 #endif
 
-namespace jkj {
+namespace JKJ_NAMESPACE {
     namespace dragonbox {
         namespace detail {
             // These "//"'s are to prevent clang-format to ruin this nice alignment.

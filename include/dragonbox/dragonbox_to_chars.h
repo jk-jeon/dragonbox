@@ -20,6 +20,15 @@
 
 #include "dragonbox.h"
 
+// Users vendoring this library are advised to define the macro JKJ_NAMESPACE to avoid potential clash
+// with other libraries vendoring this library. Every (non-macro) entity in this library will live
+// inside the namespace JKJ_NAMESPACE, whose default is "jkj".
+#ifndef JKJ_NAMESPACE
+    #define JKJ_NAMESPACE jkj
+#else
+    #define JKJ_NAMESPACE_DEFINED 1
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////
 // Language feature detections.
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -148,7 +157,7 @@
     #define JKJ_CONSTEXPR20
 #endif
 
-namespace jkj {
+namespace JKJ_NAMESPACE {
     namespace dragonbox {
         namespace detail {
             template <class FloatFormat, class CarrierUInt>
@@ -384,5 +393,10 @@ namespace jkj {
 #undef JKJ_HAS_CONSTEXPR17
 #undef JKJ_CONSTEXPR14
 #undef JKJ_HAS_CONSTEXPR14
+#if JKJ_NAMESPACE_DEFINED
+    #undef JKJ_NAMESPACE_DEFINED
+#else
+    #undef JKJ_NAMESPACE
+#endif
 
 #endif
