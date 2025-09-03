@@ -175,8 +175,8 @@ int main() {
                         auto const pow5 = cache_holder_type::pow5_table[offset];
 
                         // Compute the required amount of bit-shifts.
-                        using jkj::dragonbox::detail::log::floor_log2_pow10;
-                        auto const alpha = floor_log2_pow10(k) - floor_log2_pow10(kb) - offset;
+                        using jkj::dragonbox::detail::log::floor_log2_pow5;
+                        auto const alpha = floor_log2_pow5(k) - floor_log2_pow5(kb);
                         assert(alpha > 0 && alpha < 64);
 
                         // Try to recover the real cache.

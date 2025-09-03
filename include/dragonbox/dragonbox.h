@@ -1189,6 +1189,38 @@ namespace JKJ_NAMESPACE {
                 }
 
                 template <stdr::size_t tier>
+                struct floor_log2_pow5_info;
+                template <>
+                struct floor_log2_pow5_info<0> {
+                    using default_return_type = stdr::int_fast8_t;
+                    // 24-bits are enough in fact.
+                    static constexpr stdr::int_fast32_t multiply = 1189;
+                    static constexpr stdr::int_fast32_t subtract = 0;
+                    static constexpr stdr::size_t shift = 9;
+                    // Formula itself holds on [-58,58]; [-55,55] is to ensure no overflow.
+                    static constexpr stdr::int_least32_t min_exponent = -55;
+                    static constexpr stdr::int_least32_t max_exponent = 55;
+                };
+                template <>
+                struct floor_log2_pow5_info<1> {
+                    using default_return_type = stdr::int_fast16_t;
+                    static constexpr stdr::int_fast32_t multiply = INT32_C(76085);
+                    static constexpr stdr::int_fast32_t subtract = 0;
+                    static constexpr stdr::size_t shift = 15;
+                    static constexpr stdr::int_least32_t min_exponent = -642;
+                    static constexpr stdr::int_least32_t max_exponent = 642;
+                };
+                template <stdr::int_least32_t min_exponent = -642,
+                          stdr::int_least32_t max_exponent = 642,
+                          class ReturnType = typename compute_impl<floor_log2_pow5_info, min_exponent,
+                                                                   max_exponent>::default_return_type,
+                          class Int>
+                constexpr ReturnType floor_log2_pow5(Int e) noexcept {
+                    return compute_impl<floor_log2_pow5_info, min_exponent,
+                                        max_exponent>::template compute<ReturnType>(e);
+                }
+
+                template <stdr::size_t tier>
                 struct floor_log5_pow2_info;
                 template <>
                 struct floor_log5_pow2_info<0> {
@@ -2204,9 +2236,8 @@ namespace JKJ_NAMESPACE {
                 }
                 else {
                     // Compute the required amount of bit-shift.
-                    auto const alpha =
-                        ShiftAmountType(detail::log::floor_log2_pow10<min_k, max_k>(k) -
-                                        detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset);
+                    auto const alpha = ShiftAmountType(detail::log::floor_log2_pow5<min_k, max_k>(k) -
+                                                       detail::log::floor_log2_pow5<min_k, max_k>(kb));
                     assert(alpha > 0 && alpha < 32);
 
                     // Try to recover the real cache.
@@ -2316,9 +2347,8 @@ namespace JKJ_NAMESPACE {
                 }
                 else {
                     // Compute the required amount of bit-shift.
-                    auto const alpha =
-                        ShiftAmountType(detail::log::floor_log2_pow10<min_k, max_k>(k) -
-                                        detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset);
+                    auto const alpha = ShiftAmountType(detail::log::floor_log2_pow5<min_k, max_k>(k) -
+                                                       detail::log::floor_log2_pow5<min_k, max_k>(kb));
                     assert(alpha > 0 && alpha < 64);
 
                     // Try to recover the real cache.

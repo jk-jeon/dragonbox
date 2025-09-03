@@ -93,6 +93,10 @@ static std::int_least32_t floor_log2_pow10_precise(std::int_least32_t e) {
     return is_negative ? -k : k - 1;
 }
 
+static std::int_least32_t floor_log2_pow5_precise(std::int_least32_t e) {
+    return floor_log2_pow10_precise(e) - e;
+}
+
 static std::int_least32_t floor_log5_pow2_precise(std::int_least32_t e) {
     bool is_negative;
     if (e < 0) {
@@ -254,6 +258,7 @@ int main() {
     success &= verify_all_tiers<floor_log2_pow10_info>{}("floor_log2_pow10", floor_log2_pow10_precise);
     success &= verify_all_tiers<floor_log10_pow2_minus_log10_4_over_3_info>{}(
         "floor_log10_pow2_minus_log10_4_over_3", floor_log10_pow2_minus_log10_4_over_3_precise);
+    success &= verify_all_tiers<floor_log2_pow5_info>{}("floor_log2_pow5", floor_log2_pow5_precise);
     success &= verify_all_tiers<floor_log5_pow2_info>{}("floor_log5_pow2", floor_log5_pow2_precise);
     success &= verify_all_tiers<floor_log5_pow2_minus_log5_3_info>{}(
         "floor_log5_pow2_minus_log5_3", floor_log5_pow2_minus_log5_3_precise);
