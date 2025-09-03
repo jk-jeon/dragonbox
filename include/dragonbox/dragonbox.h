@@ -2977,6 +2977,7 @@ namespace jkj {
                 s = s * 2 + b;
                 significand = b ? r : significand;
 
+                assert(detail::stdr::numeric_limits<DecimalExponentType>::max() - s >= exponent);
                 exponent += s;
             }
         };
@@ -3015,6 +3016,7 @@ namespace jkj {
                 s = s * 2 + b;
                 significand = b ? r : significand;
 
+                assert(detail::stdr::numeric_limits<DecimalExponentType>::max() - s >= exponent);
                 exponent += s;
             }
         };
