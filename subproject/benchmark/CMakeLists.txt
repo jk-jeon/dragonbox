@@ -51,6 +51,9 @@ target_link_libraries(benchmark
 
 # ---- MSVC Specifics ----
 if (MSVC)
+    # /permissive- is required (see https://github.com/jk-jeon/dragonbox/pull/74#issuecomment-3247531231)
+    target_compile_options(benchmark PUBLIC /permissive-)
+    
     # See https://gitlab.kitware.com/cmake/cmake/-/issues/16478
     set_target_properties(benchmark PROPERTIES 
             VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")

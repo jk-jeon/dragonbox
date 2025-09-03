@@ -117,3 +117,9 @@ if (DRAGONBOX_ENABLE_SUBPROJECT)
     add_subdirectory("subproject/meta")
     add_subdirectory("subproject/test")
 endif()
+
+# ---- MSVC Specifics ----
+if (MSVC)
+    # /permissive- is required (see https://github.com/jk-jeon/dragonbox/pull/74#issuecomment-3247531231)
+    target_compile_options(dragonbox INTERFACE /permissive-)
+endif()

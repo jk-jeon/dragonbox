@@ -25,6 +25,9 @@ function(meta_exe NAME)
 
   # ---- MSVC Specifics ----
   if (MSVC)
+      # /permissive- is required (see https://github.com/jk-jeon/dragonbox/pull/74#issuecomment-3247531231)
+      target_compile_options(${NAME} PUBLIC /permissive-)
+      
       # See https://gitlab.kitware.com/cmake/cmake/-/issues/16478
       set_target_properties(${NAME} PROPERTIES 
             VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")

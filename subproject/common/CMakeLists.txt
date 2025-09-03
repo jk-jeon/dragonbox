@@ -30,3 +30,9 @@ target_include_directories(dragonbox_common
 target_compile_features(dragonbox_common PUBLIC cxx_std_17)
 
 target_link_libraries(dragonbox_common PUBLIC dragonbox::dragonbox)
+
+# ---- MSVC Specifics ----
+if (MSVC)
+    # /permissive- is required (see https://github.com/jk-jeon/dragonbox/pull/74#issuecomment-3247531231)
+    target_compile_options(dragonbox_common PUBLIC /permissive-)
+endif()
