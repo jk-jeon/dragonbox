@@ -57,6 +57,23 @@
     #define JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED 1
 #endif
 
+// The compressed cache handling for IEEE-754 binary32 performs 64-bit x 32-bit -> 96-bit
+// multiplication. The library chooses between 64-bit + 32-bit and 32-bit + 64-bit splittings of the
+// 96-bit result depending on availability of fast 64-bit x 64-bit -> 64-bit multiplication of unsigned
+// integers. By default, the latter is used if and only if one of the macros listed below is defined,
+// but the user can override this behavior by defining JKJ_FAST_MUL64. This should have no impact on
+// the codegen if compact cache for IEEE-754 binary32 is not used.
+#ifndef JKJ_FAST_MUL64
+    #if defined(__x86_64__) || defined(__aarch64__) || defined(__ppc64__) || defined(_M_X64) ||        \
+        defined(_M_ARM64)
+        #define JKJ_FAST_MUL64 1
+    #else
+        #define JKJ_FAST_MUL64 0
+    #endif
+#else
+    #define JKJ_FAST_MUL64_DEFINED 1
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////
 // Language feature detections.
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -732,6 +749,30 @@ namespace JKJ_NAMESPACE {
                     }
                 };
 
+                struct uint32_64 {
+                    stdr::uint_least64_t low64_;
+                    stdr::uint_least32_t high32_;
+
+                    constexpr uint32_64(stdr::uint_least32_t high32,
+                                        stdr::uint_least64_t low64) noexcept
+                        : low64_{low64}, high32_{high32} {}
+
+                    constexpr stdr::uint_least32_t high32() const noexcept { return high32_; }
+                    constexpr stdr::uint_least64_t low64() const noexcept { return low64_; }
+                };
+
+                struct uint64_32 {
+                    stdr::uint_least64_t high64_;
+                    stdr::uint_least32_t low32_;
+
+                    constexpr uint64_32(stdr::uint_least64_t high64,
+                                        stdr::uint_least32_t low32) noexcept
+                        : high64_{high64}, low32_{low32} {}
+
+                    constexpr stdr::uint_least64_t high64() const noexcept { return high64_; }
+                    constexpr stdr::uint_least32_t low32() const noexcept { return low32_; }
+                };
+
                 inline JKJ_CONSTEXPR20 stdr::uint_least64_t umul64(stdr::uint_least32_t x,
                                                                    stdr::uint_least32_t y) noexcept {
 #if defined(_MSC_VER) && defined(_M_IX86)
@@ -841,20 +882,39 @@ namespace JKJ_NAMESPACE {
 
                 // Get 96-bit result of multiplication of a 32-bit unsigned integer and a 64-bit
                 // unsigned integer.
-                JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20 uint128 umul96(stdr::uint_fast32_t x,
-                                                                      stdr::uint_least64_t y) noexcept {
+                JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20
+#if JKJ_FAST_MUL64
+                    uint32_64
+#else
+                    uint64_32
+#endif
+                    umul96(stdr::uint_fast32_t x, stdr::uint_least64_t y) noexcept {
 #if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
-                    return umul128(stdr::uint_least64_t(x), y);
+                    auto const r128 = umul128(stdr::uint_least64_t(x), y);
+
+                    auto const high = stdr::uint_least32_t(r128.high());
+                    auto const middle = stdr::uint_least32_t(r128.low() >> 32);
+                    auto const low = stdr::uint_least32_t(r128.low());
 #else
                     auto const yh = stdr::uint_least32_t(y >> 32);
                     auto const yl = stdr::uint_least32_t(y);
 
-                    auto const xyh = umul64(x, yh);
+                    auto xyh = umul64(x, yh);
                     auto const xyl = umul64(x, yl);
 
+                    xyh += (xyl >> 32);
 
-                    return r;
+                    auto const high = stdr::uint_least32_t(xyh >> 32);
+                    auto const middle = stdr::uint_least32_t(xyh);
+                    auto const low = stdr::uint_least32_t(xyl);
 #endif
+
+#if JKJ_FAST_MUL64
+                    uint32_64 r{high, (stdr::uint_least64_t(middle) << 32) | low};
+#else
+                    uint64_32 r{(stdr::uint_least64_t(high) << 32) | middle, low};
+#endif
+                    return r;
                 }
 
                 // Get upper 64-bits of multiplication of a 32-bit unsigned integer and a 64-bit
@@ -2147,7 +2207,7 @@ namespace JKJ_NAMESPACE {
                     auto const alpha =
                         ShiftAmountType(detail::log::floor_log2_pow10<min_k, max_k>(k) -
                                         detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset);
-                    assert(alpha > 0 && alpha < 64);
+                    assert(alpha > 0 && alpha < 32);
 
                     // Try to recover the real cache.
                     auto const pow5 =
@@ -2155,12 +2215,21 @@ namespace JKJ_NAMESPACE {
                             ? detail::stdr::uint_fast32_t(detail::stdr::uint_fast32_t(pow5_table[6]) *
                                                           pow5_table[offset - 6])
                             : detail::stdr::uint_fast32_t(pow5_table[offset]);
-                    auto mul_result = detail::wuint::umul128(base_cache, pow5);
+                    auto mul_result = detail::wuint::umul96(pow5, base_cache);
+
                     auto const recovered_cache =
-                        cache_entry_type((((mul_result.high() << ShiftAmountType(64 - alpha)) |
-                                           (mul_result.low() >> alpha)) +
+#if JKJ_FAST_MUL64
+                        cache_entry_type((((detail::stdr::uint_least64_t(mul_result.high32())
+                                            << ShiftAmountType(64 - alpha)) |
+                                           (mul_result.low64() >> alpha)) +
                                           1) &
                                          UINT64_C(0xffffffffffffffff));
+#else
+                        cache_entry_type((((mul_result.high64() << ShiftAmountType(32 - alpha)) |
+                                           (mul_result.low32() >> alpha)) +
+                                          1) &
+                                         UINT64_C(0xffffffffffffffff));
+#endif
                     assert(recovered_cache != 0);
 
                     return recovered_cache;
@@ -4220,6 +4289,11 @@ namespace JKJ_NAMESPACE {
 #undef JKJ_HAS_CONSTEXPR17
 #undef JKJ_CONSTEXPR14
 #undef JKJ_HAS_CONSTEXPR14
+#if JKJ_FAST_MUL64_DEFINED
+    #undef JKJ_FAST_MUL64_DEFINED
+#else
+    #undef JKJ_FAST_MUL64
+#endif
 #if JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
     #undef JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
 #else
