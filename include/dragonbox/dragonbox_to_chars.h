@@ -199,7 +199,7 @@ namespace JKJ_NAMESPACE {
 #if JKJ_HAS_CONSTEXPR14
                         assert(n <= max_number);
 #endif
-                        using wide_type = decltype(info::magic_number);
+                        using wide_type = typename info::wide_type;
                         static_assert(info::additional_shift_amount < value_bits<wide_type>::value, "");
 
                         auto const mul_result = info::magic_number * n;
@@ -242,37 +242,40 @@ namespace JKJ_NAMESPACE {
                 struct div_by_10_info;
                 template <>
                 struct div_by_10_info<0> {
-                    static constexpr stdr::uint_fast16_t magic_number = 26;
+                    using wide_type = stdr::uint_fast16_t;
+                    static constexpr wide_type magic_number = 26;
                     static constexpr stdr::size_t additional_shift_amount = 0;
                     static constexpr stdr::uint_least64_t max_number = 63;
-                    static constexpr stdr::uint_fast8_t high(stdr::uint_fast16_t n) noexcept {
+                    static constexpr stdr::uint_fast8_t high(wide_type n) noexcept {
                         return stdr::uint_fast8_t(n >> 8);
                     }
-                    static constexpr stdr::uint_fast8_t low(stdr::uint_fast16_t n) noexcept {
+                    static constexpr stdr::uint_fast8_t low(wide_type n) noexcept {
                         return stdr::uint_fast8_t(n);
                     }
                 };
                 template <>
                 struct div_by_10_info<1> {
-                    static constexpr stdr::uint_fast32_t magic_number = 6573;
+                    using wide_type = stdr::uint_fast32_t;
+                    static constexpr wide_type magic_number = 6573;
                     static constexpr stdr::size_t additional_shift_amount = 0;
                     static constexpr stdr::uint_least64_t max_number = 16383;
-                    static constexpr stdr::uint_fast16_t high(stdr::uint_fast32_t n) noexcept {
+                    static constexpr stdr::uint_fast16_t high(wide_type n) noexcept {
                         return stdr::uint_fast16_t(n >> 16);
                     }
-                    static constexpr stdr::uint_fast16_t low(stdr::uint_fast32_t n) noexcept {
+                    static constexpr stdr::uint_fast16_t low(wide_type n) noexcept {
                         return stdr::uint_fast16_t(n);
                     }
                 };
                 template <>
                 struct div_by_10_info<2> {
-                    static constexpr stdr::uint_fast64_t magic_number = UINT64_C(429496730);
+                    using wide_type = stdr::uint_fast64_t;
+                    static constexpr wide_type magic_number = UINT64_C(429496730);
                     static constexpr stdr::size_t additional_shift_amount = 0;
                     static constexpr stdr::uint_least64_t max_number = UINT64_C(1073741823);
-                    static constexpr stdr::uint_fast32_t high(stdr::uint_fast64_t n) noexcept {
+                    static constexpr stdr::uint_fast32_t high(wide_type n) noexcept {
                         return stdr::uint_fast32_t(n >> 32);
                     }
-                    static constexpr stdr::uint_fast32_t low(stdr::uint_fast64_t n) noexcept {
+                    static constexpr stdr::uint_fast32_t low(wide_type n) noexcept {
                         return stdr::uint_fast32_t(n);
                     }
                 };
@@ -364,7 +367,7 @@ namespace JKJ_NAMESPACE {
                 JKJ_IF_CONSTEVAL {
                     char temp[FloatFormat::decimal_exponent_digits]{};
                     auto ptr =
-                        to_chars_impl::print_integer_backward<CarrierUInt, 1,
+                        to_chars_impl::print_integer_backward<decltype(exponent_unsigned), 1,
                                                               FloatFormat::max_abs_decimal_exponent>(
                             exponent_unsigned, temp + FloatFormat::decimal_exponent_digits - 1);
 
@@ -377,7 +380,7 @@ namespace JKJ_NAMESPACE {
                 else {
                     char temp[FloatFormat::decimal_exponent_digits];
                     auto ptr =
-                        to_chars_impl::print_integer_backward<CarrierUInt, 1,
+                        to_chars_impl::print_integer_backward<decltype(exponent_unsigned), 1,
                                                               FloatFormat::max_abs_decimal_exponent>(
                             exponent_unsigned, temp + FloatFormat::decimal_exponent_digits - 1);
 
