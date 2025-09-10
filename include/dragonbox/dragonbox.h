@@ -257,6 +257,7 @@ namespace JKJ_NAMESPACE {
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast8_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast16_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast32_t;
+                using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast64_t;
                 // We need INT32_C, UINT32_C and UINT64_C macros too, but again there is nothing to do
                 // here.
 
@@ -290,6 +291,9 @@ namespace JKJ_NAMESPACE {
                 using is_signed = JKJ_STD_REPLACEMENT_NAMESPACE::is_signed<T>;
                 template <class T>
                 using is_unsigned = JKJ_STD_REPLACEMENT_NAMESPACE::is_unsigned<T>;
+
+                template <class T>
+                using make_unsigned = JKJ_STD_REPLACEMENT_NAMESPACE::make_unsigned<T>;
             }
         }
 
@@ -373,6 +377,7 @@ namespace JKJ_NAMESPACE {
             static constexpr int exponent_bias = -127;
             static constexpr int decimal_significand_digits = 9;
             static constexpr int decimal_exponent_digits = 2;
+            static constexpr int max_abs_decimal_exponent = 45;
         };
         struct ieee754_binary64 {
             static constexpr int total_bits = 64;
@@ -383,6 +388,7 @@ namespace JKJ_NAMESPACE {
             static constexpr int exponent_bias = -1023;
             static constexpr int decimal_significand_digits = 17;
             static constexpr int decimal_exponent_digits = 3;
+            static constexpr int max_abs_decimal_exponent = 324;
         };
 
         // A floating-point format traits class defines ways to interpret a bit pattern of given size as
