@@ -528,12 +528,17 @@ namespace JKJ_NAMESPACE {
             return ptr;
         }
 
-        // Maximum required buffer size (excluding null-terminator)
+        // Maximum size of the output of to_chars_n (excluding null-terminator).
+        template <class FloatFormat>
+        struct max_output_string_length_holder {
+            static constexpr detail::stdr::size_t value =
+                // sign(1) + significand + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp
+                1 + FloatFormat::decimal_significand_digits + 1 + 1 + 1 +
+                FloatFormat::decimal_exponent_digits; 
+        };
         template <class FloatFormat>
         JKJ_INLINE_VARIABLE detail::stdr::size_t max_output_string_length =
-            // sign(1) + significand + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp
-            1 + FloatFormat::decimal_significand_digits + 1 + 1 + 1 +
-            FloatFormat::decimal_exponent_digits;
+            max_output_string_length_holder<FloatFormat>::value;
     }
 }
 
