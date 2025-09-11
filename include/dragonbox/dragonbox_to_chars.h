@@ -1,4 +1,4 @@
-// Copyright 2020-2024 Junekey Jeon
+// Copyright 2020-2025 Junekey Jeon
 //
 // The contents of this file may be used under the terms of
 // the Apache License v2.0 with LLVM Exceptions.
@@ -163,6 +163,14 @@ namespace JKJ_NAMESPACE {
             template <class FloatFormat, class CarrierUInt>
             extern char* to_chars(CarrierUInt significand, int exponent, char* buffer) noexcept;
 
+            // Implementation detail of to_chars_naive, which gets called in constexpr context or when
+            // the digit_generation policy is set to be "compact". Unlike to_chars above, to_chars_naive
+            // simply repeats division-by-10 until the input becomes zero. To improve codegen, we
+            // manually convert this division-by-10 into multiply-shift. Similarly to the log
+            // computations, again we try to minimize the size of types and the magic numbers depending
+            // on the range of input, using the same "tier system" trick. But unlike the case of log
+            // computations, we simply fallback to the plain division/remainder if none of the provided
+            // tiers cover the requested range of input, rather than to generate a compile-error.
             namespace to_chars_impl {
                 template <class UInt>
                 struct div_result {
@@ -199,9 +207,12 @@ namespace JKJ_NAMESPACE {
 #if JKJ_HAS_CONSTEXPR14
                         assert(n <= max_number);
 #endif
+                        // This "wide_type" is supposed to be 2x larger than UInt.
                         using wide_type = typename info::wide_type;
                         static_assert(info::additional_shift_amount < value_bits<wide_type>::value, "");
 
+                        // The upper-half and the lower-half of this multiplication result is used for
+                        // computing the quotient and the remainder, respectively.
                         auto const mul_result = info::magic_number * n;
                         auto const high = info::high(mul_result) >> info::additional_shift_amount;
                         auto const low =
@@ -304,6 +315,8 @@ namespace JKJ_NAMESPACE {
                                                  char* buffer) noexcept {
                 static_assert(value_bits<CarrierUInt>::value <= 64,
                               "jkj::dragonbox: integer type too large");
+                // This is probably a too generous upper bound, but unless a tighter upper bound does
+                // lead to better codegen, there is no point of optimizing this further.
                 constexpr auto max_decimal_significand =
                     20 * ((stdr::uint_least64_t(1) << (FloatFormat::significand_bits + 1)) - 1) - 1;
 
@@ -313,6 +326,8 @@ namespace JKJ_NAMESPACE {
                     *buffer = char('0' + significand);
                     ++buffer;
                 }
+                // For the multiple-digits case, print the digits into a temporary buffer and copy it
+                // into the given buffer. GCC seems to be able to turn the last loop into memcpy.
                 else {
                     char temp[FloatFormat::decimal_significand_digits];
                     auto ptr =
@@ -322,8 +337,8 @@ namespace JKJ_NAMESPACE {
                     buffer[0] = char('0' + significand);
                     buffer[1] = '.';
                     buffer += 2;
-                    exponent += static_cast<ExponentType>(
-                        temp + FloatFormat::decimal_significand_digits - ptr);
+                    exponent +=
+                        static_cast<ExponentType>(temp + FloatFormat::decimal_significand_digits - ptr);
 
                     do {
                         *buffer = *ptr;
@@ -342,7 +357,7 @@ namespace JKJ_NAMESPACE {
                 }
                 auto exponent_unsigned =
                     static_cast<typename stdr::make_unsigned<ExponentType>::type>(exponent);
-                
+
                 char temp[FloatFormat::decimal_exponent_digits];
                 auto ptr = to_chars_impl::print_integer_backward<decltype(exponent_unsigned), 1,
                                                                  FloatFormat::max_abs_decimal_exponent>(

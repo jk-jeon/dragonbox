@@ -1001,7 +1001,7 @@ namespace JKJ_NAMESPACE {
                                   (stdr::int_fast16_t(-1) >> 1) == stdr::int_fast16_t(-1),
                               "jkj::dragonbox: right-shift for signed integers must be arithmetic");
 
-                // For constexpr computation.
+                // Only for constexpr computation.
                 // Returns -1 when n = 0.
                 template <class UInt>
                 constexpr int floor_log2(UInt n) noexcept {
@@ -1017,6 +1017,18 @@ namespace JKJ_NAMESPACE {
 #endif
                 }
 
+                // Implementations of various log computations using binary approximations.
+                // On less powerful platforms, using smaller integer types and magic numbers for these
+                // computations significantly improve codegen, so depending on the range of input we try
+                // to choose the smallest possible magic numbers that result in the best codegen.
+                // To generically achieve that goal, we list multiple sets of magic numbers with
+                // associated ranges of inputs, called "tiers", so that we choose the smallest tier
+                // whose associated range covers the requested range of input.
+
+                // Check if the given tier covers the requested range.
+                // Info<current_tier> is supposed to hold the magic numbers needed for the computation
+                // and the supported range of input (i.e. the range of input where the computation with
+                // the given magic numbers must be valid).
                 template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
                           stdr::int_least32_t max_exponent, stdr::size_t current_tier,
                           stdr::int_least32_t supported_min_exponent = Info<current_tier>::min_exponent,
@@ -1025,6 +1037,9 @@ namespace JKJ_NAMESPACE {
                     return min_exponent >= supported_min_exponent &&
                            max_exponent <= supported_max_exponent;
                 }
+                // This overload generates a compile-error and is called only if the former overload is
+                // removed via SFINAE, which happens if and only if every provided tier fails to cover
+                // the requested range.
                 template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
                           stdr::int_least32_t max_exponent, stdr::size_t current_tier>
                 constexpr bool is_in_range(...) noexcept {
@@ -1034,11 +1049,14 @@ namespace JKJ_NAMESPACE {
                     return false;
                 }
 
+                // Generic implementation of log computations.
                 template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
                           stdr::int_least32_t max_exponent, stdr::size_t current_tier = 0,
                           bool = is_in_range<Info, min_exponent, max_exponent, current_tier>(0)>
                 struct compute_impl;
 
+                // Specialization for the case when the given tier covers the requested range of input.
+                // In this case, do the computation with the given magic numbers.
                 template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
                           stdr::int_least32_t max_exponent, stdr::size_t current_tier>
                 struct compute_impl<Info, min_exponent, max_exponent, current_tier, true> {
@@ -1057,6 +1075,9 @@ namespace JKJ_NAMESPACE {
                     }
                 };
 
+                // Specialization for the case when the given tier does not cover the requested range of
+                // input. In this case, delegate the computation to the next tier. If the next tier does
+                // not exist, then the compilation must fail.
                 template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
                           stdr::int_least32_t max_exponent, stdr::size_t current_tier>
                 struct compute_impl<Info, min_exponent, max_exponent, current_tier, false> {
