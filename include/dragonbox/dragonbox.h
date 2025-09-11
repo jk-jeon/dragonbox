@@ -99,6 +99,17 @@
     // Language feature detections.
     ////////////////////////////////////////////////////////////////////////////////////////
 
+    // C++14 variable templates
+    #if defined(__cpp_variable_templates) && __cpp_variable_templates >= 201304L
+        #define JKJ_HAS_VARIABLE_TEMPLATES 1
+    #elif __cplusplus >= 201402L
+        #define JKJ_HAS_VARIABLE_TEMPLATES 1
+    #elif defined(_MSC_FULL_VER) && _MSC_FULL_VER >= 190023918L && _MSVC_LANG >= 201402L
+        #define JKJ_HAS_VARIABLE_TEMPLATES 1
+    #else
+        #define JKJ_HAS_VARIABLE_TEMPLATES 0
+    #endif
+
     // C++14 constexpr
     #if defined(__cpp_constexpr) && __cpp_constexpr >= 201304L
         #define JKJ_HAS_CONSTEXPR14 1
@@ -4404,6 +4415,7 @@ namespace JKJ_NAMESPACE {
     #undef JKJ_HAS_CONSTEXPR17
     #undef JKJ_CONSTEXPR14
     #undef JKJ_HAS_CONSTEXPR14
+    #undef JKJ_HAS_VARIABLE_TEMPLATES
     #if JKJ_FAST_MUL64_DEFINED
         #undef JKJ_FAST_MUL64_DEFINED
     #else

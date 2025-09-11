@@ -400,9 +400,11 @@ namespace JKJ_NAMESPACE {
                 1 + FloatFormat::decimal_significand_digits + 1 + 1 + 1 +
                 FloatFormat::decimal_exponent_digits;
         };
+#if JKJ_HAS_VARIABLE_TEMPLATES
         template <class FloatFormat>
         JKJ_INLINE_VARIABLE detail::stdr::size_t max_output_string_length =
             max_output_string_length_holder<FloatFormat>::value;
+#endif
     }
 }
 
