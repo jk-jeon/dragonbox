@@ -18,144 +18,8 @@
 #ifndef JKJ_HEADER_DRAGONBOX_TO_CHARS
 #define JKJ_HEADER_DRAGONBOX_TO_CHARS
 
+#define JKJ_DRAGONBOX_LEAK_MACROS
 #include "dragonbox.h"
-
-// Users vendoring this library are advised to define the macro JKJ_NAMESPACE to avoid potential clash
-// with other libraries vendoring this library. Every (non-macro) entity in this library will live
-// inside the namespace JKJ_NAMESPACE, whose default is "jkj".
-#ifndef JKJ_NAMESPACE
-    #define JKJ_NAMESPACE jkj
-#else
-    #define JKJ_NAMESPACE_DEFINED 1
-#endif
-
-////////////////////////////////////////////////////////////////////////////////////////
-// Language feature detections.
-////////////////////////////////////////////////////////////////////////////////////////
-
-// C++14 constexpr
-#if defined(__cpp_constexpr) && __cpp_constexpr >= 201304L
-    #define JKJ_HAS_CONSTEXPR14 1
-#elif __cplusplus >= 201402L
-    #define JKJ_HAS_CONSTEXPR14 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1910 && _MSVC_LANG >= 201402L
-    #define JKJ_HAS_CONSTEXPR14 1
-#else
-    #define JKJ_HAS_CONSTEXPR14 0
-#endif
-
-#if JKJ_HAS_CONSTEXPR14
-    #define JKJ_CONSTEXPR14 constexpr
-#else
-    #define JKJ_CONSTEXPR14
-#endif
-
-// C++17 constexpr lambdas
-#if defined(__cpp_constexpr) && __cpp_constexpr >= 201603L
-    #define JKJ_HAS_CONSTEXPR17 1
-#elif __cplusplus >= 201703L
-    #define JKJ_HAS_CONSTEXPR17 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1911 && _MSVC_LANG >= 201703L
-    #define JKJ_HAS_CONSTEXPR17 1
-#else
-    #define JKJ_HAS_CONSTEXPR17 0
-#endif
-
-// C++17 inline variables
-#if defined(__cpp_inline_variables) && __cpp_inline_variables >= 201606L
-    #define JKJ_HAS_INLINE_VARIABLE 1
-#elif __cplusplus >= 201703L
-    #define JKJ_HAS_INLINE_VARIABLE 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1912 && _MSVC_LANG >= 201703L
-    #define JKJ_HAS_INLINE_VARIABLE 1
-#else
-    #define JKJ_HAS_INLINE_VARIABLE 0
-#endif
-
-#if JKJ_HAS_INLINE_VARIABLE
-    #define JKJ_INLINE_VARIABLE inline constexpr
-#else
-    #define JKJ_INLINE_VARIABLE static constexpr
-#endif
-
-// C++17 if constexpr
-#if defined(__cpp_if_constexpr) && __cpp_if_constexpr >= 201606L
-    #define JKJ_HAS_IF_CONSTEXPR 1
-#elif __cplusplus >= 201703L
-    #define JKJ_HAS_IF_CONSTEXPR 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1911 && _MSVC_LANG >= 201703L
-    #define JKJ_HAS_IF_CONSTEXPR 1
-#else
-    #define JKJ_HAS_IF_CONSTEXPR 0
-#endif
-
-#if JKJ_HAS_IF_CONSTEXPR
-    #define JKJ_IF_CONSTEXPR if constexpr
-#else
-    #define JKJ_IF_CONSTEXPR if
-#endif
-
-// C++20 std::bit_cast
-#if JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
-    #if JKJ_STD_REPLACEMENT_HAS_BIT_CAST
-        #define JKJ_HAS_BIT_CAST 1
-    #else
-        #define JKJ_HAS_BIT_CAST 0
-    #endif
-#elif defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
-    #include <bit>
-    #define JKJ_HAS_BIT_CAST 1
-#else
-    #define JKJ_HAS_BIT_CAST 0
-#endif
-
-// C++23 if consteval or C++20 std::is_constant_evaluated
-#if defined(__cpp_if_consteval) && __cpp_is_consteval >= 202106L
-    #define JKJ_IF_CONSTEVAL if consteval
-    #define JKJ_IF_NOT_CONSTEVAL if !consteval
-    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-    #define JKJ_USE_IS_CONSTANT_EVALUATED 0
-#elif JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
-    #if JKJ_STD_REPLACEMENT_HAS_IS_CONSTANT_EVALUATED
-        #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
-        #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 1
-    #elif JKJ_HAS_IF_CONSTEXPR
-        #define JKJ_IF_CONSTEVAL if constexpr (false)
-        #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
-    #else
-        #define JKJ_IF_CONSTEVAL if (false)
-        #define JKJ_IF_NOT_CONSTEVAL if (true)
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
-    #endif
-#else
-    #if defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
-        #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
-        #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 1
-    #elif JKJ_HAS_IF_CONSTEXPR
-        #define JKJ_IF_CONSTEVAL if constexpr (false)
-        #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
-    #else
-        #define JKJ_IF_CONSTEVAL if (false)
-        #define JKJ_IF_NOT_CONSTEVAL if (true)
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
-    #endif
-#endif
-
-#if JKJ_CAN_BRANCH_ON_CONSTEVAL && JKJ_HAS_BIT_CAST
-    #define JKJ_CONSTEXPR20 constexpr
-#else
-    #define JKJ_CONSTEXPR20
-#endif
 
 namespace JKJ_NAMESPACE {
     namespace dragonbox {
@@ -534,7 +398,7 @@ namespace JKJ_NAMESPACE {
             static constexpr detail::stdr::size_t value =
                 // sign(1) + significand + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp
                 1 + FloatFormat::decimal_significand_digits + 1 + 1 + 1 +
-                FloatFormat::decimal_exponent_digits; 
+                FloatFormat::decimal_exponent_digits;
         };
         template <class FloatFormat>
         JKJ_INLINE_VARIABLE detail::stdr::size_t max_output_string_length =
@@ -542,23 +406,10 @@ namespace JKJ_NAMESPACE {
     }
 }
 
-#undef JKJ_CONSTEXPR20
-#undef JKJ_USE_IS_CONSTANT_EVALUATED
-#undef JKJ_CAN_BRANCH_ON_CONSTEVAL
-#undef JKJ_IF_NOT_CONSTEVAL
-#undef JKJ_IF_CONSTEVAL
-#undef JKJ_HAS_BIT_CAST
-#undef JKJ_IF_CONSTEXPR
-#undef JKJ_HAS_IF_CONSTEXPR
-#undef JKJ_INLINE_VARIABLE
-#undef JKJ_HAS_INLINE_VARIABLE
-#undef JKJ_HAS_CONSTEXPR17
-#undef JKJ_CONSTEXPR14
-#undef JKJ_HAS_CONSTEXPR14
-#if JKJ_NAMESPACE_DEFINED
-    #undef JKJ_NAMESPACE_DEFINED
-#else
-    #undef JKJ_NAMESPACE
+#ifndef JKJ_DRAGONBOX_TO_CHARS_LEAK_MACROS
+    // This will clean up all leaked macros.
+    #undef JKJ_DRAGONBOX_LEAK_MACROS
+    #include "dragonbox.h"
 #endif
 
 #endif

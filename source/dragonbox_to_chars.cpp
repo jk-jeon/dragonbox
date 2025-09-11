@@ -15,40 +15,8 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
 
+#define JKJ_DRAGONBOX_TO_CHARS_LEAK_MACROS
 #include "dragonbox/dragonbox_to_chars.h"
-
-#ifndef JKJ_NAMESPACE
-    #define JKJ_NAMESPACE jkj
-#endif
-
-#ifndef JKJ_STATIC_DATA_SECTION
-    #define JKJ_STATIC_DATA_SECTION
-#endif
-
-// C++17 if constexpr
-#if defined(__cpp_if_constexpr) && __cpp_if_constexpr >= 201606L
-    #define JKJ_HAS_IF_CONSTEXPR 1
-#elif __cplusplus >= 201703L
-    #define JKJ_HAS_IF_CONSTEXPR 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1911 && _MSVC_LANG >= 201703L
-    #define JKJ_HAS_IF_CONSTEXPR 1
-#else
-    #define JKJ_HAS_IF_CONSTEXPR 0
-#endif
-
-#if JKJ_HAS_IF_CONSTEXPR
-    #define JKJ_IF_CONSTEXPR if constexpr
-#else
-    #define JKJ_IF_CONSTEXPR if
-#endif
-
-#if defined(__GNUC__) || defined(__clang__)
-    #define JKJ_FORCEINLINE inline __attribute__((always_inline))
-#elif defined(_MSC_VER)
-    #define JKJ_FORCEINLINE __forceinline
-#else
-    #define JKJ_FORCEINLINE inline
-#endif
 
 namespace JKJ_NAMESPACE {
     namespace dragonbox {
