@@ -18,6 +18,11 @@
 #ifndef JKJ_HEADER_DRAGONBOX
 #define JKJ_HEADER_DRAGONBOX
 
+// User-provided header file that contains declarations of custom implementations and macros.
+#ifdef JKJ_DRAGONBOX_CONFIG_HEADER_NAME
+#include JKJ_DRAGONBOX_CONFIG_HEADER_NAME
+#endif
+
 // Users vendoring this library are advised to define the macro JKJ_NAMESPACE to avoid potential clash
 // with other libraries vendoring this library. Every (non-macro) entity in this library will live
 // inside the namespace JKJ_NAMESPACE, whose default is "jkj".
