@@ -343,13 +343,7 @@ namespace JKJ_NAMESPACE {
             // section. Users can specify such instructions by defining the macro
             // JKJ_READ_STATIC_DATA.
             template <class T>
-            JKJ_CONSTEXPR20 T read_static_data(T const* ptr) noexcept(
-#ifdef JKJ_READ_STATIC_DATA
-                noexcept(JKJ_READ_STATIC_DATA(ptr))
-#else
-                true
-#endif
-            ) {
+            JKJ_CONSTEXPR20 T read_static_data(T const* ptr) noexcept {
                 JKJ_IF_CONSTEVAL { return *ptr; }
                 else {
 #ifdef JKJ_READ_STATIC_DATA
@@ -2214,8 +2208,7 @@ namespace JKJ_NAMESPACE {
             static constexpr int max_k = cache_holder<FloatFormat>::max_k;
 
             template <class ShiftAmountType, class DecimalExponentType>
-            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept(
-                noexcept(detail::read_static_data(cache_holder<FloatFormat>::cache.data()))) {
+            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept {
                 return detail::read_static_data(cache_holder<FloatFormat>::cache.data() + k - min_k);
             }
         };
@@ -2269,8 +2262,7 @@ namespace JKJ_NAMESPACE {
 #endif
 
             template <class ShiftAmountType, class DecimalExponentType>
-            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept(
-                noexcept(detail::read_static_data(cache.data()))) {
+            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept {
                 // Compute the base index.
                 // Supposed to compute (k - min_k) / compression_ratio.
                 // Parentheses around min/max are to prevent macro expansions (e.g. in Windows.h).
@@ -2383,8 +2375,7 @@ namespace JKJ_NAMESPACE {
 #endif
 
             template <class ShiftAmountType, class DecimalExponentType>
-            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept(
-                noexcept(detail::read_static_data(cache.data()))) {
+            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept {
                 // Compute the base index.
                 // Supposed to compute (k - min_k) / compression_ratio.
                 // Parentheses around min/max are to prevent macro expansions (e.g. in Windows.h).
@@ -3016,8 +3007,7 @@ namespace JKJ_NAMESPACE {
 
                     template <class FloatFormat, class ShiftAmountType, class DecimalExponentType>
                     static JKJ_CONSTEXPR20 typename cache_holder_type<FloatFormat>::cache_entry_type
-                    get_cache(DecimalExponentType k) noexcept(noexcept(
-                        detail::read_static_data(cache_holder_type<FloatFormat>::cache.data()))) {
+                    get_cache(DecimalExponentType k) noexcept {
                         assert(k >= cache_holder_type<FloatFormat>::min_k &&
                                k <= cache_holder_type<FloatFormat>::max_k);
 
@@ -3034,8 +3024,7 @@ namespace JKJ_NAMESPACE {
 
                     template <class FloatFormat, class ShiftAmountType, class DecimalExponentType>
                     static JKJ_CONSTEXPR20 typename cache_holder<FloatFormat>::cache_entry_type
-                    get_cache(DecimalExponentType k) noexcept(noexcept(
-                        cache_holder_type<FloatFormat>::template get_cache<ShiftAmountType>(k))) {
+                    get_cache(DecimalExponentType k) noexcept {
                         assert(k >= cache_holder<FloatFormat>::min_k &&
                                k <= cache_holder<FloatFormat>::max_k);
 
