@@ -15,7 +15,6 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
 
-
 #ifndef JKJ_HEADER_DRAGONBOX
 #define JKJ_HEADER_DRAGONBOX
 
@@ -324,14 +323,42 @@ namespace JKJ_NAMESPACE {
             // Available since C++11, but including <utility> just for this is an overkill.
             template <class T>
             typename stdr::add_rvalue_reference<T>::type declval() noexcept;
+        }
 
-            // Similarly, including <array> is an overkill.
+
+        ////////////////////////////////////////////////////////////////////////////////////////
+        // Utilities for static data.
+        ////////////////////////////////////////////////////////////////////////////////////////
+        namespace detail {
+            // Including <array> is an overkill.
             template <class T, stdr::size_t N>
             struct array {
                 T data_[N];
+                constexpr T const* data() const noexcept { return data_; }
                 constexpr T operator[](stdr::size_t idx) const noexcept { return data_[idx]; }
                 JKJ_CONSTEXPR14 T& operator[](stdr::size_t idx) noexcept { return data_[idx]; }
             };
+
+            // Some platforms require special instructions for reading memory from dedicated data
+            // section. Users can specify such instructions by defining the macro
+            // JKJ_READ_STATIC_DATA.
+            template <class T>
+            JKJ_CONSTEXPR20 T read_static_data(T const* ptr) noexcept(
+#ifdef JKJ_READ_STATIC_DATA
+                noexcept(JKJ_READ_STATIC_DATA(ptr))
+#else
+                true
+#endif
+            ) {
+                JKJ_IF_CONSTEVAL { return *ptr; }
+                else {
+#ifdef JKJ_READ_STATIC_DATA
+                    return JKJ_READ_STATIC_DATA(ptr);
+#else
+                    return *ptr;
+#endif
+                }
+            }
         }
 
 
@@ -2187,8 +2214,9 @@ namespace JKJ_NAMESPACE {
             static constexpr int max_k = cache_holder<FloatFormat>::max_k;
 
             template <class ShiftAmountType, class DecimalExponentType>
-            static constexpr cache_entry_type get_cache(DecimalExponentType k) noexcept {
-                return cache_holder<FloatFormat>::cache[k - min_k];
+            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept(
+                noexcept(detail::read_static_data(cache_holder<FloatFormat>::cache.data()))) {
+                return detail::read_static_data(cache_holder<FloatFormat>::cache.data() + k - min_k);
             }
         };
 
@@ -2241,7 +2269,8 @@ namespace JKJ_NAMESPACE {
 #endif
 
             template <class ShiftAmountType, class DecimalExponentType>
-            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept {
+            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept(
+                noexcept(detail::read_static_data(cache.data()))) {
                 // Compute the base index.
                 // Supposed to compute (k - min_k) / compression_ratio.
                 // Parentheses around min/max are to prevent macro expansions (e.g. in Windows.h).
@@ -2256,7 +2285,7 @@ namespace JKJ_NAMESPACE {
                 auto const offset = DecimalExponentType(k - kb);
 
                 // Get the base cache.
-                auto const base_cache = cache[cache_index];
+                auto const base_cache = detail::read_static_data(cache.data() + cache_index);
 
                 if (offset == 0) {
                     return base_cache;
@@ -2268,11 +2297,13 @@ namespace JKJ_NAMESPACE {
                     assert(alpha > 0 && alpha < 32);
 
                     // Try to recover the real cache.
+                    constexpr auto pow5_6 = detail::stdr::uint_fast32_t(pow5_table[6]);
                     auto const pow5 =
                         offset >= 7
-                            ? detail::stdr::uint_fast32_t(detail::stdr::uint_fast32_t(pow5_table[6]) *
-                                                          pow5_table[offset - 6])
-                            : detail::stdr::uint_fast32_t(pow5_table[offset]);
+                            ? detail::stdr::uint_fast32_t(
+                                  pow5_6 * detail::read_static_data(pow5_table.data() + offset - 6))
+                            : detail::stdr::uint_fast32_t(
+                                  detail::read_static_data(pow5_table.data() + offset));
                     auto mul_result = detail::wuint::umul96(pow5, base_cache);
 
                     auto const recovered_cache =
@@ -2352,7 +2383,8 @@ namespace JKJ_NAMESPACE {
 #endif
 
             template <class ShiftAmountType, class DecimalExponentType>
-            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept {
+            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept(
+                noexcept(detail::read_static_data(cache.data()))) {
                 // Compute the base index.
                 // Supposed to compute (k - min_k) / compression_ratio.
                 // Parentheses around min/max are to prevent macro expansions (e.g. in Windows.h).
@@ -2367,7 +2399,7 @@ namespace JKJ_NAMESPACE {
                 auto const offset = DecimalExponentType(k - kb);
 
                 // Get the base cache.
-                auto const base_cache = cache[cache_index];
+                auto const base_cache = detail::read_static_data(cache.data() + cache_index);
 
                 if (offset == 0) {
                     return base_cache;
@@ -2379,7 +2411,7 @@ namespace JKJ_NAMESPACE {
                     assert(alpha > 0 && alpha < 64);
 
                     // Try to recover the real cache.
-                    auto const pow5 = pow5_table[offset];
+                    auto const pow5 = detail::read_static_data(pow5_table.data() + offset);
                     auto recovered_cache = detail::wuint::umul128(base_cache.high(), pow5);
                     auto const middle_low = detail::wuint::umul128(base_cache.low(), pow5);
 
@@ -2983,14 +3015,15 @@ namespace JKJ_NAMESPACE {
                     using cache_holder_type = cache_holder<FloatFormat>;
 
                     template <class FloatFormat, class ShiftAmountType, class DecimalExponentType>
-                    static constexpr typename cache_holder_type<FloatFormat>::cache_entry_type
-                    get_cache(DecimalExponentType k) noexcept {
-#if JKJ_HAS_CONSTEXPR14
+                    static JKJ_CONSTEXPR20 typename cache_holder_type<FloatFormat>::cache_entry_type
+                    get_cache(DecimalExponentType k) noexcept(noexcept(
+                        detail::read_static_data(cache_holder_type<FloatFormat>::cache.data()))) {
                         assert(k >= cache_holder_type<FloatFormat>::min_k &&
                                k <= cache_holder_type<FloatFormat>::max_k);
-#endif
-                        return cache_holder_type<FloatFormat>::cache[detail::stdr::size_t(
-                            k - cache_holder_type<FloatFormat>::min_k)];
+
+                        return detail::read_static_data(
+                            cache_holder_type<FloatFormat>::cache.data() +
+                            detail::stdr::size_t(k - cache_holder_type<FloatFormat>::min_k));
                     }
                 } full = {};
 
@@ -3001,7 +3034,8 @@ namespace JKJ_NAMESPACE {
 
                     template <class FloatFormat, class ShiftAmountType, class DecimalExponentType>
                     static JKJ_CONSTEXPR20 typename cache_holder<FloatFormat>::cache_entry_type
-                    get_cache(DecimalExponentType k) noexcept {
+                    get_cache(DecimalExponentType k) noexcept(noexcept(
+                        cache_holder_type<FloatFormat>::template get_cache<ShiftAmountType>(k))) {
                         assert(k >= cache_holder<FloatFormat>::min_k &&
                                k <= cache_holder<FloatFormat>::max_k);
 
