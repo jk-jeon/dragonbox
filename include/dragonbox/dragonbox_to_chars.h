@@ -313,44 +313,23 @@ namespace JKJ_NAMESPACE {
                     *buffer = char('0' + significand);
                     ++buffer;
                 }
-                if (significand >= 10) {
-                    // Ugly hack to avoid zero-init in runtime while allowing constexpr.
-                    JKJ_IF_CONSTEVAL {
-                        char temp[FloatFormat::decimal_significand_digits]{};
-                        auto ptr = to_chars_impl::print_integer_backward<CarrierUInt, 10,
-                                                                         max_decimal_significand>(
+                else {
+                    char temp[FloatFormat::decimal_significand_digits];
+                    auto ptr =
+                        to_chars_impl::print_integer_backward<CarrierUInt, 10, max_decimal_significand>(
                             significand, temp + FloatFormat::decimal_significand_digits - 1);
 
-                        buffer[0] = char('0' + significand);
-                        buffer[1] = '.';
-                        buffer += 2;
-                        exponent += static_cast<ExponentType>(
-                            temp + FloatFormat::decimal_significand_digits - ptr);
+                    buffer[0] = char('0' + significand);
+                    buffer[1] = '.';
+                    buffer += 2;
+                    exponent += static_cast<ExponentType>(
+                        temp + FloatFormat::decimal_significand_digits - ptr);
 
-                        do {
-                            *buffer = *ptr;
-                            ++buffer;
-                            ++ptr;
-                        } while (ptr != temp + FloatFormat::decimal_significand_digits);
-                    }
-                    else {
-                        char temp[FloatFormat::decimal_significand_digits];
-                        auto ptr = to_chars_impl::print_integer_backward<CarrierUInt, 10,
-                                                                         max_decimal_significand>(
-                            significand, temp + FloatFormat::decimal_significand_digits - 1);
-
-                        buffer[0] = char('0' + significand);
-                        buffer[1] = '.';
-                        buffer += 2;
-                        exponent += static_cast<ExponentType>(
-                            temp + FloatFormat::decimal_significand_digits - ptr);
-
-                        do {
-                            *buffer = *ptr;
-                            ++buffer;
-                            ++ptr;
-                        } while (ptr != temp + FloatFormat::decimal_significand_digits);
-                    }
+                    do {
+                        *buffer = *ptr;
+                        ++buffer;
+                        ++ptr;
+                    } while (ptr != temp + FloatFormat::decimal_significand_digits);
                 }
 
                 // Print exponent.
@@ -363,33 +342,18 @@ namespace JKJ_NAMESPACE {
                 }
                 auto exponent_unsigned =
                     static_cast<typename stdr::make_unsigned<ExponentType>::type>(exponent);
-                // Ugly hack to avoid zero-init in runtime while allowing constexpr.
-                JKJ_IF_CONSTEVAL {
-                    char temp[FloatFormat::decimal_exponent_digits]{};
-                    auto ptr =
-                        to_chars_impl::print_integer_backward<decltype(exponent_unsigned), 1,
-                                                              FloatFormat::max_abs_decimal_exponent>(
-                            exponent_unsigned, temp + FloatFormat::decimal_exponent_digits - 1);
+                
+                char temp[FloatFormat::decimal_exponent_digits];
+                auto ptr = to_chars_impl::print_integer_backward<decltype(exponent_unsigned), 1,
+                                                                 FloatFormat::max_abs_decimal_exponent>(
+                    exponent_unsigned, temp + FloatFormat::decimal_exponent_digits - 1);
 
-                    do {
-                        *buffer = *ptr;
-                        ++buffer;
-                        ++ptr;
-                    } while (ptr != temp + FloatFormat::decimal_exponent_digits);
-                }
-                else {
-                    char temp[FloatFormat::decimal_exponent_digits];
-                    auto ptr =
-                        to_chars_impl::print_integer_backward<decltype(exponent_unsigned), 1,
-                                                              FloatFormat::max_abs_decimal_exponent>(
-                            exponent_unsigned, temp + FloatFormat::decimal_exponent_digits - 1);
+                do {
+                    *buffer = *ptr;
+                    ++buffer;
+                    ++ptr;
+                } while (ptr != temp + FloatFormat::decimal_exponent_digits);
 
-                    do {
-                        *buffer = *ptr;
-                        ++buffer;
-                        ++ptr;
-                    } while (ptr != temp + FloatFormat::decimal_exponent_digits);
-                }
                 return buffer;
             }
         }
