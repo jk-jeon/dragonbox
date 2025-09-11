@@ -2269,9 +2269,11 @@ namespace JKJ_NAMESPACE {
                 static_assert(max_k - min_k <= 89 && compression_ratio == 13, "");
                 static_assert(
                     max_k - min_k <= (detail::stdr::numeric_limits<DecimalExponentType>::max)(), "");
+                using unsigned_exponent_type =
+                    typename detail::stdr::make_unsigned<DecimalExponentType>::type;
                 auto const cache_index =
-                    DecimalExponentType(detail::stdr::uint_fast16_t(DecimalExponentType(k - min_k) *
-                                                                    detail::stdr::int_fast16_t(79)) >>
+                    DecimalExponentType(detail::stdr::uint_fast16_t(unsigned_exponent_type(k - min_k) *
+                                                                    detail::stdr::uint_fast16_t(79)) >>
                                         10);
                 auto const kb = DecimalExponentType(cache_index * compression_ratio + min_k);
                 auto const offset = DecimalExponentType(k - kb);
@@ -2382,9 +2384,11 @@ namespace JKJ_NAMESPACE {
                 static_assert(max_k - min_k <= 619 && compression_ratio == 27, "");
                 static_assert(
                     max_k - min_k <= (detail::stdr::numeric_limits<DecimalExponentType>::max)(), "");
+                using unsigned_exponent_type =
+                    typename detail::stdr::make_unsigned<DecimalExponentType>::type;
                 auto const cache_index =
-                    DecimalExponentType(detail::stdr::uint_fast32_t(DecimalExponentType(k - min_k) *
-                                                                    detail::stdr::int_fast32_t(607)) >>
+                    DecimalExponentType(detail::stdr::uint_fast32_t(unsigned_exponent_type(k - min_k) *
+                                                                    detail::stdr::uint_fast32_t(607)) >>
                                         14);
                 auto const kb = DecimalExponentType(cache_index * compression_ratio + min_k);
                 auto const offset = DecimalExponentType(k - kb);
