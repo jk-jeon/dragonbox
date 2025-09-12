@@ -24,49 +24,53 @@ namespace JKJ_NAMESPACE {
             // These "//"'s are to prevent clang-format to ruin this nice alignment.
             // Thanks to reddit user u/mcmcc:
             // https://www.reddit.com/r/cpp/comments/so3wx9/dragonbox_110_is_released_a_fast_floattostring/hw8z26r/?context=3
-            static constexpr char radix_100_table[200] JKJ_STATIC_DATA_SECTION = {
-                '0', '0', '0', '1', '0', '2', '0', '3', '0', '4', //
-                '0', '5', '0', '6', '0', '7', '0', '8', '0', '9', //
-                '1', '0', '1', '1', '1', '2', '1', '3', '1', '4', //
-                '1', '5', '1', '6', '1', '7', '1', '8', '1', '9', //
-                '2', '0', '2', '1', '2', '2', '2', '3', '2', '4', //
-                '2', '5', '2', '6', '2', '7', '2', '8', '2', '9', //
-                '3', '0', '3', '1', '3', '2', '3', '3', '3', '4', //
-                '3', '5', '3', '6', '3', '7', '3', '8', '3', '9', //
-                '4', '0', '4', '1', '4', '2', '4', '3', '4', '4', //
-                '4', '5', '4', '6', '4', '7', '4', '8', '4', '9', //
-                '5', '0', '5', '1', '5', '2', '5', '3', '5', '4', //
-                '5', '5', '5', '6', '5', '7', '5', '8', '5', '9', //
-                '6', '0', '6', '1', '6', '2', '6', '3', '6', '4', //
-                '6', '5', '6', '6', '6', '7', '6', '8', '6', '9', //
-                '7', '0', '7', '1', '7', '2', '7', '3', '7', '4', //
-                '7', '5', '7', '6', '7', '7', '7', '8', '7', '9', //
-                '8', '0', '8', '1', '8', '2', '8', '3', '8', '4', //
-                '8', '5', '8', '6', '8', '7', '8', '8', '8', '9', //
-                '9', '0', '9', '1', '9', '2', '9', '3', '9', '4', //
-                '9', '5', '9', '6', '9', '7', '9', '8', '9', '9'  //
+            struct byte_pair {
+                char bytes[2];
             };
-            static constexpr char radix_100_head_table[200] JKJ_STATIC_DATA_SECTION = {
-                '0', '.', '1', '.', '2', '.', '3', '.', '4', '.', //
-                '5', '.', '6', '.', '7', '.', '8', '.', '9', '.', //
-                '1', '.', '1', '.', '1', '.', '1', '.', '1', '.', //
-                '1', '.', '1', '.', '1', '.', '1', '.', '1', '.', //
-                '2', '.', '2', '.', '2', '.', '2', '.', '2', '.', //
-                '2', '.', '2', '.', '2', '.', '2', '.', '2', '.', //
-                '3', '.', '3', '.', '3', '.', '3', '.', '3', '.', //
-                '3', '.', '3', '.', '3', '.', '3', '.', '3', '.', //
-                '4', '.', '4', '.', '4', '.', '4', '.', '4', '.', //
-                '4', '.', '4', '.', '4', '.', '4', '.', '4', '.', //
-                '5', '.', '5', '.', '5', '.', '5', '.', '5', '.', //
-                '5', '.', '5', '.', '5', '.', '5', '.', '5', '.', //
-                '6', '.', '6', '.', '6', '.', '6', '.', '6', '.', //
-                '6', '.', '6', '.', '6', '.', '6', '.', '6', '.', //
-                '7', '.', '7', '.', '7', '.', '7', '.', '7', '.', //
-                '7', '.', '7', '.', '7', '.', '7', '.', '7', '.', //
-                '8', '.', '8', '.', '8', '.', '8', '.', '8', '.', //
-                '8', '.', '8', '.', '8', '.', '8', '.', '8', '.', //
-                '9', '.', '9', '.', '9', '.', '9', '.', '9', '.', //
-                '9', '.', '9', '.', '9', '.', '9', '.', '9', '.'  //
+            static constexpr byte_pair radix_100_table[100] JKJ_STATIC_DATA_SECTION = {
+                {'0', '0'}, {'0', '1'}, {'0', '2'}, {'0', '3'}, {'0', '4'}, //
+                {'0', '5'}, {'0', '6'}, {'0', '7'}, {'0', '8'}, {'0', '9'}, //
+                {'1', '0'}, {'1', '1'}, {'1', '2'}, {'1', '3'}, {'1', '4'}, //
+                {'1', '5'}, {'1', '6'}, {'1', '7'}, {'1', '8'}, {'1', '9'}, //
+                {'2', '0'}, {'2', '1'}, {'2', '2'}, {'2', '3'}, {'2', '4'}, //
+                {'2', '5'}, {'2', '6'}, {'2', '7'}, {'2', '8'}, {'2', '9'}, //
+                {'3', '0'}, {'3', '1'}, {'3', '2'}, {'3', '3'}, {'3', '4'}, //
+                {'3', '5'}, {'3', '6'}, {'3', '7'}, {'3', '8'}, {'3', '9'}, //
+                {'4', '0'}, {'4', '1'}, {'4', '2'}, {'4', '3'}, {'4', '4'}, //
+                {'4', '5'}, {'4', '6'}, {'4', '7'}, {'4', '8'}, {'4', '9'}, //
+                {'5', '0'}, {'5', '1'}, {'5', '2'}, {'5', '3'}, {'5', '4'}, //
+                {'5', '5'}, {'5', '6'}, {'5', '7'}, {'5', '8'}, {'5', '9'}, //
+                {'6', '0'}, {'6', '1'}, {'6', '2'}, {'6', '3'}, {'6', '4'}, //
+                {'6', '5'}, {'6', '6'}, {'6', '7'}, {'6', '8'}, {'6', '9'}, //
+                {'7', '0'}, {'7', '1'}, {'7', '2'}, {'7', '3'}, {'7', '4'}, //
+                {'7', '5'}, {'7', '6'}, {'7', '7'}, {'7', '8'}, {'7', '9'}, //
+                {'8', '0'}, {'8', '1'}, {'8', '2'}, {'8', '3'}, {'8', '4'}, //
+                {'8', '5'}, {'8', '6'}, {'8', '7'}, {'8', '8'}, {'8', '9'}, //
+                {'9', '0'}, {'9', '1'}, {'9', '2'}, {'9', '3'}, {'9', '4'}, //
+                {'9', '5'}, {'9', '6'}, {'9', '7'}, {'9', '8'}, {'9', '9'}  //
+            };
+
+            static constexpr byte_pair radix_100_head_table[100] JKJ_STATIC_DATA_SECTION = {
+                {'0', '.'}, {'1', '.'}, {'2', '.'}, {'3', '.'}, {'4', '.'}, //
+                {'5', '.'}, {'6', '.'}, {'7', '.'}, {'8', '.'}, {'9', '.'}, //
+                {'1', '.'}, {'1', '.'}, {'1', '.'}, {'1', '.'}, {'1', '.'}, //
+                {'1', '.'}, {'1', '.'}, {'1', '.'}, {'1', '.'}, {'1', '.'}, //
+                {'2', '.'}, {'2', '.'}, {'2', '.'}, {'2', '.'}, {'2', '.'}, //
+                {'2', '.'}, {'2', '.'}, {'2', '.'}, {'2', '.'}, {'2', '.'}, //
+                {'3', '.'}, {'3', '.'}, {'3', '.'}, {'3', '.'}, {'3', '.'}, //
+                {'3', '.'}, {'3', '.'}, {'3', '.'}, {'3', '.'}, {'3', '.'}, //
+                {'4', '.'}, {'4', '.'}, {'4', '.'}, {'4', '.'}, {'4', '.'}, //
+                {'4', '.'}, {'4', '.'}, {'4', '.'}, {'4', '.'}, {'4', '.'}, //
+                {'5', '.'}, {'5', '.'}, {'5', '.'}, {'5', '.'}, {'5', '.'}, //
+                {'5', '.'}, {'5', '.'}, {'5', '.'}, {'5', '.'}, {'5', '.'}, //
+                {'6', '.'}, {'6', '.'}, {'6', '.'}, {'6', '.'}, {'6', '.'}, //
+                {'6', '.'}, {'6', '.'}, {'6', '.'}, {'6', '.'}, {'6', '.'}, //
+                {'7', '.'}, {'7', '.'}, {'7', '.'}, {'7', '.'}, {'7', '.'}, //
+                {'7', '.'}, {'7', '.'}, {'7', '.'}, {'7', '.'}, {'7', '.'}, //
+                {'8', '.'}, {'8', '.'}, {'8', '.'}, {'8', '.'}, {'8', '.'}, //
+                {'8', '.'}, {'8', '.'}, {'8', '.'}, {'8', '.'}, {'8', '.'}, //
+                {'9', '.'}, {'9', '.'}, {'9', '.'}, {'9', '.'}, {'9', '.'}, //
+                {'9', '.'}, {'9', '.'}, {'9', '.'}, {'9', '.'}, {'9', '.'}  //
             };
 
             static void print_1_digit(int n, char* buffer) noexcept {
@@ -77,7 +81,13 @@ namespace JKJ_NAMESPACE {
             }
 
             static void print_2_digits(int n, char* buffer) noexcept {
-                stdr::memcpy(buffer, radix_100_table + n * 2, 2);
+                auto bp = read_static_data(radix_100_table + n);
+                stdr::memcpy(buffer, &bp, 2);
+            }
+
+            static void print_head_chars(int n, char* buffer) noexcept {
+                auto bp = read_static_data(radix_100_head_table + n);
+                stdr::memcpy(buffer, &bp, 2);
             }
 
             // These digit generation routines are inspired by James Anhalt's itoa algorithm:
@@ -105,7 +115,7 @@ namespace JKJ_NAMESPACE {
                     // 1441151882 = ceil(2^57 / 1'0000'0000) + 1
                     auto prod = s32 * UINT64_C(1441151882);
                     prod >>= 25;
-                    stdr::memcpy(buffer, radix_100_head_table + int(prod >> 32) * 2, 2);
+                    print_head_chars(int(prod >> 32), buffer);
 
                     prod = (prod & UINT32_C(0xffffffff)) * 100;
                     print_2_digits(int(prod >> 32), buffer + 2);
@@ -130,9 +140,9 @@ namespace JKJ_NAMESPACE {
                     exponent += (6 + int(head_digits >= 10));
 
                     // Write the first digit and the decimal point.
-                    stdr::memcpy(buffer, radix_100_head_table + head_digits * 2, 2);
+                    print_head_chars(head_digits, buffer);
                     // This third character may be overwritten later but we don't care.
-                    buffer[2] = radix_100_table[head_digits * 2 + 1];
+                    buffer[2] = radix_100_table[head_digits].bytes[1];
 
                     // Remaining 6 digits are all zero?
                     if ((prod & UINT32_C(0xffffffff)) <=
@@ -192,9 +202,9 @@ namespace JKJ_NAMESPACE {
                     exponent += (4 + int(head_digits >= 10));
 
                     // Write the first digit and the decimal point.
-                    stdr::memcpy(buffer, radix_100_head_table + head_digits * 2, 2);
+                    print_head_chars(head_digits, buffer);
                     // This third character may be overwritten later but we don't care.
-                    buffer[2] = radix_100_table[head_digits * 2 + 1];
+                    buffer[2] = radix_100_table[head_digits].bytes[1];
 
                     // Remaining 4 digits are all zero?
                     if ((prod & UINT32_C(0xffffffff)) <=
@@ -237,9 +247,9 @@ namespace JKJ_NAMESPACE {
                     exponent += (2 + int(head_digits >= 10));
 
                     // Write the first digit and the decimal point.
-                    stdr::memcpy(buffer, radix_100_head_table + head_digits * 2, 2);
+                    print_head_chars(head_digits, buffer);
                     // This third character may be overwritten later but we don't care.
-                    buffer[2] = radix_100_table[head_digits * 2 + 1];
+                    buffer[2] = radix_100_table[head_digits].bytes[1];
 
                     // Remaining 2 digits are all zero?
                     if ((prod & UINT32_C(0xffffffff)) <=
@@ -266,9 +276,9 @@ namespace JKJ_NAMESPACE {
                     exponent += int(s32 >= 10);
 
                     // Write the first digit and the decimal point.
-                    stdr::memcpy(buffer, radix_100_head_table + s32 * 2, 2);
+                    print_head_chars(int(s32), buffer);
                     // This third character may be overwritten later but we don't care.
-                    buffer[2] = radix_100_table[s32 * 2 + 1];
+                    buffer[2] = radix_100_table[s32].bytes[1];
 
                     // The number of characters actually written is 1 or 3, similarly to the case of
                     // 7 or 8 digits.
@@ -338,7 +348,7 @@ namespace JKJ_NAMESPACE {
                         // 1441151882 = ceil(2^57 / 1'0000'0000) + 1
                         auto prod = first_block * UINT64_C(1441151882);
                         prod >>= 25;
-                        stdr::memcpy(buffer, radix_100_head_table + int(prod >> 32) * 2, 2);
+                        print_head_chars(int(prod >> 32), buffer);
                         prod = (prod & UINT32_C(0xffffffff)) * 100;
                         print_2_digits(int(prod >> 32), buffer + 2);
                         prod = (prod & UINT32_C(0xffffffff)) * 100;
@@ -372,8 +382,8 @@ namespace JKJ_NAMESPACE {
                             prod >>= 16;
                             auto const head_digits = int(prod >> 32);
 
-                            stdr::memcpy(buffer, radix_100_head_table + head_digits * 2, 2);
-                            buffer[2] = radix_100_table[head_digits * 2 + 1];
+                            print_head_chars(head_digits, buffer);
+                            buffer[2] = radix_100_table[head_digits].bytes[1];
 
                             exponent += (6 + int(head_digits >= 10));
                             buffer += int(head_digits >= 10);
@@ -394,8 +404,8 @@ namespace JKJ_NAMESPACE {
                             auto prod = first_block * UINT64_C(429497);
                             auto const head_digits = int(prod >> 32);
 
-                            stdr::memcpy(buffer, radix_100_head_table + head_digits * 2, 2);
-                            buffer[2] = radix_100_table[head_digits * 2 + 1];
+                            print_head_chars(head_digits, buffer);
+                            buffer[2] = radix_100_table[head_digits].bytes[1];
 
                             exponent += (4 + int(head_digits >= 10));
                             buffer += int(head_digits >= 10);
@@ -414,8 +424,8 @@ namespace JKJ_NAMESPACE {
                             auto prod = first_block * UINT64_C(42949673);
                             auto const head_digits = int(prod >> 32);
 
-                            stdr::memcpy(buffer, radix_100_head_table + head_digits * 2, 2);
-                            buffer[2] = radix_100_table[head_digits * 2 + 1];
+                            print_head_chars(head_digits, buffer);
+                            buffer[2] = radix_100_table[head_digits].bytes[1];
 
                             exponent += (2 + int(head_digits >= 10));
                             buffer += int(head_digits >= 10);
@@ -428,8 +438,8 @@ namespace JKJ_NAMESPACE {
                         }
                         else {
                             // 1 or 2 digits.
-                            stdr::memcpy(buffer, radix_100_head_table + first_block * 2, 2);
-                            buffer[2] = radix_100_table[first_block * 2 + 1];
+                            print_head_chars(int(first_block), buffer);
+                            buffer[2] = radix_100_table[first_block].bytes[1];
 
                             exponent += int(first_block >= 10);
                             buffer += (2 + int(first_block >= 10));
