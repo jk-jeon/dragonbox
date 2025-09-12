@@ -376,8 +376,8 @@ namespace JKJ_NAMESPACE {
                 JKJ_CONSTEXPR14 T& operator[](stdr::size_t idx) noexcept { return data_[idx]; }
             };
 
-            // Some platforms require special instructions for reading memory from dedicated data
-            // section. Users can specify such instructions by defining the macro
+            // Platforms may require special instructions for reading static data declared with
+            // JKJ_STATIC_DATA_SECTION. Users can specify such instructions by defining the macro
             // JKJ_READ_STATIC_DATA.
             template <class T>
             JKJ_CONSTEXPR20 T read_static_data(T const* ptr) noexcept {
